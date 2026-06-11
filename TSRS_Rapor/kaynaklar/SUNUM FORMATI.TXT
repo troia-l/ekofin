@@ -1,0 +1,38 @@
+1. PROJE ÖZETİ (0-10 PUAN)
+Projenin konusu açık ve öz bir şekilde belirtilmelidir. 
+Projenin amacı, kapsamı ve yöntemi anlaşılır bir biçimde tanımlanmalıdır.  
+
+
+2. ÇÖZÜM ÜRETTİĞİ SORUN/İHTİYAÇ (0-15 PUAN
+Projenin çözüm üretmeyi planladığı sorun ya da ihtiyaç açık bir şekilde belirtilmelidir. 
+Projenin, çözmeyi hedeflediği sorunla alakalı mevcut durum ve eksiklikler net bir şekilde gösterilmelidir. 
+Önerilen çözüm, belirli kriterler çerçevesinde güçlü yönleri ile açıklanmalı ve çözümün mevcut alternatiflerden farkı ortaya konmalıdır. 
+
+
+3. KULLANILACAK YÖNTEM (0-25 PUAN)
+Tasarlanan çözümde kullanılacak teknikler, metotlar, yapılacak analizler ve deneyler(varsa) detaylı bir biçimde açıklanmalıdır. 
+Proje ileri teknoloji içermeli ve/veya mevcut teknolojileri yenilikçi ve özgün yöntemler ile uygulamalıdır. 
+Kullanılacak yöntemlerin mevcut alternatiflere kıyasla neden tercih edildiği, hangi açılardan daha verimli ve/veya etkin olduğu açıklanmalıdır. 
+Teknik yaklaşımın bilimsel temelleri vurgulanmalıdır.
+
+4.  İŞ MODELİ (0-20 PUAN)
+Projenin faaliyet göstereceği pazarın büyüklüğü, trendleri ve rekabet ortamı güvenilir kaynaklardan elde edilen bilgiler ile analiz edilmelidir.  
+Projenin hedef kitlesi geliştirilen projeye uygun ve gerçekçi olacak şekilde tanımlanmalı, gelir ve yaş gibi alt gruplar ile kullanıcı profilleri gösterilmelidir. 
+Projenin iş modeli ve ticarileşme potansiyeli açıklanmalıdır. 
+
+5. RAKİP ANALİZİ (0-10 PUAN) 
+Pazardaki birincil ve/veya ikincil rakiplerin, takımın ürünü/hizmeti ile karşılaştırıldığı bir tablo ile görselleştirilmesi gerekmektedir. 
+Rakipler hakkında analiz yapılarak projenin yenilikçi yönü hakkında bilgi verilmeli, projeyi, piyasada bulunan benzer ürünlerden ayıran özelliklerin neler olduğu belirtilmelidir. 
+6. RİSK ANALİZİ (0-10 PUAN)
+Projenin başarısını etkileyebilecek olası riskler objektif bir biçimde belirtilmelidir. 
+Bu risklere karşı alınabilecek gerçekçi önlemler ve çözümler açıklanmalıdır. 
+
+7. PROJE TAKVİMİ (0-5 PUAN)
+Proje kapsamında iş paketleri alt faaliyetleri ile birlikte detaylı ve açık bir biçimde görsel açıdan anlaşılır bir şema/tablo kullanılarak gösterilmelidir. 
+Proje takvimi, iş paketleri ve zamanları açısından gerçekçi olmalıdır. 
+
+8.  RAPOR DÜZENİ (0-5 PUAN)
+Rapor şablonda yer alan tüm başlıkları içermekte ve bu başlıklarla ilgili tatmin edici bilgi vermektedir
+Raporda kullanılan şekiller/tablolar/diyagramlar anlaşılır ve düzenlidir.
+Şartnamede ve şablonda belirtilen kurallara uygun olarak hazırlanmıştır.  
+Rapor sayfa sayısı 5 üzerinde olan raporlar bu bölümden 0 Puan almalıdır.

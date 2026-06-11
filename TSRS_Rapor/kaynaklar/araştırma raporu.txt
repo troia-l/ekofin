@@ -1,0 +1,137 @@
+
+
+ESG ve Yeşil Finans
+Kapsamlı Pazar Analizi ve Fayda Raporu
+Risk-Fayda Skorlama Sistemi ve Yeşil Finansal Urunler
+Stratejik Arastırma ve Danışmanlık
+Mart 2025
+ 
+Içindekiler
+(Ipucu: Ilk acilista, dogru sayfa numaralari icin icerik tablosuna sag tiklayip "Alani Guncelle" secenegini secin)
+Içindekiler	2
+1. Executive Summary	3
+2. Global ESG ve Yesil Finans Pazari	3
+2.1 ESG Yatirim Pazari Buyuklugu	3
+2.2 Surdurulebilir Finans Pazari	4
+2.3 Yesil Tahvil Pazari	4
+3. ESG Skorlama Metodolojileri	5
+3.1 Mevcut Skorlama Sistemleri	5
+MSCI ESG Ratings	5
+Sustainalytics ESG Risk Ratings	5
+Moody’s ESG (Vigeo-Eiris)	5
+3.2 Risk-Fayda Analizi	5
+4. Proje Fikrinin Potansiyel Faydalari	6
+4.1 Finansal Faydalar	6
+4.2 Operasyonel Faydalar	6
+4.3 Stratejik Faydalar	6
+5. Turkiye Pazari Analizi	7
+Mevcut Durum	7
+Hedefler ve Projeksiyonlar	7
+6. Sonuc ve Oneriler	7
+Kisa Vadeli Oneriler (0-12 Ay)	7
+Orta Vadeli Oneriler (1-3 Yil)	7
+Uzun Vadeli Oneriler (3-5 Yil)	8
+
+ 
+1. Executive Summary
+Bu rapor, ESG (Environmental, Social, Governance) skorlama sistemleri ve yesil finansal urunler alaninda yapilacak yenilikci bir risk-fayda analizi sisteminin potansiyel faydalarini ve pazar buyuklugunu kapsamli bir sekilde incelemektedir.
+Global ESG yatirim pazari 2025 yilinda 35.48 trilyon dolar degerine ulasmis olup, 2035 yilina kadar 191.22 trilyon dolara ulasmasi ve yillik ortalama %18.27 buyume orani (CAGR) gostermesi ongorulmektedir. Bu buyumenin arkasinda yatan temel faktorler, artan duzenleyici baskilar, yatirimci farkindaliginin yukselmesi ve surdurulebilirligin finansal performans uzerindeki olumlu etkilerinin kanitlanmasidir.
+Turkiye acisindan bakildiginda, 2053 net sifir emisyon hedefi dogrultusunda 30 yillik surecte toplam 3 trilyon dolarlik yatirim gereksinimi bulunmaktadir. Bu baglamda, kendi ESG skorlama sisteminizi gelistirmek ve buna paralel olarak yesil yatirimlar icin risk-fayda analizi yapacak ek skorlar uretmek, hem yerel hem de uluslararasi pazarda onemli bir rekabet avantaji saglayacaktir.
+2. Global ESG ve Yesil Finans Pazari
+2.1 ESG Yatirim Pazari Buyuklugu
+Global ESG yatirim pazari, son yillarda finans dunyasinin en hizli buyuyen segmentlerinden biri haline gelmistir. Asagidaki tablo, pazar buyuklugunun zaman icindeki gelisimini gostermektedir:
+Pazar Segmenti	2025 (Milyar $)	2035 (Milyar $)	CAGR (%)
+ESG Yatirim	35,480	191,220	18.27
+Surdurulebilir Finans	7,950	42,680	18.30
+Yesil Tahvil	527	1,046	10.30
+ESG Yazilim	1.24	5.19	20.10
+ESG Hizmetleri	39	70	11.00
+Pazar buyumesinin temel itici gucleri sunlardir:
+• Artan duzenleyici gereklilikler: AB Green Deal, CSRD (Corporate Sustainability Reporting Directive) ve diger uluslararasi duzenlemeler
+• Yatirimci talebi: PwC Global Investor Survey’e gore yatirimcilarin %79’u yatirim kararlarinda ESG risk ve firsatlarini dikkate almaktadir
+• Sirketlerin surdurulebilirlik odakli is strategileri gelistirmesi
+• Iklim degisikligi risklerinin finansal sistem uzerindeki etkilerinin artan farkindaligi
+2.2 Surdurulebilir Finans Pazari
+Surdurulebilir finans pazari, yesil tahviller, surdurulebilirlik baglantili krediler ve sosyal etki tahvilleri gibi cesitli finansal araclari kapsamaktadir. 2025 yilinda 7.95 trilyon dolar olan pazar hacminin, 2035 yilinda 42.68 trilyon dolara ulasmasi beklenmektedir.
+Bolgesel dagilim acisindan:
+• Avrupa: Pazar lideri konumunda olup, 2025 yilinda %40 pazar payina sahiptir
+• Kuzey Amerika: Guclu kurumsal yonetisim uygulamalari ve yuksek yatirimci farkindaligi ile onemli bir pazar
+• Asya-Pasifik: En hizli buyuyen bolge olarak 2026-2035 doneminde %21.52 CAGR ile buyumesi ongorulmektedir
+2.3 Yesil Tahvil Pazari
+Yesil tahvil pazari, surdurulebilir finansin en onemli bilesenlerinden biridir. Dunya Bankasi verilerine gore, etiketli surdurulebilir tahvil pazarinin kumulatif hacmi Aralik 2024 itibariyla 6.2 trilyon dolara ulasmistir. 2024 yilinda yillik ihrac hacmi 1.1 trilyon dolar olup, 2023 yilina gore %5 artis gostermistir.
+Yesil tahvil pazarinin ozellikleri:
+• 2025 yilinda 526.8 milyar dolar pazar buyuklugu, 2032 yilinda 1.046 trilyon dolara ulasmasi beklenmektedir
+• Enerji/sektoru pazarinin %40’ini olusturmaktadir
+• Kurumsal tahviller pazar lideri olup, duzenleyici destek ve standardizasyon ile buyumektedir
+• Kuzey Amerika %33 pazar payi ile en buyuk bolgedir
+3. ESG Skorlama Metodolojileri
+3.1 Mevcut Skorlama Sistemleri
+Gunumuzde ESG skorlama alaninda faaliyet gosteren bircok kurulus bulunmaktadir. En yaygin kullanilan metodolojiler sunlardir:
+MSCI ESG Ratings
+MSCI, 8.500’den fazla sirketi kapsayan ve 1.000’den fazla veri noktasini 37 ESG konusunda degerlendiren kapsamli bir sistem sunmaktadir. Sistem, sirketlerin ESG risklerine maruz kalmasini ve bu riskleri yonetme becerisini olcmektedir.
+Sustainalytics ESG Risk Ratings
+Sustainalytics, sirketlerin ekonomik degerinin ESG faktorlerinden ne olcude risk altinda oldugunu olcen bir metodoloji kullanmaktadir. Sistem, 10 ESG risk kategorisinde insan haklari, calisma uygulamalari ve cevre yonetimi gibi alanlari degerlendirmektedir.
+Moody’s ESG (Vigeo-Eiris)
+Moody’s, cift yonlu maddilik (double materiality) prensibine dayali bir yaklasim benimsemektedir. Bu yaklasim, hem dis cevresel ve sosyal risklerin finansal performans uzerindeki etkisini hem de sirketin faaliyetlerinin cevresi uzerindeki etkisini degerlendirmektedir.
+3.2 Risk-Fayda Analizi
+Literaturdeki akademik calismalar, ESG yatirimlarinin risk-getiri profili acisindan onemli bulgular ortaya koymaktadir:
+• Dusuk Volatilite: Yue et al. (2020)’nin Avrupa fonlari uzerindeki analizi, surdurulebilir fonlarin geleneksel muadillerine gore daha dusuk getiri volatilitesi ve azaltilmis risk gosterdigini ortaya koymustur
+• Kriz Donemi Dayanikliligi: Nofsinger ve Varma (2014), ABD’de ESG yatirimlarinin kriz donemlerinde geleneksel yatirimlari geride biraktigini, ancak normal ekonomik donemlerde daha zayif performans gosterebilecegini belirtmektedir
+• Cesitlendirme Faydalari: ESG varliklarinin portfoye eklenmesi, cesitlendirmeyi guclendirmekte ve asagi yonlu riski azaltmaktadir
+• Sharpe Orani: Optimize edilmis portfoylerin %80-90 oraninda ESG varliklarina agirlik verdigi ve daha yuksek Sharpe oranlari elde ettigi gozlemlenmistir
+4. Proje Fikrinin Potansiyel Faydalari
+Kendi ESG skorlama sisteminizi gelistirmek ve buna paralel olarak yesil yatirimlar icin risk-fayda analizi yapacak ek skorlar uretmek, cok katmanli faydalar saglamaktadir.
+4.1 Finansal Faydalar
+• Pazar Firsati: 35.48 trilyon dolarlik global ESG pazarindan pay alma imkani
+• Urun Farklilastirma: Rakiplerden ayrilan, musteriye ozgun deger sunan bir urun portfoyu
+• Risk Maliyeti Tasarrufu: Daha hassas risk degerlendirmesi ile kredi zararlarinin azaltilmasi
+• Gelir Artisi: ESG veri ve analiz hizmetleri ile ek gelir akislari
+• Yatirimci Cekiciligi: ESG odakli yatirimcilarin ilgisini cekme kapasitesi
+4.2 Operasyonel Faydalar
+• Veri Kalitesi: Ic sureclerde daha iyi ESG veri toplama ve yonetimi
+• Otomasyon: AI ve makine ogrenimi ile skorlama sureclerinin otomatiklestirilmesi
+• Regulasyon Uyumu: CSRD ve digi duzenlemelere hazirlik icin gelismis raporlama kapasitesi
+• Karar Destek: Yonetim kurulu ve ust yonetim icin veriye dayali karar alma araclari
+4.3 Stratejik Faydalar
+• Marka Degeri: Surdurulebilirlik alaninda liderlik konumunun guclendirilmesi
+• Musteri Sadakati: ESG odakli musterilerle daha derin iliskiler
+• Ic verilenme: Calisanlarin sirketin surdurulebilirlik misyonuna bagliligi
+• Uluslararasi Genisleme: Global ESG pazarlarina giris kapisi
+• Ogrenme Egrisi: ESG uzmanliginin kurumsal bilgi birikimine donusumu
+5. Turkiye Pazari Analizi
+Turkiye, 2053 yilina kadar net sifir emisyon hedefine ulasmayi taahhut etmis olup, bu donusum icin McKinsey’in tahminine gore 30 yilda toplam 3 trilyon dolarlik yatirim gerekmektedir. Bu buyuk olcekli donusum, yesil finans pazari icin onemli firsatlar yaratmaktadir.
+Mevcut Durum
+• Iklim tahvillerinin toplam buyuklugu 2024 sonunda yaklasik 19 milyar dolara ulasmistir
+• TSKB’nin finanse ettigi 421 yenilenebilir enerji projesi, Turkiye’nin toplam kurulu yenilenebilir enerji gucunun %15’ini temsil etmektedir
+• Yapikredi’nin Yesil Buyume Fonu (GGF) isbirligi, enerji verimliligi projelerini desteklemektedir
+• QNB Dijital Kopru Platformu, 300 bin firmaya hizmet vererek surdurulebilirlik okuryazarligini yayginlastirmaktadir
+Hedefler ve Projeksiyonlar
+• 2030 Hedefi: Yesil Varlik Orani’nin %15-20 seviyelerine cikarilmasi
+• 2030 Yili Karbon Azaltim Hedefi: Referans senaryoya gore %41 azaltim (695 Mt CO2 esdegeri)
+• Bankacilik sektorunun yenilenebilir enerji ve enerji verimliligi yatirimlarina odaklanmasi
+6. Sonuc ve Oneriler
+ESG ve yesil finans alaninda gelistirilecek ozgun bir skorlama sistemi, hem finansal hem de stratejik acidan buyuk potansiyel tasimaktadir. Asagida temel oneriler siralanmistir:
+Kisa Vadeli Oneriler (0-12 Ay)
+• Mevcut ESG veri altyapisinin degerlendirilmesi ve guclendirilmesi
+• Pilot sektorlerin belirlenmesi ve bu sektorlerde detayli analiz yapilmasi
+• Risk-fayda skorlama metodolojisinin tasarlanmasi
+• Ic paydaslarla iletisim ve egitim programlarinin baslatilmasi
+Orta Vadeli Oneriler (1-3 Yil)
+• Skorlama sisteminin tum sektorlere yayginlastirilmasi
+• Yesil finansal urunlerin gelistirilmesi ve pazara sunulmasi
+• Uluslararasi ESG standartlari ile uyum saglanmasi
+• Musteri ve yatirimci egitim programlarinin duzenlenmesi
+Uzun Vadeli Oneriler (3-5 Yil)
+• Global pazarlara acilim ve uluslararasi isbirlikleri
+• AI ve ileri analitik kapasitesinin gelistirilmesi
+• Ekosistem olusturma ve diger finansal kurumlarla isbirligi
+• Dusunce liderligi ve sektorde standardlarin belirlenmesine katki
+Sonuc olarak, ESG ve yesil finans alaninda atilacak adimlar, sadece bir uyum calismasi degil, ayni zamanda stratejik bir buyume frsati olarak degerlendirilmelidir. 35.48 trilyon dolarlik global pazar ve Turkiye’nin 3 trilyon dolarlik donusum hedefi, bu alandaki yatirimlarin geri donusunu hizlandiracaktir.
+ 
+
+
+Tesekkurler
+Daha fazla bilgi icin:
+info@yesilfinans.com | www.yesilfinans.com
+ 
+

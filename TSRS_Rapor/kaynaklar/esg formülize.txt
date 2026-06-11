@@ -1,0 +1,126 @@
+Geleneksel ESG (Çevresel, Sosyal, Yönetişim) skorlama modellerinin eksikliklerini gidermek için tasarlanmış **Dinamik ve Deterministik ESG Risk Optimizasyon Modeli (DD-ESG)** hakkındaki belgenin detaylı ve anlaşılır bir özeti aşağıdadır.
+
+Geleneksel modeller (MSCI, S&P vb.), şirket beyanlarına aşırı güvenerek "greenwashing" riskine düşmek, riskleri "0 veya 1" gibi keskin eşiklerle bölmek ve verilerin standart normal dağıldığını varsaymak gibi üç temel istatistiksel hata yapmaktadır. DD-ESG modeli ise Uydu, IoT ve Doğal Dil İşleme (NLP) gibi alternatif verileri kullanarak makine öğrenmesi destekli, sürekli ve doğrusal olmayan bir risk fiyatlama motoru sunar.
+
+Bu sistem dört temel modülden oluşmaktadır:
+
+### Modül 1: Sürekli Maruziyet ve Lojistik Taban Riski
+
+Bu modül, riskleri "ya var ya yok" şeklinde değerlendiren mantık dışı eşikleri ortadan kaldırır.
+
+* 
+**İşleyiş:** Riskin şiddetini, birdenbire değil marjinal olarak artan sürekli bir Lojistik Bozunma eğrisi ile modeller.
+
+
+* 
+**Avantajı:** Lojistik fonksiyon, aykırı değerlere karşı modelin direncini artırır ve şirketlerin cezadan kaçmak için "sınırın hemen altında kalma" hileleri yapmasını matematiksel olarak imkansız hale getirir.
+
+
+* 
+**Formül:** 
+$$EXP_{i,t} = UR_i + \sum_{k=1}^{K} \frac{L_k}{1 + e^{-\lambda_k(x_{i,k,t} - x_{0,k})}}$$
+
+
+
+
+
+* Formülde $EXP_{i,t}$ toplam maruziyet skorunu, $UR_i$ sektörün yönetilemez risk tabanını ifade eder. Eğrinin dikliğini ise $\lambda_k$ büyüme katsayısı belirler.
+
+
+
+### Modül 2: XGBoost ve SHAP Destekli Dinamik Yönetim Skoru
+
+Şirketlerin riski yönetme becerisini (MGMT), uzmanların keyfi olarak atadığı statik ağırlıklarla ölçmek yerine makine öğrenmesi kullanır.
+
+* 
+**İşleyiş:** Finansal volatiliteyi tahmin etmek için XGBoost (Gradient Boosting Trees) kullanır ve alternatif veri göstergelerinin ağırlığını SHAP değerlerinden dinamik olarak çeker.
+
+
+* 
+**Avantajı:** Sadece doğrusal ilişkileri yakalayabilen geleneksel yöntemlerin aksine, bu model bir ESG değişkeninin finansal getiriye olan "ters-U" şeklindeki non-lineer (doğrusal olmayan) etkilerini de yakalar.
+
+
+* 
+**Formül:** 
+$$MGMT_{i,t} = \sum_{j=1}^{p} \phi_{j,t}^{*} \times AD_{i,j,t}$$
+
+
+
+
+
+* 
+$MGMT_{i,t}$ optimize edilmiş yönetim skorunu, $AD_{i,j,t}$ eksik verileri cezalandırılarak doldurulmuş alternatif veri vektörünü gösterir.
+
+
+
+### Modül 3: Çapraz Sütun Sızıntısı ve Üstel Ceza
+
+Bu modül, Sosyal ve Çevresel sütunların birbirinden bağımsız silolar olmadığı gerçeğine dayanır.
+
+* 
+**İşleyiş:** Bir şirketin karbon emisyonu sektör toleransını aştığında, bu durum sadece çevresel skoru düşürmez; itibar kaybı yaratarak sosyal skoru da zehirler. Bunu NLP şoklarıyla tetiklenen bir "Üstel Sızıntı Çarpanı" ile modeller.
+
+
+* 
+**Cezalandırma:** Şirket tolerans eşiğinin altındaysa formüldeki çarpan 1 olur ve ceza almaz. Ancak eşiği aştığında puanı doğrusal değil, üstel olarak çakılır. Bu, yatırımcıları ani skandallardan koruyan nihai bir sigortadır.
+
+
+* 
+**Formül:** 
+$$S_{final,i,t} = \left( \alpha_I - \max(EXP_{i,t}, \beta_I - MGMT_{i,t}) \right) \times e^{-\gamma \cdot \max\left(0, \frac{C_{i,t} - \tau}{\sigma_C}\right)}$$
+
+
+
+
+
+* Burada $S_{final,i,t}$ nihai ESG sosyal skorunu, $\tau$ tolere edilebilir risk eşiğini, $\gamma$ ise cezanın yıkıcılığını belirleyen katsayıyı ifade eder.
+
+
+
+### Modül 4: İstatistiksel Sıralama ve Şeffaflık
+
+Finansal verilerin "kalın kuyruklu" olmasından dolayı, verilerin Gauss (normal) dağılıma uyduğunu varsayan Z-skoru hesaplamasını reddeder.
+
+* 
+**İşleyiş:** Şirketlerin sektör içindeki gerçekçi yüzdelik dilimlerini hesaplamak için parametrik olmayan Ampirik Kümülatif Dağılım Fonksiyonu (eCDF) kullanır.
+
+
+* **Avantajı:** Sektörde puanların nerede yığıldığına bakılmaksızın kusursuz ve adil bir sıralama sunar; şirket sıralamaları aşırı uçlardaki aykırı değerlerden etkilenip bozulmaz.
+
+
+* **Formül:**
+
+
+$$PF_{i,t} = \frac{1}{n} \sum_{m=1}^{n} \mathbf{1}\{F_{m,t} \leq F_{i,t}\}$$
+
+
+
+
+
+* 
+$PF_{i,t}$ şirketin 0 ile 1 arasındaki nihai yüzdelik sırasını, $n$ sektördeki toplam şirket sayısını temsil eder.
+
+
+
+---
+
+### Sistemin Akış Özeti
+
+1. 
+**Maruziyet Hesabı:** Modül 1 çalışarak şirketin brüt riskini hesaplar.
+
+
+2. 
+**Yönetim Becerisi Hesabı:** Eşzamanlı olarak Modül 2, alternatif verilerle yönetim becerisini ölçer.
+
+
+3. 
+**Skorun Üretilmesi:** Modül 3 devreye girer; ilk iki modülden gelen değerleri dengeler, gerekli cezaları uygular ve "nihai skoru" üretir.
+
+
+4. 
+**Sıralama:** Modül 4, üretilen bu nihai skorları alarak tüm sektörü birbirine kıyaslar ve 0 ile 100 arasında bir yüzdelik sıralama çıkartır.
+
+
+
+Bu model genel hatlarıyla oldukça karmaşık ama bir o kadar da adil ve gerçekçi bir altyapı sunuyor. İsterseniz belirli bir modülün formülünü detaylandırabilirim veya bu kuramsal modelin gerçek hayatta bir şirket üzerinde nasıl çalışabileceğine dair örnek bir senaryo hazırlayabilirim. Hangisiyle devam etmemi istersiniz?

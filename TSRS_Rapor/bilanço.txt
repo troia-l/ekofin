@@ -1,0 +1,197 @@
+KTİF	.................İŞLETMESİ .............TARİHLİ BİLANÇOSU	PASİF
+1. DÖNEN VARLIKLAR
+
+100. Kasa
+101. Alınan Çekler
+102. Bankalar
+103. Verilen Çekler Ve Ödeme Emirleri(-)
+108. Diğer Hazır Değerler
+110. Hissesenetleri
+111. Özel Kesim Tahvil Senet Ve Bonoları
+112. Kamu Kesimi Tahvil, Senet Ve Bonoları
+118. Diğer Hazır Değerler
+120. Alıcılar
+121. Alacak Senetleri
+122. Alacak Senetleri Reeskontu(-)
+126. Verilen Depozito Ve Teminatlar
+127. Diğer Ticari Alacaklar
+128. Şüpheli Ticari Alacaklar
+129. Şüpheli Ticari Alacaklar Karşılığı(-)
+131. Ortaklardan Alacaklar
+132. İştiraklerden Alacaklar
+133. Bağlı Ortaklıklardan Alacaklar
+135. Personelden Alacaklar
+136. Diğer Çeşitli Alacaklar
+137. Diğer Alacak Senetleri Reeskontu(-)
+138. Şüpheli Diğer Alacaklar
+139. Şüpheli Diğer Alacaklar Karşılığı(-)
+150. İlk Madde Malzeme
+151. Yarımamuller
+152. Mamuller
+153. Ticari Mallar
+157. Diğer Stoklar
+158. Stok Değer Düşüklüğü Karşılığı(-
+159. Verilen Sipariş Avansları
+170. Yıllara Yaygın İnşaat Ve Onarım Maliyetleri
+179. Taşeronlara Verilen Avanslar
+180. Gelecek Aylara Ait Giderler
+181. Gelir Tahakkukları
+190. Devreden Kdv
+191. İndirilecek Kdv
+192. Diğer Kdv
+193. Peşin Ödenen Vergiler Ve Fonlar
+195. İş Avansları
+196. Personel Avansları
+197. Sayım Ve Tesellüm Noksanları
+198. Diğer Çeşitli Dönen Varlıklar
+199. Diğer Dönen Varlıklar Karşılığı(-)
+2. DURAN VARLIKLAR
+
+220. Alıcılar
+221. Alacak Senetleri
+222. Alacak Senetleri Reeskontu(-)
+226. Verilen Depozito Ve Teminatlar
+229. Şüpheli Ticari Alacaklar Karşılığı(-)
+231. Ortaklardan Alacaklar
+232. İştiraklerden Alacaklar
+233. Bağlı Ortaklıklardan Alacaklar
+235. Personelden Alacaklar
+236. Diğer Çeşitli Alacaklar
+237. Diğer Alacak Senetleri Reeskontu
+239. Şüpheli Diğer Alacaklar Karşılığı(-)
+240. Bağlı Menkul Kıymetler
+241. Bağlı Menkul Kıymetler Değer Düşüklüğü Karşılığı(-)
+242. İştirakler
+243. İştiraklere Sermaye Taahhütleri(-)
+244. İştirakler Sermaye Payları Değer Düşüklüğü Karşılığı(-)
+245. Bağlı Ortaklıklar
+246. Bağlı Ortaklıklara Sermaye Taahhütleri(-)
+247. Bağlı Ortaklıklar Sermaye Payları Değer Düşüklüğü Karşılığı(-)
+248. Diğer Mali Duran Varlıklar
+249. Diğer Mali Duran Varlıklar Karşılığı(-)
+250. Arazi Ve Arsalar
+251. Yeraltı Ve Yer Üstü Düzenleri
+252. Binalar
+253. Tesis, Makine Ve Cihazlar
+254. Taşıtlar
+255. Demirbaşlar
+256. Diğer Maddi Duran Varlıklar
+257. Birikmiş Amortismanlar(-)
+258. Yapılmakta Olan Yatırımlar
+259. Verilen Avanslar
+260. Haklar
+261. Şerefiye
+262. Kuruluş Ve Örgütlenme Giderleri
+263. Araştırma Ve Geliştirme Giderleri
+264. Özel Maliyetler
+267. Diğer Maddi Olmayan Duran Varlıklar
+268. Birikmiş Amortismanlar(-)
+269. Verilen Avanslar
+271. Arama Giderleri
+272. Hazırlık Ve Geliştirme Giderleri
+277. Diğer Özel Tükenmeye Tabi Varlıklar
+278. Birikmiş Tükenme Payları(-)
+279. Verilen Avanslar
+280. Gelecek Yıllara Ait Giderler
+281. Gelir Tahakkukları
+291. Gelecek Yıllarda İndirilecek Kdv
+292. Diğer Kdv
+293. Gelecek Yıllar İhtiyacı Stoklar
+294. Elden Çıkarılacak Stoklar Ve Maddi Duran Varlıklar
+295. Peşin Ödenen Vergi Ve Fonlar
+297. Diğer Çeşitli Duran Varlıklar
+298. Stok Değer Düşüklüğü Karşılığı(-)
+299. birikmiş Amortismanlar(-)
+
+
+
+3. KISA VADELİ YABANCI KAYNAKLAR
+
+300. Banka Kredileri
+303. Uzun Vadeli Kredilerin Anapara Taksitleri Ve Faizleri
+304. Tahvil Anapara Borç, Taksit Ve Faizleri
+305. Çıkarılan Bonolar Ve Senetler
+306. Çıkarılmış Diğer Menkil Kıymetler
+308. Menkul Kıymetler İhraç Farkı(-)
+309. Diğer Mali Borçlar
+320. Satıcılar
+321. Borç Senetleri
+322. Borç Senetleri Reeskontu(-)
+326. Alınan Depozito Ve Teminatlar
+329. Diğer Ticari Borçlar
+331. Ortaklara Borçlar
+332. İştiraklere Borçlar
+333. Bağlı Ortaklıklara Borçlar
+335. Personele Borçlar
+336. Diğer Çeşitli Borçlar
+337. Diğer Borç Senetleri Reeskontu(-)
+340. Alınan Sipariş Avansları
+349. Alınan Diğer Avanslar
+350,358 Yıllara Yaygın İnşaat Ve Onarım Hakedişleri Bedelleri
+360. Ödenecek Vergi Ve Fonlar
+361. Ödenecek Sosyal Güvenlik Kesintileri
+368. Vadesi Geçmiş, Ertelenmiş Veya Taksitlendirilmiş Vergi Ve Diğer Yükümlülükler
+369. Ödenecek Diğer Yükümlülükler
+370. Dönem Kârı Vergi Ve Diğer Yasal Yükümlülük Karşılıkları
+371. Dönem Kârının Peşin Ödenen Vergi Ve Diğer Yükümlülükleri(-)
+372. Kıdem Tazminatı Karşılığı
+373. Maliyet Giderleri Karşılığı
+379. Diğer Borç Ve Gider Karşılıkları
+380. Gelecek Aylara Ait Gelirler
+381. Gider Tahakkukları
+391. Hesaplanan Kdv
+392. Diğer Kdv
+393. Merkez Ve Şubeler Cari Hesabı
+397. Sayım Ve Tesellüm Fazlaları
+399. Diğer Çeşitli Yabancı Kaynaklar
+4. UZUN VADELİ YABANCI KAYNAKLAR
+
+400. Banka Kredileri
+405. Çıkarılmış Tahviller
+407. Çıkarılmış Diğer Menkul Kıymetler
+408. Menkul Kıymetler İhraç Farkı(-)
+409. Diğer Mali Borçlar
+420. Satıcılar
+421. Borç Senetleri
+422. Borç Senetleri Reeskontu(-)
+426. Alınan Depozito Ve Teminatlar
+429. Diğer Ticari Borçlar
+431. Ortaklara Borçlar
+432. İştiraklere Borçlar
+433. Bağlı Ortaklıklara Borçlar
+436. Diğer Çeşitli Borçlar
+437. Diğer Borç Senetleri Reeskontu(-)
+438. Kamuya Olan Ertelenmiş Veya Taksitlendirilmiş Borçlar
+440. Alınan Sipariş Avansları
+449. Alınan Diğer Avanslar
+472. Kıdem Tazminatı Karşılığı
+479. Diğer Borç Ve Gider Karşılıkları
+480. Gelecek Yıllara Ait Gelirler
+481. Gider Tahakkukları
+492. Gelecek Yıllara Ertelenmiş Veya Terkin Edilecek Kdv
+493. Tesise Katılma Payları
+499. Diğer Çeşitli Uzun Vadeli Yabancı Kaynaklar
+
+5. ÖZ KAYNAKLAR
+
+500. Sermaye
+501. Ödenmemiş Sermaye(-)
+520. Hisse Senetleri İhraç Primleri
+521. Hisse Senedi İptal Kârları
+522. Maddi Duran Varlık Yeniden Değerleme Artışları
+523. İştirakler Yeniden Değerleme Artışları
+524. Maliyet Artışları Fonu
+529. Diğer Sermaye Yedekleri
+540. Yasal Yedekler
+541. Statü Yedekleri
+542. Olağanüstü Yedekler
+548. Diğer Kâr Yedekleri
+549. Özel Fonlar
+570. Geçmiş Yıllar Kârları
+580. Geçmiş Yıllar Zararları(-)
+590. Dönem Net Kârı
+591. Dönem Net Zararı(-)
+
+
+
+AKTİF TOPLAM	 	PASİF TOPLAM	 

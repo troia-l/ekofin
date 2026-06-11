@@ -1,0 +1,19 @@
+bu toplantıda : 
+
+Esg Skoru 
+ve 
+enerji roi skoru
+veri kaynaklarından veri çekme, ve güncel litaratürde kabul gören modern yaakaşımlarla kurulacak modeller ile hesaplanmasına. ve ek fayda bilgileri sunulmasına.
+sağlanan metriklere göre şirektin bu yatırımla çevreye nekadar kar sağlanabileceği ve bu yatırıma finansman sağlayacak kurum için daha doğru hesaplanan risk ile daha düşük faiz sağlanma imakanı vb. sunulacak.
+bu bir web sitesi olarak hazırlanacak
+ayrıca sunum olarak ta kullanılan yöntemlerin akademik ve matamatiksel doğruluğunun detaylıca anlatıldığı,
+web sitesinden ve projenin yaratacağı finanssal ve çevresel faydalardan bahseden bir sunum hazırlanması. gerektiği
+
+şeklinde konştuk. pazartesi günü okulda daha detaylı bir toplanmaya karar verdik. 
+
+iş bölümü olarak : 
+1. yapılan çalışmalarla eş zamanlı olarak sunum ve web site hazırlanması. 
+2. şirketlerden ve diğer kaynaklardan veri çekip, esg skoru ve bağlı metriklerin (karbon tüketimi vb.) hazırlanması. 
+3. enerji roi si ve faydalarının hesaplarını içeren bireysel için ürün-çevre_faydası, kurumsal için yapılacak_iyleştirmenin_çevresel_faydası nı tahmin modelleri oluşturulacak 
+belirledik ve 1.başlığa bekir gönüllü oldu
+diğer iki görev için pazartesi günkü toplantıya kadar konular araştırılacak ve  toplantıda kalan görevler  2-2 şeklinde iki başlıkta grup yapılacak.
