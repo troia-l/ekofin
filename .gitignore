@@ -1,1 +1,5 @@
 TSRS_Rapor/.env
+model_c/.env
+model_c/__pycache__/
+model_c/venv/
+.DS_Store
