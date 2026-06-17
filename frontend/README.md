@@ -1,123 +1,123 @@
-# 🌱 EkoFin Frontend — AI-Powered Green Energy Finance UI
+# 🌱 EkoFin Frontend — Yeşil Enerji Finansman Arayüzü
 
-The frontend application for the EkoFin platform, built with **React 19** and **Vite 7**. It provides a modern, responsive interface for green energy financing, ESG reporting, and sustainability management.
+EkoFin platformunun **React 19** ve **Vite 7** ile geliştirilmiş frontend uygulamasıdır. Yeşil enerji finansmanı, ESG raporlama ve sürdürülebilirlik yönetimi için modern ve duyarlı bir arayüz sunar.
 
-## ✨ Features
+## ✨ Özellikler
 
-- **🏢 Corporate Dashboard** — B2B-ready panel for banks and holdings with ESG insights
-- **💰 AI-Powered Credit Marketplace** — Low-interest green credit opportunities optimized by ESG scores
-- **🤝 Crowdfunding Module** — Modern investment interface for solar and wind energy projects
-- **🔍 AI ESG Report (Greenwashing Shield)** — Real-time company analysis with NLP-powered trust scoring
-- **📊 Green ROI Simulator** — Interactive calculator for green energy investment returns
-- **📋 TSRS Report Generator** — Turkish Sustainability Reporting Standards compliant reporting
-- **🏦 Bank Dashboard** — Dedicated view for financial institution operators
-- **📝 Application Form** — Streamlined green credit application flow
+- **🏢 Kurumsal Dashboard** — Bankalar ve holdingler için ESG içgörülü B2B panel
+- **💰 YZ Destekli Kredi Pazarı** — ESG skorlarına göre optimize edilmiş düşük faizli yeşil kredi fırsatları
+- **🤝 Kitle Fonlaması** — Güneş ve rüzgar enerjisi projelerine yatırım için modern arayüz
+- **🔍 YZ ESG Raporu (Greenwashing Kalkanı)** — NLP destekli güven puanlamasıyla anlık şirket analizi
+- **📊 Yeşil ROI Simülatörü** — Yeşil enerji yatırım getirisi için interaktif hesaplayıcı
+- **📋 TSRS Rapor Üretici** — Türkiye Sürdürülebilirlik Raporlama Standartlarına uyumlu raporlama
+- **🏦 Banka Dashboard** — Finans kuruluşu operatörleri için özel görünüm
+- **📝 Başvuru Formu** — Yeşil kredi başvuru akışı
 
-## 🛠️ Tech Stack
+## 🛠️ Teknoloji Yığını
 
-| Technology | Purpose |
+| Teknoloji | Kullanım Amacı |
 |---|---|
 | **React 19** | UI framework |
-| **Vite 7** | Build tool & dev server |
-| **React Router 7** | Client-side routing (HashRouter) |
-| **Framer Motion** | Animations & transitions |
-| **Recharts** | Data visualization & charts |
-| **Lucide React** | Icon library |
-| **Vanilla CSS** | Styling with CSS Variables, Flexbox & Grid |
+| **Vite 7** | Derleme aracı ve geliştirme sunucusu |
+| **React Router 7** | İstemci taraflı yönlendirme (HashRouter) |
+| **Framer Motion** | Animasyonlar ve geçişler |
+| **Recharts** | Veri görselleştirme ve grafikler |
+| **Lucide React** | İkon kütüphanesi |
+| **Vanilla CSS** | CSS Variables, Flexbox ve Grid ile stillendirme |
 
-## 🚀 Getting Started
+## 🚀 Kurulum
 
-### Prerequisites
+### Gereksinimler
 
 - **Node.js** ≥ 18.x
 - **npm** ≥ 9.x
 
-### Installation
+### Yükleme ve Çalıştırma
 
 ```bash
-# 1. Navigate to the frontend directory (from project root)
+# 1. Frontend dizinine gidin (proje kök dizininden)
 cd frontend
 
-# 2. Install dependencies
+# 2. Bağımlılıkları yükleyin
 npm install
 
-# 3. Start the development server
+# 3. Geliştirme sunucusunu başlatın
 npm run dev
 ```
 
-The app will be available at **http://localhost:5173**
+Uygulama **http://localhost:5173** adresinde erişilebilir olacaktır.
 
-### Available Scripts
+### Kullanılabilir Komutlar
 
-| Command | Description |
+| Komut | Açıklama |
 |---|---|
-| `npm run dev` | Start development server with hot module replacement |
-| `npm run build` | Create optimized production build in `dist/` |
-| `npm run preview` | Preview the production build locally |
-| `npm run lint` | Run ESLint to check code quality |
+| `npm run dev` | Hot module replacement ile geliştirme sunucusunu başlatır |
+| `npm run build` | `dist/` klasörüne optimize üretim derlemesi oluşturur |
+| `npm run preview` | Üretim derlemesini yerel olarak önizler |
+| `npm run lint` | Kod kalitesi için ESLint kontrolü çalıştırır |
 
-## 📁 Project Structure
+## 📁 Proje Yapısı
 
 ```
 frontend/
-├── public/                     # Static assets served as-is
-│   ├── ecofin_logo.png         # Platform logo
-│   └── vite.svg                # Vite default icon
+├── public/                     # Doğrudan sunulan statik dosyalar
+│   ├── ecofin_logo.png         # Platform logosu
+│   └── vite.svg                # Vite varsayılan ikon
 │
 ├── src/
-│   ├── assets/                 # Bundled static assets
+│   ├── assets/                 # Paketlenen statik dosyalar
 │   │   └── react.svg
 │   │
-│   ├── components/             # Reusable UI components
+│   ├── components/             # Yeniden kullanılabilir UI bileşenleri
 │   │   ├── layout/
-│   │   │   ├── MainLayout.jsx      # App shell with sidebar + topnav
-│   │   │   ├── Sidebar.jsx         # Navigation sidebar
-│   │   │   └── Topnav.jsx          # Top navigation bar
-│   │   ├── ConditionsModal.jsx     # Credit conditions popup
-│   │   ├── CreditItem.jsx         # Credit listing card
-│   │   ├── EsgBadge.jsx           # ESG score badge
-│   │   ├── Header.jsx             # Page header
-│   │   ├── HeroSection.jsx        # Landing hero section
-│   │   ├── HighlightCard.jsx      # Feature highlight card
-│   │   ├── Icons.jsx              # Custom icon components
-│   │   └── ProjectDetailsModal.jsx # Project detail popup
+│   │   │   ├── MainLayout.jsx      # Sidebar + topnav ile uygulama kabuğu
+│   │   │   ├── Sidebar.jsx         # Navigasyon kenar çubuğu
+│   │   │   └── Topnav.jsx          # Üst navigasyon çubuğu
+│   │   ├── ConditionsModal.jsx     # Kredi koşulları popup'ı
+│   │   ├── CreditItem.jsx         # Kredi listeleme kartı
+│   │   ├── EsgBadge.jsx           # ESG skor rozeti
+│   │   ├── Header.jsx             # Sayfa başlığı
+│   │   ├── HeroSection.jsx        # Ana sayfa hero bölümü
+│   │   ├── HighlightCard.jsx      # Özellik vurgulama kartı
+│   │   ├── Icons.jsx              # Özel ikon bileşenleri
+│   │   └── ProjectDetailsModal.jsx # Proje detay popup'ı
 │   │
-│   ├── pages/                  # Page-level components
+│   ├── pages/                  # Sayfa bileşenleri
 │   │   ├── bank/
-│   │   │   └── BankDashboard.jsx   # Bank operator dashboard
-│   │   ├── kobi/                   # SME (KOBİ) pages
-│   │   │   ├── Dashboard.jsx       # SME main dashboard
-│   │   │   ├── GreenROI.jsx        # ROI analysis page
-│   │   │   ├── Integration.jsx     # System integration page
-│   │   │   ├── Simulator.jsx       # Investment simulator
-│   │   │   └── TsrsReport.jsx      # TSRS report generator
-│   │   ├── ApplicationForm.jsx     # Credit application form
-│   │   ├── Corporate.jsx           # Corporate overview
-│   │   ├── Crowdfunding.jsx        # Crowdfunding marketplace
-│   │   ├── ESGReport.jsx           # ESG analysis report
-│   │   ├── Home.jsx                # Landing page
-│   │   └── PublicAudit.jsx         # Public transparency audit
+│   │   │   └── BankDashboard.jsx   # Banka operatör paneli
+│   │   ├── kobi/                   # KOBİ sayfaları
+│   │   │   ├── Dashboard.jsx       # KOBİ ana dashboard
+│   │   │   ├── GreenROI.jsx        # ROI analiz sayfası
+│   │   │   ├── Integration.jsx     # Sistem entegrasyon sayfası
+│   │   │   ├── Simulator.jsx       # Yatırım simülatörü
+│   │   │   └── TsrsReport.jsx      # TSRS rapor üretici
+│   │   ├── ApplicationForm.jsx     # Kredi başvuru formu
+│   │   ├── Corporate.jsx           # Kurumsal genel bakış
+│   │   ├── Crowdfunding.jsx        # Kitle fonlaması pazarı
+│   │   ├── ESGReport.jsx           # ESG analiz raporu
+│   │   ├── Home.jsx                # Ana sayfa
+│   │   └── PublicAudit.jsx         # Halka açık şeffaflık denetimi
 │   │
-│   ├── App.jsx                 # Root component with routing
-│   ├── App.css                 # App-level styles
-│   ├── index.css               # Global styles & CSS variables
-│   └── main.jsx                # Application entry point
+│   ├── App.jsx                 # Yönlendirme ile kök bileşen
+│   ├── App.css                 # Uygulama düzeyinde stiller
+│   ├── index.css               # Global stiller ve CSS değişkenleri
+│   └── main.jsx                # Uygulama giriş noktası
 │
-├── index.html                  # HTML entry point
-├── vite.config.js              # Vite configuration
-├── eslint.config.js            # ESLint configuration
-├── package.json                # Dependencies & scripts
-└── package-lock.json           # Dependency lock file
+├── index.html                  # HTML giriş noktası
+├── vite.config.js              # Vite yapılandırması
+├── eslint.config.js            # ESLint yapılandırması
+├── package.json                # Bağımlılıklar ve komutlar
+└── package-lock.json           # Bağımlılık kilit dosyası
 ```
 
-## 🔗 Backend Connection
+## 🔗 Backend Bağlantısı
 
-This frontend connects to the **Model C** backend API (FastAPI). By default, the API is expected at `http://localhost:8000`. See the [root README](../README.md) for backend setup instructions.
+Bu frontend, **Model C** backend API'sine (FastAPI) bağlanır. Varsayılan olarak API `http://localhost:8000` adresinde beklenir. Backend kurulumu için [ana README](../README.md) dosyasına bakınız.
 
-## 🌐 Deployment
+## 🌐 Dağıtım
 
-The project includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) for automated deployment to GitHub Pages.
+Proje, GitHub Pages'e otomatik dağıtım için GitHub Actions iş akışı (`.github/workflows/deploy.yml`) içermektedir.
 
 ---
 
-*Built with ♻️ for a greener future.*
+*Daha yeşil bir gelecek için ♻️ ile geliştirilmiştir.*

@@ -1,111 +1,111 @@
-# 🌱 EkoFin — AI-Powered Green Energy Finance Platform
+# 🌱 EkoFin — Yapay Zeka Destekli Yeşil Enerji Finansman Platformu
 
-EkoFin is an **AI-powered sustainability auditing and green financing platform** built to accelerate the transition to carbon neutrality. It provides transparent, data-driven investment decisions by leveraging satellite data, IoT sensors, and cross-referenced data sources to verify the **real environmental impact** of projects — eliminating greenwashing.
+EkoFin, karbon nötrlük hedeflerine ulaşılmasını hızlandırmak için geliştirilmiş **yapay zeka destekli sürdürülebilirlik denetimi ve yeşil finansman platformudur.** Uydu verileri, IoT sensörleri ve çapraz veri kaynakları ile projelerin **gerçek çevresel etkisini** tespit ederek greenwashing'i ortadan kaldırır.
 
-## 🏗️ Project Structure
+## 🏗️ Proje Yapısı
 
 ```
 ekofin/
-├── frontend/          # React + Vite web application
+├── frontend/          # React + Vite web uygulaması
 │   ├── src/
-│   │   ├── components/    # Reusable UI components
-│   │   ├── pages/         # Page-level components (Home, Dashboard, ESG Report, etc.)
-│   │   └── assets/        # Static assets
-│   ├── public/            # Public assets & documents
-│   ├── package.json       # Node.js dependencies
-│   └── vite.config.js     # Vite configuration
+│   │   ├── components/    # Yeniden kullanılabilir UI bileşenleri
+│   │   ├── pages/         # Sayfa bileşenleri (Ana Sayfa, Dashboard, ESG Raporu vb.)
+│   │   └── assets/        # Statik dosyalar
+│   ├── public/            # Herkese açık dosyalar ve dokümanlar
+│   ├── package.json       # Node.js bağımlılıkları
+│   └── vite.config.js     # Vite yapılandırması
 │
-├── model_c/           # FastAPI backend — AI analysis engine
-│   ├── app.py             # API entry point
-│   ├── model.py           # Data models (Pydantic)
-│   ├── calculator.py      # Green ROI calculator
-│   ├── roi.py             # ROI analysis engine
-│   ├── factors.json       # Emission factors data
-│   ├── requirements.txt   # Python dependencies
-│   └── .env.example       # Environment variable template
+├── model_c/           # FastAPI backend — Yapay Zeka analiz motoru
+│   ├── app.py             # API giriş noktası
+│   ├── model.py           # Veri modelleri (Pydantic)
+│   ├── calculator.py      # Yeşil ROI hesaplayıcı
+│   ├── roi.py             # ROI analiz motoru
+│   ├── factors.json       # Emisyon faktörleri verisi
+│   ├── requirements.txt   # Python bağımlılıkları
+│   └── .env.example       # Ortam değişkenleri şablonu
 │
-├── BelgeTarama/       # Document scanning instruction sets (OCR guides)
-├── TSRS_Rapor/        # TSRS-compliant sustainability report templates & data
-├── kaynaklar/         # Reference materials and resources
+├── BelgeTarama/       # Belge tarama talimatları (OCR rehberleri)
+├── TSRS_Rapor/        # TSRS uyumlu sürdürülebilirlik rapor şablonları ve verileri
+├── kaynaklar/         # Referans materyalleri ve kaynaklar
 └── .gitignore
 ```
 
-## ✨ Key Features
+## ✨ Temel Özellikler
 
-- **🏢 Corporate Green Dashboard** — B2B-ready dashboard for banks and holdings
-- **🤖 AI-Powered ESG Analysis** — Gemini AI integration for real sustainability verification
-- **📊 Green ROI Simulator** — Calculate return on investment for green energy projects
-- **📋 TSRS Reporting** — Generate Turkish Sustainability Reporting Standards compliant reports
-- **🌍 Crowdfunding Module** — Enable individual investors to participate in green transformation
-- **🔍 Public Audit Panel** — Transparency-first approach to environmental claims
-- **📄 Document Scanning** — OCR-based document verification (energy certificates, invoices, etc.)
+- **🏢 Kurumsal Yeşil Panel** — Bankalar ve holdingler için B2B uyumlu dashboard
+- **🤖 YZ Destekli ESG Analizi** — Gemini AI ile gerçek sürdürülebilirlik doğrulaması
+- **📊 Yeşil ROI Simülatörü** — Yeşil enerji projeleri için yatırım getirisi hesaplama
+- **📋 TSRS Raporlama** — Türkiye Sürdürülebilirlik Raporlama Standartlarına uyumlu rapor üretimi
+- **🌍 Kitle Fonlaması** — Bireysel yatırımcıların yeşil dönüşüme katılımı
+- **🔍 Halka Açık Denetim Paneli** — Çevresel iddialarda şeffaflık öncelikli yaklaşım
+- **📄 Belge Tarama** — OCR tabanlı belge doğrulama (enerji kimlik belgeleri, faturalar vb.)
 
-## 🚀 Getting Started
+## 🚀 Kurulum
 
-### Prerequisites
+### Gereksinimler
 
-- **Node.js** ≥ 18.x and **npm** ≥ 9.x
+- **Node.js** ≥ 18.x ve **npm** ≥ 9.x
 - **Python** ≥ 3.10
-- **Gemini API Key** (optional — system falls back to mock matching algorithm for testing)
+- **Gemini API Anahtarı** (isteğe bağlı — test için mock algoritma otomatik çalışır)
 
 ---
 
-### Frontend Setup
+### Frontend Kurulumu
 
 ```bash
-# Navigate to the frontend directory
+# Frontend dizinine gidin
 cd frontend
 
-# Install dependencies
+# Bağımlılıkları yükleyin
 npm install
 
-# Start the development server
+# Geliştirme sunucusunu başlatın
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`.
+Uygulama `http://localhost:5173` adresinde erişilebilir olacaktır.
 
-#### Available Scripts
+#### Kullanılabilir Komutlar
 
-| Command | Description |
+| Komut | Açıklama |
 |---|---|
-| `npm run dev` | Start development server with hot reload |
-| `npm run build` | Build for production |
-| `npm run preview` | Preview production build locally |
-| `npm run lint` | Run ESLint checks |
+| `npm run dev` | Geliştirme sunucusunu başlatır (hot reload) |
+| `npm run build` | Üretim için derler |
+| `npm run preview` | Üretim derlemesini yerel olarak önizler |
+| `npm run lint` | ESLint kontrollerini çalıştırır |
 
 ---
 
-### Backend Setup (Model C — AI Engine)
+### Backend Kurulumu (Model C — YZ Motoru)
 
 ```bash
-# Navigate to the backend directory
+# Backend dizinine gidin
 cd model_c
 
-# Create and activate a virtual environment
+# Sanal ortam oluşturun ve aktif edin
 python -m venv venv
-source venv/bin/activate   # On Windows: venv\Scripts\activate
+source venv/bin/activate   # Windows için: venv\Scripts\activate
 
-# Install dependencies
+# Bağımlılıkları yükleyin
 pip install -r requirements.txt
 
-# Configure environment variables
+# Ortam değişkenlerini yapılandırın
 cp .env.example .env
-# Edit .env and add your GEMINI_API_KEY (optional)
+# .env dosyasını açıp GEMINI_API_KEY ekleyin (isteğe bağlı)
 
-# Start the API server
+# API sunucusunu başlatın
 uvicorn app:app --reload --port 8000
 ```
 
-The API will be available at `http://localhost:8000`.
+API `http://localhost:8000` adresinde erişilebilir olacaktır.
 
-> **Note:** If `GEMINI_API_KEY` is left empty, the system will use an autonomous mock matching algorithm (regex-based) so you can test without an API key.
+> **Not:** `GEMINI_API_KEY` boş bırakılırsa, sistem otonom mock eşleştirme algoritmasını (regex tabanlı) kullanır. API anahtarı olmadan da test yapabilirsiniz.
 
 ---
 
-### Full Stack (Running Both)
+### Tam Çalıştırma (Frontend + Backend)
 
-Open two terminal windows:
+İki ayrı terminal penceresi açın:
 
 ```bash
 # Terminal 1 — Backend
@@ -118,31 +118,31 @@ cd frontend
 npm run dev
 ```
 
-## 🛠️ Tech Stack
+## 🛠️ Teknoloji Yığını
 
-| Layer | Technologies |
+| Katman | Teknolojiler |
 |---|---|
 | **Frontend** | React 19, Vite 7, React Router 7, Framer Motion, Recharts, Lucide Icons |
 | **Backend** | FastAPI, Uvicorn, Pydantic, Pandas |
-| **AI/ML** | Google Gemini API (gemini-2.5-flash), Instructor, OpenAI SDK |
-| **Data** | JSON-based emission factors, TSRS templates |
+| **YZ/ML** | Google Gemini API (gemini-2.5-flash), Instructor, OpenAI SDK |
+| **Veri** | JSON tabanlı emisyon faktörleri, TSRS şablonları |
 
-## 📄 Environment Variables
+## 📄 Ortam Değişkenleri
 
 ### Backend (`model_c/.env`)
 
-| Variable | Required | Description |
+| Değişken | Zorunlu | Açıklama |
 |---|---|---|
-| `GEMINI_API_KEY` | Optional | Google Gemini API key for AI-powered analysis. If omitted, the system uses a mock algorithm. |
+| `GEMINI_API_KEY` | İsteğe bağlı | Google Gemini API anahtarı. Boş bırakılırsa mock algoritma kullanılır. |
 
-## 🤝 Contributing
+## 🤝 Katkıda Bulunma
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Depoyu fork edin
+2. Özellik dalı oluşturun (`git checkout -b feature/harika-ozellik`)
+3. Değişikliklerinizi commit edin (`git commit -m 'feat: harika özellik eklendi'`)
+4. Dalınıza push edin (`git push origin feature/harika-ozellik`)
+5. Pull Request açın
 
-## 📝 License
+## 📝 Lisans
 
-This project is developed for academic and demonstration purposes.
+Bu proje akademik ve demonstrasyon amaçlı geliştirilmiştir.
