@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, Link2, ShieldAlert } from 'lucide-react';
+import { UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, Link2, ShieldAlert, FileText, Leaf, AlertTriangle } from 'lucide-react';
+import ManagerDeclarationDashboard from '../../components/ManagerDeclarationDashboard';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -14,6 +15,36 @@ const itemVariants = {
 
 const Integration = () => {
   const [isHoveringDrop, setIsHoveringDrop] = useState(false);
+  const [showDeclarationDashboard, setShowDeclarationDashboard] = useState(false);
+  const [initialDashboardMode, setInitialDashboardMode] = useState('wizard');
+  const [declarationData, setDeclarationData] = useState(() => {
+    const saved = localStorage.getItem('manager_declaration');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  if (showDeclarationDashboard) {
+    return (
+      <ManagerDeclarationDashboard 
+        onBack={() => setShowDeclarationDashboard(false)}
+        onSubmit={(data) => {
+          localStorage.setItem('manager_declaration', JSON.stringify(data));
+          setDeclarationData(data);
+          setShowDeclarationDashboard(false);
+        }}
+        initialData={declarationData}
+        initialMode={initialDashboardMode}
+      />
+    );
+  }
+
+  const docs = [
+    { id: 'sgk', title: 'SGK Hizmet Dökümleri', desc: 'Personel sayısı doğrulaması için', status: 'upload', date: '-' },
+    { id: 'declaration', title: 'Yönetici Beyan Formu', desc: 'Şirket araç, çalışan ve ÇYS beyanı', status: declarationData ? 'verified_decl' : 'fill_decl', date: declarationData ? 'Güncel' : '-' },
+    { id: 'sanayi', title: 'Sanayi Sicil Belgesi', desc: 'Resmi kapasite ve NACE kod onayı', status: 'verified', date: 'Güncel' },
+    { id: 'kapasite', title: 'Kapasite Raporu (TOBB)', desc: 'Üretim limitleri doğrulaması', status: 'verified', date: '12 May 2026' },
+    { id: 'ekb', title: 'Enerji Kimlik Belgesi (EKB)', desc: 'Tesis enerji verimlilik kanıtı', status: 'upload', date: '-' },
+    { id: 'iso', title: 'ISO 14001 Çevre YYS', desc: 'Çevre yönetim sistemi sertifikası', status: 'pending', date: 'İnceleniyor' }
+  ];
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="flex-col gap-6">
@@ -128,6 +159,91 @@ const Integration = () => {
             </div>
           </motion.div>
 
+          {/* Management Declaration Summary Widget */}
+          {declarationData && (
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="card glass-panel flex-col gap-4"
+              style={{
+                borderLeft: '4px solid var(--accent-emerald)',
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.9), rgba(244,252,248,0.9))'
+              }}
+            >
+              <div className="flex justify-between items-center">
+                <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--primary-midnight)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Leaf size={18} color="var(--accent-emerald)" /> Aktif Yönetici Beyan Özeti
+                </h3>
+                <span style={{ fontSize: '11px', color: 'var(--accent-emerald-dark)', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '20px', fontWeight: 700 }}>
+                  Veriler Raporlamaya İşlendi
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginTop: '4px' }}>
+                <div style={{ padding: '12px', background: '#FFFFFF', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>Sosyal Yapı</span>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--primary-midnight)' }}>{declarationData.employeeCount} Çalışan</div>
+                  <span style={{ fontSize: '10px', color: 'var(--text-light)', fontWeight: 600 }}>+{declarationData.extraExcuseLeave} Gün İzin</span>
+                </div>
+
+                <div style={{ padding: '12px', background: '#FFFFFF', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>Mobilite Filosu</span>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--primary-midnight)' }}>
+                    {Object.values(declarationData.vehiclesCount).reduce((a, b) => a + b, 0)} Araç
+                  </div>
+                  <span style={{ fontSize: '10px', color: 'var(--text-light)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    ⚡{declarationData.vehiclesCount.electric} / 🌱{declarationData.vehiclesCount.hybrid} / ⛽{declarationData.vehiclesCount.gasoline}
+                  </span>
+                </div>
+
+                <div style={{ padding: '12px', background: '#FFFFFF', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>Yıllık Tüketim</span>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--primary-midnight)' }}>
+                    {declarationData.annualElectricity.toLocaleString()} kWh
+                  </div>
+                  <span style={{ fontSize: '10px', color: 'var(--text-light)', fontWeight: 600 }}>
+                    💧{declarationData.annualWater} m³ Su
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(16, 185, 129, 0.04)', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.1)', fontSize: '12px', color: 'var(--accent-emerald-dark)', fontWeight: 500 }}>
+                <Check size={16} /> Beyan edilen ÇYS: &nbsp;
+                <strong style={{ textTransform: 'capitalize' }}>
+                  {declarationData.hasEmsPolicy === 'yes' ? 'Mevcut (ISO 14001)' : declarationData.hasEmsPolicy === 'planning' ? 'Hazırlanıyor' : 'Mevcut Değil'}
+                </strong>
+                {declarationData.hasRenewableEnergy && " | ☀️ GES Aktif"}
+              </div>
+
+              {/* Hemen Oluştur Button if EMS is not ready */}
+              {declarationData.hasEmsPolicy !== 'yes' && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '12px', background: 'rgba(245, 158, 11, 0.05)', borderRadius: '10px', border: '1px solid rgba(245, 158, 11, 0.1)', marginTop: '4px' }}>
+                  <div style={{ fontSize: '11px', color: '#B45309', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+                    <AlertTriangle size={14} /> ÇYS Belgesi Eksik!
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setInitialDashboardMode('ai_generator');
+                      setShowDeclarationDashboard(true);
+                    }}
+                    className="btn-primary" 
+                    style={{ 
+                      padding: '4px 10px', 
+                      fontSize: '11px', 
+                      borderRadius: '6px', 
+                      height: 'auto', 
+                      background: 'linear-gradient(135deg, var(--warning), #D97706)',
+                      boxShadow: '0 2px 5px rgba(245, 158, 11, 0.2)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Hemen Oluştur (YZ)
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          )}
+
         </div>
 
         {/* Right Column: Legal Documents */}
@@ -144,22 +260,16 @@ const Integration = () => {
             </div>
             
             <div className="flex flex-col gap-4">
-              {[
-                { title: 'SGK Hizmet Dökümleri', desc: 'Personel sayısı doğrulaması için', status: 'upload', date: '-' },
-                { title: 'Sanayi Sicil Belgesi', desc: 'Resmi kapasite ve NACE kod onayı', status: 'verified', date: 'Güncel' },
-                { title: 'Kapasite Raporu (TOBB)', desc: 'Üretim limitleri doğrulaması', status: 'verified', date: '12 May 2026' },
-                { title: 'Enerji Kimlik Belgesi (EKB)', desc: 'Tesis enerji verimlilik kanıtı', status: 'upload', date: '-' },
-                { title: 'ISO 14001 Çevre YYS', desc: 'Çevre yönetim sistemi sertifikası', status: 'pending', date: 'İnceleniyor' }
-              ].map((doc, idx) => (
+              {docs.map((doc, idx) => (
                 <motion.div 
                   key={idx}
                   whileHover={{ scale: 1.02 }}
                   className="flex justify-between items-center" 
                   style={{ 
                     padding: '16px 20px', 
-                    background: doc.status === 'verified' ? 'rgba(16, 185, 129, 0.03)' : 'var(--bg-main)', 
+                    background: (doc.status === 'verified' || doc.status === 'verified_decl') ? 'rgba(16, 185, 129, 0.03)' : 'var(--bg-main)', 
                     borderRadius: '12px',
-                    border: doc.status === 'verified' ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid var(--border-color)',
+                    border: (doc.status === 'verified' || doc.status === 'verified_decl') ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid var(--border-color)',
                     boxShadow: '0 2px 5px rgba(0,0,0,0.01)'
                   }}
                 >
@@ -174,6 +284,42 @@ const Integration = () => {
                         <CheckCircle2 size={14} /> ONAYLI
                       </div>
                     )}
+                    {doc.status === 'verified_decl' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className="flex items-center gap-1" style={{ color: 'var(--accent-emerald-dark)', fontWeight: 700, fontSize: '12px' }}>
+                          <CheckCircle2 size={14} /> GÖNDERİLDİ
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setInitialDashboardMode('wizard');
+                            setShowDeclarationDashboard(true);
+                          }}
+                          className="btn-outline" 
+                          style={{ padding: '4px 10px', fontSize: '11px', borderRadius: '6px', height: 'auto', border: '1px solid var(--accent-emerald)', cursor: 'pointer' }}
+                        >
+                          Düzenle
+                        </button>
+                      </div>
+                    )}
+                    {doc.status === 'fill_decl' && (
+                      <button 
+                        onClick={() => {
+                          setInitialDashboardMode('wizard');
+                          setShowDeclarationDashboard(true);
+                        }}
+                        className="btn-primary" 
+                        style={{ 
+                          padding: '6px 16px', 
+                          fontSize: '12px', 
+                          borderRadius: '8px', 
+                          background: 'linear-gradient(135deg, var(--warning), #D97706)', 
+                          boxShadow: '0 4px 10px rgba(245, 158, 11, 0.3)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Doldur
+                      </button>
+                    )}
                     {doc.status === 'pending' && (
                       <div className="flex items-center gap-1" style={{ color: 'var(--warning)', fontWeight: 700, fontSize: '12px' }}>
                         <RefreshCw size={14} className="animate-spin" /> İNCELENİYOR
@@ -183,7 +329,10 @@ const Integration = () => {
                       <button className="btn-outline" style={{ padding: '6px 16px', fontSize: '12px', borderRadius: '8px' }}>Yükle</button>
                     )}
                     
-                    {doc.status !== 'upload' && (
+                    {doc.status !== 'upload' && doc.status !== 'fill_decl' && doc.status !== 'verified_decl' && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-light)', fontWeight: 500 }}>{doc.date}</div>
+                    )}
+                    {doc.status === 'verified_decl' && (
                       <div style={{ fontSize: '11px', color: 'var(--text-light)', fontWeight: 500 }}>{doc.date}</div>
                     )}
                   </div>
@@ -199,6 +348,7 @@ const Integration = () => {
           </motion.div>
         </div>
       </div>
+
     </motion.div>
   );
 };
