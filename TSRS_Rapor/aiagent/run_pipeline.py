@@ -16,6 +16,7 @@ ADDED_DATA_PATH = os.path.join(WORKSPACE_DIR, "eklenen_veriler.md")
 OUTPUT_REPORT_PATH = os.path.join(WORKSPACE_DIR, "TSRS_Uyumlu_Surdurulebilirlik_Raporu.md")
 BENCHMARK_PATH = os.path.join(WORKSPACE_DIR, "örnek-tsrs-raporu.md")
 TALIMATLAR_DIR = os.path.join(AIAGENT_DIR, "talimatlar")
+BELGE_TARAMA_DIR = os.path.join(WORKSPACE_DIR, "BelgeTarama")
 
 model = ChatOpenAI(
     model="gpt-5.4",
@@ -25,26 +26,30 @@ model = ChatOpenAI(
 
 # ============================================================
 # SECTION → SOURCE MAPPING
-# Her bölümün ihtiyaç duyduğu kaynak dosyalar
+# Her bölümün ihtiyaç duyduğu kaynak dosyalar (MD ve JSON)
 # ============================================================
 SECTION_SOURCE_MAP = {
     "bolum_00_baslik.md": [
         "şirket-faliyet-raporu.md",
-        "yönetici-beyan-formu.md",
+        "yonetici_anketi.json",
+        "sanayi_sicil.json",
     ],
     "bolum_01_rapor_hakkinda.md": [
         "şirket-faliyet-raporu.md",
-        "yönetici-beyan-formu.md",
+        "yonetici_anketi.json",
         "mizan.md",
         "sgk_listesi.md",
     ],
     "bolum_02_yonetisim.md": [
         "şirket-faliyet-raporu.md",
-        "yönetici-beyan-formu.md",
+        "yonetici_anketi.json",
+        "iso_14001.json",
         "sgk_listesi.md",
     ],
     "bolum_03_strateji.md": [
         "şirket-faliyet-raporu.md",
+        "yonetici_anketi.json",
+        "kapasite_raporu.json",
         "mizan.md",
         "faturalar.md",
         "motat-atik-ve-su-beyani.md",
@@ -53,6 +58,8 @@ SECTION_SOURCE_MAP = {
     ],
     "bolum_04_risk_yonetimi.md": [
         "şirket-faliyet-raporu.md",
+        "yonetici_anketi.json",
+        "iso_14001.json",
         "osgb-raporu.md",
         "ekb.md",
         "faturalar.md",
@@ -65,23 +72,32 @@ SECTION_SOURCE_MAP = {
         "sgk_listesi.md",
         "ekb.md",
         "şirket-faliyet-raporu.md",
+        "kapasite_raporu.json"
     ],
     "bolum_06_muhakemeler.md": [
         "mizan.md",
         "faturalar.md",
         "tasit-tanima-sistemi.md",
+        "yonetici_anketi.json"
     ],
     "bolum_07_ekler.md": [
         "şirket-faliyet-raporu.md",
-        "yönetici-beyan-formu.md",
+        "yonetici_anketi.json",
     ],
     "bolum_08_iletisim.md": [
         "şirket-faliyet-raporu.md",
-        "yönetici-beyan-formu.md",
+        "yonetici_anketi.json",
     ],
     "bolum_09_dogrulama.md": [
         "şirket-faliyet-raporu.md",
     ],
+}
+
+INSTRUCTION_MAP = {
+    "mizan.md": "kurumsal_bilanco_mizan_instruction.md",
+    "sgk_listesi.md": "sgk_hizmet_dokumu_instruction.md",
+    "ekb.md": "enerji_kimlik_belgesi_instruction.md",
+    "faturalar.md": "tuketim_faturalari_instruction.md",
 }
 
 # ============================================================
@@ -115,23 +131,39 @@ def load_source_file(filename):
         print(f"  [!] Kaynak dosya bulunamadı: {filename}")
         return ""
     print(f"  [·] Kaynak yükleniyor: {filename}")
-    return preprocess_markdown(path)
+    if filename.endswith(".json"):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    else:
+        return preprocess_markdown(path)
 
 def get_sources_for_section(section_filename):
-    """Bölüme ait kaynak dosyaları yükler ve birleştirir."""
+    """Bölüme ait kaynak dosyaları ve OCR okuma kurallarını yükler."""
     source_files = SECTION_SOURCE_MAP.get(section_filename, [])
     if not source_files:
-        return "(Bu bölüm için ek kaynak dosya gerekmemektedir.)"
+        return "(Bu bölüm için ek kaynak dosya gerekmemektedir.)", ""
+    
     parts = []
+    rules = []
     for sf in source_files:
         content = load_source_file(sf)
         if content:
             parts.append(f"--- {sf} ---\n{content}\n--- SON ---\n")
-    return "\n".join(parts) if parts else "(Kaynak dosyalar yüklenemedi.)"
+        
+        rule_filename = INSTRUCTION_MAP.get(sf)
+        if rule_filename:
+            rule_path = os.path.join(BELGE_TARAMA_DIR, rule_filename)
+            if os.path.exists(rule_path):
+                with open(rule_path, "r", encoding="utf-8") as rf:
+                    rules.append(f"--- {sf} İÇİN ÖZEL OCR OKUMA KURALI ---\n{rf.read()}\n")
+                    
+    sources_text = "\n".join(parts) if parts else "(Kaynak dosyalar yüklenemedi.)"
+    rules_text = "\n".join(rules) if rules else ""
+    return sources_text, rules_text
 
 
 # ============================================================
-# TEMPLATE SPLITTING (sadece ilk sefer)
+# TEMPLATE SPLITTING
 # ============================================================
 
 def split_template_into_instructions():
@@ -175,80 +207,53 @@ def split_template_into_instructions():
 
 
 # ============================================================
-# AUDIT PHASE
-# ============================================================
-
-def run_audit_phase(all_sources_text):
-    print("[*] Denetim ve Factsheet Aşaması...")
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", (
-            "You are a professional sustainability auditor specializing in TSRS.\n"
-            "Analyze all source documents and compile a unified JSON factsheet.\n\n"
-            "Extract: company profile, financial metrics, workforce metrics, consumption metrics, waste metrics.\n"
-            "Verify billing↔ledger consistency. Calculate emissions with IPCC factors:\n"
-            "- Electricity: 0.50 kg CO2e/kWh\n- Natural gas: 2.02 kg CO2e/m³\n"
-            "- Diesel: 2.68 kg CO2e/L\n- Petrol: 2.31 kg CO2e/L\n\n"
-            "Output ONLY a JSON with keys: 'factsheet' (dict) and 'consistency_statement' (Turkish paragraph).\n"
-            "No markdown, no backticks."
-        )),
-        ("user", "Source Documents:\n{all_sources_text}\n\nGenerate JSON:")
-    ])
-    chain = prompt | model | JsonOutputParser()
-    return chain.invoke({"all_sources_text": all_sources_text})
-
-
-# ============================================================
 # SECTION GENERATION
 # ============================================================
 
 SYSTEM_PROMPT = (
     "Sen TSRS 1 ve TSRS 2 konusunda uzmanlaşmış kıdemli bir ESG ve sürdürülebilirlik danışmanısın.\n"
-    "Görevin: Verilen alt talimat dosyasındaki GEREKSİNİMLERE göre, sağlanan factsheet ve kaynak verileri kullanarak "
+    "Görevin: Verilen alt talimat dosyasındaki GEREKSİNİMLERE göre, sağlanan kaynak verileri (MD ve JSON) okuyarak "
     "Türkçe olarak son derece detaylı, profesyonel ve kurumsal bir rapor bölümü YAZMAK.\n\n"
     "KRİTİK KURALLAR:\n"
-    "1. Alt talimat dosyası bir ŞABLON DEĞİL, gereksinim listesidir. Onun yapısını, madde işaretlerini, köşeli parantezlerini "
-    "([ZORUNLU], [OPSİYONEL], [Yazınız], [Değer] vb.) KESİNLİKLE kopyalama. Bunları doldurma. Bunların yerine akan, "
-    "tutarlı, kurumsal anlatım paragrafları yaz. Soru-cevap formatında yazma.\n"
+    "1. Alt talimat dosyası bir ŞABLON DEĞİL, gereksinim listesidir. Onun yapısını KESİNLİKLE kopyalama. Soru-cevap formatında yazma.\n"
     "2. Hedef: Bu bölüm için 800-1200 kelime. Derinlemesine, zengin paragraflar.\n"
-    "3. Hiçbir placeholder, köşeli parantez talimatı veya şablon metni bırakma.\n"
-    "4. Şirket adı, NACE kodu, marka, raporlama dönemi gibi bilgileri factsheet'ten al.\n"
-    "5. KGK eşik değerlerinin altındaysa (1 Milyar TL aktif, 2 Milyar TL satış, 500 çalışan) gönüllü raporlama bağlamını açıkla.\n"
-    "6. Kapsam 3 muafiyeti varsa belirt.\n"
-    "7. Tüm sayısal veriler factsheet ile %100 tutarlı olmalı.\n"
+    "3. SANA VERİLEN KAYNAK BELGELERİN (MD dosyaları) İÇİNDEN VERİYİ KENDİN ÇIKARACAKSIN. Eğer sana OKUMA KURALLARI (Reading Rules) verildiyse, bu belgeleri okurken o kurallardaki hatalara (OCR kaymaları, boşluklar) DİKKAT ET.\n"
+    "4. Kesin veriler (JSON dosyaları, örn: Yönetici Anketi) verildiyse bunları birincil doğru kaynak kabul et.\n"
+    "5. Tüketim verilerinden (kWh, m3, Litre) Kapsam 1 ve 2 emisyonlarını yazarken, IPCC standart faktörlerini (Elektrik: 0.50, Doğalgaz: 2.02 vb.) kullanarak arka planda hesapla ve rapor metnine dök.\n"
+    "6. KGK eşik değerlerinin altındaysa (1 Milyar TL aktif, 2 Milyar TL satış, 500 çalışan) gönüllü raporlama bağlamını açıkla.\n"
+    "7. Tüm sayısal veriler kaynaklarla %100 tutarlı olmalı.\n"
     "8. Stil referansındaki ton, derinlik ve kurumsal dili örnek al.\n"
     "9. ![][imageX] etiketlerini olduğu gibi koru.\n"
-    "10. Bölüm 7 ise: Tam TSRS 1 ve TSRS 2 İçerik Endeksi tablolarını ve Bağımsız Denetçi Sınırlı Güvence Raporu metnini yaz.\n"
-    "11. Başlıklarda [ZORUNLU], [OPSİYONEL] gibi etiketler OLMASIN. Temiz başlıklar yaz.\n"
-    "12. Markdown code fence (```) kullanma."
+    "10. Başlıklarda [ZORUNLU], [OPSİYONEL] gibi etiketler OLMASIN. Temiz başlıklar yaz.\n"
+    "11. Markdown code fence (```) kullanma."
 )
 
-def generate_section(section_filename, template_text, factsheet_json, section_sources_text, style_ref, previous_sections):
+def generate_section(section_filename, template_text, section_sources_text, reading_rules_text, style_ref, previous_sections):
     print(f"\n{'='*60}")
     print(f"[*] AŞAMA: {section_filename}")
     print(f"{'='*60}")
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", SYSTEM_PROMPT),
-        ("user", (
-            "Bölüm: {section_filename}\n\n"
-            "Bu bölümün gereksinimleri (talimat dosyası):\n{template_text}\n\n"
-            "Doğrulanmış veri seti (factsheet):\n{factsheet_json}\n\n"
-            "Bu bölüm için ilgili kaynak belgeler:\n{section_sources_text}\n\n"
-            "Stil referansı (örnek rapordan):\n{style_ref}\n\n"
-            "Önceki bölümler (süreklilik için):\n{previous_sections}\n\n"
-            "Şimdi bu bölümün tam, detaylı, kurumsal anlatım metnini Türkçe yaz:"
-        ))
-    ])
+    prompt_messages = [
+        ("system", SYSTEM_PROMPT)
+    ]
+    
+    if reading_rules_text:
+        prompt_messages.append(("system", f"ÖZEL OKUMA KURALLARI:\nAşağıdaki belgeleri okurken lütfen bu kurallara dikkat et:\n{reading_rules_text}"))
 
+    user_content = (
+        f"Bölüm: {section_filename}\n\n"
+        f"Bu bölümün gereksinimleri (talimat dosyası):\n{template_text}\n\n"
+        f"Bu bölüm için ham kaynak belgeler (MD ve JSON):\n{section_sources_text}\n\n"
+        f"Stil referansı (örnek rapordan):\n{style_ref}\n\n"
+        f"Önceki bölümler (süreklilik için):\n{previous_sections}\n\n"
+        "Şimdi bu bölümün tam, detaylı, kurumsal anlatım metnini Türkçe yaz:"
+    )
+    prompt_messages.append(("user", user_content))
+
+    prompt = ChatPromptTemplate.from_messages(prompt_messages)
     chain = prompt | model | StrOutputParser()
-    return chain.invoke({
-        "section_filename": section_filename,
-        "template_text": template_text,
-        "factsheet_json": json.dumps(factsheet_json, indent=2, ensure_ascii=False),
-        "section_sources_text": section_sources_text,
-        "style_ref": style_ref,
-        "previous_sections": previous_sections
-    })
+    
+    return chain.invoke({})
 
 
 # ============================================================
@@ -258,29 +263,14 @@ def generate_section(section_filename, template_text, factsheet_json, section_so
 def main():
     print("=" * 60)
     print("  TSRS SÜRDÜRÜLEBİLİRLİK RAPORU ÜRETİM AKIŞI")
-    print("  Model: gpt-5.4 | Her bölüm ayrı aşama")
+    print("  Model: gpt-5.4 | Doğrudan Belge Okuma Mimarisi")
     print("=" * 60)
 
     # Aşama 0: Şablon bölme
     base64_blocks = split_template_into_instructions()
 
-    # Aşama 0.5: Denetim için TÜM kaynakları oku (sadece audit için)
-    print("\n[*] Denetim aşaması için tüm kaynaklar okunuyor...")
-    audit_sources = []
-    for fn in sorted(os.listdir(AIAGENT_DIR)):
-        if fn.endswith(".md") and not fn.endswith("_ins.md") and fn != "run_pipeline.py" and not os.path.isdir(os.path.join(AIAGENT_DIR, fn)):
-            content = preprocess_markdown(os.path.join(AIAGENT_DIR, fn))
-            audit_sources.append(f"--- {fn} ---\n{content}\n--- SON ---\n")
-    all_sources_for_audit = "\n".join(audit_sources)
-
-    # Aşama 1: Denetim ve factsheet
-    audit_result = run_audit_phase(all_sources_for_audit)
-    factsheet = audit_result.get("factsheet", {})
-    consistency = audit_result.get("consistency_statement", "")
-    print("[+] Denetim tamamlandı.")
-
-    # eklenen_veriler.md yaz
-    write_eklenen_veriler(factsheet, consistency)
+    # eklenen_veriler.md yaz (Eski JSON bağımlılığı kalktığı için statik bilgi)
+    write_eklenen_veriler()
 
     # Stil referanslarını yükle
     print(f"\n[*] Benchmark stil referansı yükleniyor: {BENCHMARK_PATH}")
@@ -309,16 +299,13 @@ def main():
         if not filename.endswith(".md"):
             continue
 
-        # Talimat dosyasını oku
         with open(os.path.join(TALIMATLAR_DIR, filename), "r", encoding="utf-8") as f:
             template = f.read()
 
-        # BU bölüme ait kaynakları yükle
-        sources = get_sources_for_section(filename)
+        sources, rules = get_sources_for_section(filename)
         style = style_refs.get(filename, "")
 
-        # Üret
-        text = generate_section(filename, template, factsheet, sources, style, prev_text)
+        text = generate_section(filename, template, sources, rules, style, prev_text)
 
         generated[filename] = text
         prev_text += f"\n\n--- {filename} ---\n{text}\n"
@@ -336,32 +323,13 @@ def main():
     print("=" * 60)
 
 
-def write_eklenen_veriler(factsheet, consistency):
-    print(f"[*] eklenen_veriler.md yazılıyor...")
-    p = factsheet.get("profile", {})
-    w = factsheet.get("workforce", {})
-    c = factsheet.get("consumption", {})
-    e = factsheet.get("emissions", {})
-    fi = factsheet.get("financial", {})
-    s = factsheet.get("sustainability", {})
+def write_eklenen_veriler():
+    print(f"[*] eklenen_veriler.md oluşturuluyor...")
     lines = [
-        "# EkoFin Eklenen, Hesaplanan ve Doğrulanan Veriler",
+        "# EkoFin Eklenen ve İşlenen Veriler",
         "",
-        "| Kategori | Değişken | Değer | Kaynak |",
-        "| :--- | :--- | :--- | :--- |",
-        f"| Profil | Unvan | {p.get('official_title', 'N/A')} | Faaliyet Raporu |",
-        f"| Profil | Marka | {p.get('brand_name', 'N/A')} | Faaliyet Raporu |",
-        f"| Profil | VKN | {p.get('vkn', 'N/A')} | Faaliyet Raporu |",
-        f"| İstihdam | Toplam | {w.get('total_employees', 'N/A')} | SGK Listesi |",
-        f"| Tüketim | Elektrik | {c.get('electricity_kwh', 'N/A')} kWh | Faturalar |",
-        f"| Tüketim | Doğalgaz | {c.get('natural_gas_m3', 'N/A')} m³ | Faturalar |",
-        f"| Emisyon | Kapsam 1 | {e.get('scope_1', 'N/A')} tCO2e | Hesaplama |",
-        f"| Emisyon | Kapsam 2 | {e.get('scope_2', 'N/A')} tCO2e | Hesaplama |",
-        f"| Emisyon | Toplam | {e.get('total_emissions', 'N/A')} tCO2e | Hesaplama |",
-        f"| Finansal | Net Satış | {fi.get('net_sales', 'N/A')} TL | Mizan |",
-        "",
-        "## Tutarlılık Beyanı",
-        f"- {consistency}",
+        "Sisteme giren kesin veriler (JSON kaynakları) ve taranan OCR belgeleri (MD) LLM tarafından doğrudan işlenerek rapora entegre edilmiştir.",
+        "Emisyon hesaplamaları doğrudan metin üretimi aşamasında yapılmıştır."
     ]
     with open(ADDED_DATA_PATH, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
