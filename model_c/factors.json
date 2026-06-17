@@ -1,0 +1,17 @@
+{
+  "hammadde": {
+    "pamuk": { "factor": 0.42, "unit": "kg", "source": "Ecoinvent v3.9" },
+    "plastik_polimer": { "factor": 1.95, "unit": "kg", "source": "Ecoinvent v3.9" },
+    "celik": { "factor": 1.85, "unit": "kg", "source": "Ecoinvent v3.9" },
+    "kagit": { "factor": 0.92, "unit": "kg", "source": "Ecoinvent v3.9" }
+  },
+  "lojistik": {
+    "dizel_kamyon": { "factor": 0.18, "unit": "km", "source": "DEFRA 2025" },
+    "benzinli_binek": { "factor": 0.12, "unit": "km", "source": "DEFRA 2025" },
+    "elektrikli_kamyon": { "factor": 0.05, "unit": "km", "source": "DEFRA 2025" }
+  },
+  "enerji": {
+    "elektrik_sebeke": { "factor": 0.45, "unit": "kWh", "source": "TEİAŞ 2024" },
+    "dogalgaz": { "factor": 2.1, "unit": "m3", "source": "DEFRA 2025" }
+  }
+}
