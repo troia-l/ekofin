@@ -1,0 +1,22 @@
+artifact_path: file:C:/Users/buket/Desktop/ekofin/esg_pred/mlruns/1/models/m-6510afcdc05d4be4a7bf31feac11119b/artifacts
+flavors:
+  python_function:
+    data: model.ubj
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.xgboost
+    python_version: 3.13.7
+  xgboost:
+    code: null
+    data: model.ubj
+    model_class: xgboost.sklearn.XGBRegressor
+    model_format: ubj
+    xgb_version: 3.2.0
+mlflow_version: 3.13.0
+model_id: m-6510afcdc05d4be4a7bf31feac11119b
+model_size_bytes: 825063
+model_uuid: m-6510afcdc05d4be4a7bf31feac11119b
+prompts: null
+run_id: fb6ad92be4574a99aad3a44387af3ac0
+utc_time_created: '2026-06-15 21:20:18.141804'
