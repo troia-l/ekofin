@@ -5,7 +5,8 @@ import {
   Zap, Clock, AlertCircle, RefreshCw, Info, Shield, Wallet, FileText, CheckCircle2, ChevronRight, ChevronLeft
 } from 'lucide-react';
 
-// ─── Animasyon Varyantları ────────────────────────────────────────────────────
+// ─── Animasyon Varyantları ──────────────────────────────────────────────────────────────────────────────
+const MODEL_C_URL = import.meta.env.VITE_MODEL_C_URL || 'http://localhost:8005';
 const containerVariants = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.06 } }
@@ -200,7 +201,7 @@ const Simulator = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('http://localhost:8005/calculate', {
+      const res = await fetch(`${MODEL_C_URL}/calculate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

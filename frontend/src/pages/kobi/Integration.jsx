@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, Link2, ShieldAlert, FileText, Leaf, AlertTriangle } from 'lucide-react';
 import ManagerDeclarationDashboard from '../../components/ManagerDeclarationDashboard';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -13,38 +15,135 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
 };
 
+// Belge türü tanımları
+const DOC_DEFINITIONS = [
+  { id: 'sgk', title: 'SGK Hizmet Dökümleri', desc: 'Personel sayısı doğrulaması için', docType: 'sgk' },
+  { id: 'declaration', title: 'Yönetici Beyan Formu', desc: 'Şirket araç, çalışan ve ÇYS beyanı', docType: null },
+  { id: 'sanayi_sicil', title: 'Sanayi Sicil Belgesi', desc: 'Resmi kapasite ve NACE kod onayı', docType: 'sanayi_sicil' },
+  { id: 'kapasite_raporu', title: 'Kapasite Raporu (TOBB)', desc: 'Üretim limitleri doğrulaması', docType: 'kapasite_raporu' },
+  { id: 'ekb', title: 'Enerji Kimlik Belgesi (EKB)', desc: 'Tesis enerji verimlilik kanıtı', docType: 'ekb' },
+  { id: 'iso_14001', title: 'ISO 14001 Çevre YYS', desc: 'Çevre yönetim sistemi sertifikası', docType: 'iso_14001' },
+];
+
 const Integration = () => {
   const [isHoveringDrop, setIsHoveringDrop] = useState(false);
   const [showDeclarationDashboard, setShowDeclarationDashboard] = useState(false);
   const [initialDashboardMode, setInitialDashboardMode] = useState('wizard');
-  const [declarationData, setDeclarationData] = useState(() => {
-    const saved = localStorage.getItem('manager_declaration');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [declarationData, setDeclarationData] = useState(null);
+  const [docStatuses, setDocStatuses] = useState({});
+  const [recentUploads, setRecentUploads] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+  const docFileInputRef = useRef(null);
+  const [activeDocUpload, setActiveDocUpload] = useState(null);
+
+  // Sayfa açıldığında API'den veri çek
+  useEffect(() => {
+    fetchDocStatuses();
+    fetchDeclaration();
+    fetchRecentUploads();
+  }, []);
+
+  const fetchDocStatuses = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/documents/status`);
+      if (res.ok) {
+        const data = await res.json();
+        setDocStatuses(data.documents || {});
+      }
+    } catch (e) { console.error('Belge durumu alınamadı:', e); }
+  };
+
+  const fetchDeclaration = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/declaration`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'found') setDeclarationData(data.data);
+      }
+    } catch (e) { console.error('Anket verisi alınamadı:', e); }
+  };
+
+  const fetchRecentUploads = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/documents/list`);
+      if (res.ok) {
+        const data = await res.json();
+        setRecentUploads(data.uploads || []);
+      }
+    } catch (e) { console.error('Yükleme listesi alınamadı:', e); }
+  };
+
+  const handleFileUpload = async (file, docType) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('doc_type', docType);
+      const res = await fetch(`${API_URL}/api/documents/upload`, { method: 'POST', body: formData });
+      if (!res.ok) throw new Error('Yükleme hatası');
+      await fetchDocStatuses();
+      await fetchRecentUploads();
+    } catch (e) {
+      console.error('Dosya yüklenemedi:', e);
+      alert('Dosya yükleme hatası: ' + e.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeclarationSubmit = async (data) => {
+    try {
+      const res = await fetch(`${API_URL}/api/declaration`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        setDeclarationData(data);
+        setShowDeclarationDashboard(false);
+        await fetchDocStatuses();
+      }
+    } catch (e) {
+      console.error('Anket gönderilemedi:', e);
+    }
+  };
+
+  // Belge durumunu hesapla
+  const getDocStatus = (docDef) => {
+    if (docDef.id === 'declaration') {
+      return declarationData ? 'verified_decl' : 'fill_decl';
+    }
+    const apiStatus = docStatuses[docDef.id];
+    if (apiStatus?.status === 'verified') return 'verified';
+    return 'upload';
+  };
+
+  const getDocDate = (docDef) => {
+    if (docDef.id === 'declaration') return declarationData ? 'Güncel' : '-';
+    const apiStatus = docStatuses[docDef.id];
+    if (apiStatus?.uploaded_at) {
+      return new Date(apiStatus.uploaded_at).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    if (apiStatus?.status === 'verified') return 'Güncel';
+    return '-';
+  };
+
+  const docs = DOC_DEFINITIONS.map(d => ({
+    ...d, status: getDocStatus(d), date: getDocDate(d),
+  }));
 
   if (showDeclarationDashboard) {
     return (
       <ManagerDeclarationDashboard 
         onBack={() => setShowDeclarationDashboard(false)}
-        onSubmit={(data) => {
-          localStorage.setItem('manager_declaration', JSON.stringify(data));
-          setDeclarationData(data);
-          setShowDeclarationDashboard(false);
-        }}
+        onSubmit={handleDeclarationSubmit}
         initialData={declarationData}
         initialMode={initialDashboardMode}
       />
     );
   }
-
-  const docs = [
-    { id: 'sgk', title: 'SGK Hizmet Dökümleri', desc: 'Personel sayısı doğrulaması için', status: 'upload', date: '-' },
-    { id: 'declaration', title: 'Yönetici Beyan Formu', desc: 'Şirket araç, çalışan ve ÇYS beyanı', status: declarationData ? 'verified_decl' : 'fill_decl', date: declarationData ? 'Güncel' : '-' },
-    { id: 'sanayi', title: 'Sanayi Sicil Belgesi', desc: 'Resmi kapasite ve NACE kod onayı', status: 'verified', date: 'Güncel' },
-    { id: 'kapasite', title: 'Kapasite Raporu (TOBB)', desc: 'Üretim limitleri doğrulaması', status: 'verified', date: '12 May 2026' },
-    { id: 'ekb', title: 'Enerji Kimlik Belgesi (EKB)', desc: 'Tesis enerji verimlilik kanıtı', status: 'upload', date: '-' },
-    { id: 'iso', title: 'ISO 14001 Çevre YYS', desc: 'Çevre yönetim sistemi sertifikası', status: 'pending', date: 'İnceleniyor' }
-  ];
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="flex-col gap-6">
@@ -125,37 +224,46 @@ const Integration = () => {
               </motion.div>
               <h4 style={{ fontWeight: 700, marginBottom: '8px', color: 'var(--primary-midnight)' }}>UBL / XML Paketlerini Sürükleyin</h4>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px' }}>veya bilgisayarınızdan seçmek için tıklayın.</p>
-              <button className="btn-primary" style={{ padding: '10px 24px', pointerEvents: 'none' }}>Dosya Seç</button>
+              <input ref={fileInputRef} type="file" accept=".xml,.zip,.pdf,.md,.json" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0], 'efatura'); }} />
+              <button className="btn-primary" style={{ padding: '10px 24px', cursor: 'pointer' }} disabled={uploading} onClick={() => fileInputRef.current?.click()}>{uploading ? 'Yükleniyor...' : 'Dosya Seç'}</button>
             </motion.div>
 
             <div>
               <h4 style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '12px', letterSpacing: '0.5px' }}>SON YÜKLENEN PAKETLER</h4>
               
-              <motion.div 
-                whileHover={{ x: 5 }}
-                className="flex-col gap-2" 
-                style={{ 
-                  padding: '16px', 
-                  background: 'var(--bg-main)', 
-                  borderRadius: '12px',
-                  borderLeft: '4px solid var(--accent-emerald)',
-                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
-                }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <FileSpreadsheet size={18} color="var(--primary-midnight)" />
-                    <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--primary-midnight)' }}>2026_Q1_Maliyet.zip</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--accent-emerald)', fontWeight: 600 }}>
-                    <Check size={14} /> İşlendi
-                  </div>
+              {recentUploads.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>Henüz dosya yüklenmedi.</div>
+              ) : (
+                <div className="flex-col gap-2">
+                  {recentUploads.slice(0, 5).map((upload, idx) => (
+                    <motion.div 
+                      key={idx}
+                      whileHover={{ x: 5 }}
+                      className="flex-col gap-2" 
+                      style={{ 
+                        padding: '16px', 
+                        background: 'var(--bg-main)', 
+                        borderRadius: '12px',
+                        borderLeft: '4px solid var(--accent-emerald)',
+                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
+                      }}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <FileSpreadsheet size={18} color="var(--primary-midnight)" />
+                          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--primary-midnight)' }}>{upload.filename}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: upload.status === 'processed' ? 'var(--accent-emerald)' : 'var(--warning)', fontWeight: 600 }}>
+                          <Check size={14} /> {upload.status === 'processed' ? 'İşlendi' : 'Bekliyor'}
+                        </div>
+                      </div>
+                      <div style={{ height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: '100%', background: 'var(--accent-emerald)' }}></div>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
-                <div style={{ height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: '100%', background: 'var(--accent-emerald)' }}></div>
-                </div>
-              </motion.div>
-
+              )}
             </div>
           </motion.div>
 
@@ -326,7 +434,10 @@ const Integration = () => {
                       </div>
                     )}
                     {doc.status === 'upload' && (
-                      <button className="btn-outline" style={{ padding: '6px 16px', fontSize: '12px', borderRadius: '8px' }}>Yükle</button>
+                      <>
+                        <input ref={docFileInputRef} type="file" accept=".pdf,.md,.json,.xml,.zip,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0] && activeDocUpload) handleFileUpload(e.target.files[0], activeDocUpload); setActiveDocUpload(null); }} />
+                        <button className="btn-outline" style={{ padding: '6px 16px', fontSize: '12px', borderRadius: '8px', cursor: 'pointer' }} disabled={uploading} onClick={() => { setActiveDocUpload(doc.docType); docFileInputRef.current?.click(); }}>{uploading ? '...' : 'Yükle'}</button>
+                      </>
                     )}
                     
                     {doc.status !== 'upload' && doc.status !== 'fill_decl' && doc.status !== 'verified_decl' && (

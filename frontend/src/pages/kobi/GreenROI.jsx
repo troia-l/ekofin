@@ -6,6 +6,8 @@ import {
   RefreshCw, ArrowRight, Info, Shield, Wallet
 } from 'lucide-react';
 
+const MODEL_C_URL = import.meta.env.VITE_MODEL_C_URL || 'http://localhost:8005';
+
 // ─── Animasyon Varyantları ────────────────────────────────────────────────────
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -113,7 +115,7 @@ const GreenROI = () => {
     setResult(null);
     setError(null);
     try {
-      const res = await fetch('http://localhost:8005/calculate', {
+      const res = await fetch(`${MODEL_C_URL}/calculate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

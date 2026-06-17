@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Download, QrCode, CheckCircle, FileText, ShieldCheck, 
@@ -6,6 +6,8 @@ import {
   Calendar, Cpu, Award, ChevronDown, ChevronUp, AlertCircle,
   ExternalLink, Lock, CheckCircle2
 } from 'lucide-react';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -25,45 +27,75 @@ const TsrsReport = () => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationSuccess, setVerificationSuccess] = useState(false);
   const [expandedSection, setExpandedSection] = useState(null);
+  const [reportData, setReportData] = useState(null);
+  const [reportHash, setReportHash] = useState('');
+  const [exportError, setExportError] = useState(null);
 
-  const hashID = "0x8f4b2c1d9a7e635489b0cf34d2a1b9e84cd54ef92a0134f7b2c9f8021d7b322a";
+  // Sayfa açıldığında son raporu çek
+  useEffect(() => {
+    fetchLatestReport();
+  }, []);
 
-  const handleExport = () => {
-    setIsExporting(true);
-    setExportProgress(0);
+  const fetchLatestReport = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/report/latest`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'found') {
+          setReportData(data.content);
+          setReportHash(data.hash || '');
+        }
+      }
+    } catch (e) { console.error('Rapor yüklenemedi:', e); }
   };
 
-  useEffect(() => {
-    let interval;
-    if (isExporting && exportProgress < 100) {
-      interval = setInterval(() => {
-        setExportProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setTimeout(() => {
-              setIsExporting(false);
-              setExportProgress(0);
-            }, 1500);
-            return 100;
-          }
-          return prev + 10;
-        });
-      }, 100);
+  const handleExport = async () => {
+    setIsExporting(true);
+    setExportProgress(10);
+    setExportError(null);
+    try {
+      setExportProgress(30);
+      const res = await fetch(`${API_URL}/api/report/generate`, { method: 'POST' });
+      setExportProgress(80);
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || 'Rapor üretim hatası');
+      }
+      const data = await res.json();
+      setReportHash(data.hash || '');
+      setExportProgress(100);
+      // Raporu tekrar çek
+      await fetchLatestReport();
+      setTimeout(() => {
+        setIsExporting(false);
+        setExportProgress(0);
+      }, 2000);
+    } catch (e) {
+      setExportError(e.message);
+      setIsExporting(false);
+      setExportProgress(0);
     }
-    return () => clearInterval(interval);
-  }, [isExporting, exportProgress]);
+  };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
+    if (!reportHash) return;
     setIsVerifying(true);
     setVerificationSuccess(false);
-    setTimeout(() => {
-      setIsVerifying(false);
-      setVerificationSuccess(true);
-    }, 1500);
+    try {
+      const formData = new FormData();
+      formData.append('hash_to_verify', reportHash);
+      const res = await fetch(`${API_URL}/api/report/verify`, { method: 'POST', body: formData });
+      if (res.ok) {
+        const data = await res.json();
+        setVerificationSuccess(data.is_valid);
+      }
+    } catch (e) { console.error('Doğrulama hatası:', e); }
+    finally { setIsVerifying(false); }
   };
 
   const copyHash = () => {
-    navigator.clipboard.writeText(hashID);
+    if (!reportHash) return;
+    navigator.clipboard.writeText(reportHash);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -234,34 +266,16 @@ const TsrsReport = () => {
                       <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary-midnight)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Building size={18} color="var(--accent-emerald)" /> 1. Yönetici Özeti ve Kurumsal Profil
                       </h3>
-                      <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>
-                        Bu rapor, Kamu Gözetimi Kurumu (KGK) tarafından yayınlanan Türkiye Sürdürülebilirlik Raporlama Standartları (TSRS) ile tam uyumlu olarak üretilmiştir. Entegre edilen ERP, e-Defter ve fatura verileri yapay zeka denetim algoritmalarımız tarafından doğrulanarak güvenli bir veri tabanı oluşturulmuştur.
-                      </p>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', margin: '12px 0' }}>
-                      <div style={{ background: 'var(--bg-main)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '6px' }}>ESG Derecesi</div>
-                        <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--accent-emerald)' }}>A+</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-light)', marginTop: '4px' }}>Çok Yüksek Uyum</div>
-                      </div>
-                      
-                      <div style={{ background: 'var(--bg-main)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '6px' }}>Karbon Yoğunluğu</div>
-                        <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--primary-midnight)' }}>-%24</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-light)', marginTop: '4px' }}>Yıllık Değişim</div>
-                      </div>
-                      
-                      <div style={{ background: 'var(--bg-main)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '6px' }}>Kredi Skoru</div>
-                        <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--accent-gold)' }}>94/100</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-light)', marginTop: '4px' }}>Yeşil Fonlama Limiti</div>
-                      </div>
-                    </div>
-
-                    <div style={{ borderLeft: '3px solid var(--accent-emerald)', paddingLeft: '16px', margin: '16px 0', background: 'rgba(16, 185, 129, 0.03)', padding: '16px', borderRadius: '0 12px 12px 0' }}>
-                      <span style={{ fontWeight: 700, color: 'var(--primary-midnight)', display: 'block', marginBottom: '6px' }}>Kritik Beyan:</span>
-                      Şirketin doğrudan operasyonel emisyonları (Kapsam 1) ve satın alınan enerji kaynaklı dolaylı emisyonları (Kapsam 2) son 12 ayda planlanan azaltım rotasına uygun ilerleme göstermiştir.
+                      {reportData ? (
+                        <div style={{ color: 'var(--text-muted)', whiteSpace: 'pre-line', fontSize: '14px', lineHeight: '1.8' }}>
+                          {reportData.slice(0, 2000)}
+                        </div>
+                      ) : (
+                        <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          <FileText size={40} color="var(--text-light)" style={{ margin: '0 auto 16px', opacity: 0.3 }} />
+                          <p style={{ fontSize: '14px', fontWeight: 500 }}>Henüz rapor üretilmedi. "Rapor Üret" butonuna basarak TSRS raporunu oluşturabilirsiniz.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -400,7 +414,7 @@ const TsrsReport = () => {
               </div>
               <div style={{ textAlign: 'right', fontSize: '11px', color: 'var(--text-muted)' }}>
                 <div>Sertifika Yetkilisi: KGK Bağımsız Denetçi Uyumlu</div>
-                <div>Hash ID: {hashID.slice(0, 8)}...{hashID.slice(-8)}</div>
+                <div>Hash ID: {reportHash ? `${reportHash.slice(0, 8)}...${reportHash.slice(-8)}` : 'Henüz üretilmedi'}</div>
               </div>
             </div>
 
@@ -482,7 +496,7 @@ const TsrsReport = () => {
               <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '1px' }}>Kriptografik Doğrulama Kodu (Hash)</div>
               <div className="flex items-center justify-between" style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <span style={{ fontSize: '11px', fontFamily: 'monospace', color: 'rgba(255,255,255,0.8)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
-                  {hashID}
+                  {reportHash}
                 </span>
                 <motion.button 
                   onClick={copyHash}
