@@ -1,5 +1,20 @@
+# Environment variables
 TSRS_Rapor/.env
 model_c/.env
+.env
+
+# Python
 model_c/__pycache__/
 model_c/venv/
+__pycache__/
+*.pyc
+venv/
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+node_modules/
+
+# OS
 .DS_Store
+Thumbs.db
