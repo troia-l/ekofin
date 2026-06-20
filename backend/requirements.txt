@@ -1,4 +1,23 @@
+# ─── EkoFin Birleşik Backend Bağımlılıkları ──────────────────────────────────
+
+# Core API
 fastapi
 uvicorn[standard]
 python-multipart
 python-dotenv
+pydantic
+
+# LLM — TSRS Pipeline (OpenAI / GPT)
+langchain-openai
+langchain-core
+
+# LLM — Carbon/ROI (Google Gemini)
+langchain-google-genai
+google-generativeai
+
+# ML & Data — ESG Prediction
+pandas
+numpy
+joblib
+scikit-learn
+xgboost

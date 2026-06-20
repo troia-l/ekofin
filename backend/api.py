@@ -1,51 +1,54 @@
 """
-EkoFin Backend Gateway API
-Birleştirici FastAPI uygulaması — dosya yükleme, rapor üretimi ve dashboard özeti.
+EkoFin Birleşik Backend Gateway API
+Tüm modülleri (Carbon, TSRS, ESG) tek bir FastAPI uygulamasında birleştirir.
 Port: 8000
 """
 
 import os
 import json
 import hashlib
-import subprocess
-import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from dotenv import load_dotenv
 
-# ─── Yol Sabitleri ────────────────────────────────────────────────────────────
-BASE_DIR = Path(__file__).resolve().parent.parent
-AIAGENT_DIR = BASE_DIR / "TSRS_Rapor" / "aiagent"
-TSRS_DIR = BASE_DIR / "TSRS_Rapor"
-REPORT_OUTPUT = TSRS_DIR / "TSRS_Uyumlu_Surdurulebilirlik_Raporu.md"
-DECLARATION_PATH = AIAGENT_DIR / "yonetici_anketi.json"
-UPLOADS_META_PATH = BASE_DIR / "backend" / "uploads_meta.json"
+from config import (
+    BASE_DIR, SOURCES_DIR, REPORT_OUTPUT_PATH, DECLARATION_PATH,
+    UPLOADS_META_PATH, DOCUMENT_TYPE_MAP, EKLENEN_VERILER_PATH,
+    OUTPUT_DIR,
+)
 
-# Belge türü → hedef dosya adı eşlemesi
-DOCUMENT_TYPE_MAP = {
-    "sgk": "sgk_listesi.md",
-    "ekb": "ekb.md",
-    "fatura": "faturalar.md",
-    "mizan": "mizan.md",
-    "motat": "motat-atik-ve-su-beyani.md",
-    "osgb": "osgb-raporu.md",
-    "tasit": "tasit-tanima-sistemi.md",
-    "faaliyet": "şirket-faliyet-raporu.md",
-    "sanayi_sicil": "sanayi_sicil.json",
-    "kapasite_raporu": "kapasite_raporu.json",
-    "iso_14001": "iso_14001.json",
-    "efatura": "faturalar.md",
-}
+load_dotenv(dotenv_path=BASE_DIR / ".env")
+
+# ─── Modül İmportları ────────────────────────────────────────────────────────
+from modules.carbon.extractor import extract_activities
+from modules.carbon.calculator import CarbonCalculator
+from modules.carbon.roi import calculate_groi, ROIRequest, calculate_green_credit
+
+# ESG modeli lazy-load edilecek (pkl dosyaları büyük olabilir)
+_esg_predictor = None
+
+def _get_esg_predictor():
+    global _esg_predictor
+    if _esg_predictor is None:
+        try:
+            from modules.esg_prediction.predictor import ESGPredictor
+            _esg_predictor = ESGPredictor()
+        except Exception as e:
+            print(f"[UYARI] ESG modeli yüklenemedi: {e}")
+            raise
+    return _esg_predictor
+
 
 # ─── FastAPI Uygulaması ──────────────────────────────────────────────────────
 app = FastAPI(
-    title="EkoFin Backend Gateway",
-    description="Dosya yükleme, TSRS rapor üretimi ve dashboard özeti API'si.",
-    version="1.0.0",
+    title="EkoFin Birleşik Backend",
+    description="Belge yükleme, TSRS rapor üretimi, karbon hesaplama, yeşil kredi skorlama ve ESG tahmini — tek API.",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -55,6 +58,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+calculator = CarbonCalculator()
 
 
 # ─── Yardımcı Fonksiyonlar ───────────────────────────────────────────────────
@@ -83,7 +88,7 @@ def _compute_file_hash(file_path: Path) -> str:
     return "0x" + sha256.hexdigest()
 
 
-# ─── Modeller ────────────────────────────────────────────────────────────────
+# ─── Request/Response Modeller ────────────────────────────────────────────────
 
 class DeclarationData(BaseModel):
     """Yönetici Anketi / Beyan Formu verisi."""
@@ -108,17 +113,31 @@ class ReportStatus(BaseModel):
     message: str = ""
 
 
-# ─── Global State (basit in-memory) ─────────────────────────────────────────
+class CalculationRequest(BaseModel):
+    text: str
+    ges_budget: float = Field(default=0.0, description="GES Yatırımı (TL)")
+    ev_count: int = Field(default=0, description="Elektrikli Araç Sayısı")
+    eff_budget: float = Field(default=0.0, description="Enerji Verimliliği Bütçesi (TL)")
+    waste_budget: float = Field(default=0.0, description="Atık Yönetimi Bütçesi (TL)")
+    water_budget: float = Field(default=0.0, description="Su Verimliliği Bütçesi (TL)")
+    loan_amount: float = Field(default=500_000.0, description="Talep Edilen Kredi (TL)")
+    loan_years: int = Field(default=5, description="Kredi vadesi (yıl)")
+    financial_rating: str = Field(default="BBB", description="Derecelendirme Notu")
+
+
+# ─── Global State ────────────────────────────────────────────────────────────
 _report_status: ReportStatus = ReportStatus(status="idle", progress=0, message="")
 
 
-# ─── Endpoints ───────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+#                              ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @app.get("/")
 def root():
     return {
-        "service": "EkoFin Backend Gateway",
-        "version": "1.0.0",
+        "service": "EkoFin Birleşik Backend",
+        "version": "2.0.0",
         "endpoints": [
             "GET  /api/dashboard/summary",
             "POST /api/documents/upload",
@@ -130,6 +149,9 @@ def root():
             "GET  /api/report/latest",
             "GET  /api/report/status",
             "POST /api/report/verify",
+            "POST /api/carbon/calculate",
+            "POST /api/esg/predict",
+            "GET  /api/esg/health",
         ],
     }
 
@@ -142,23 +164,16 @@ def dashboard_summary():
     meta = _load_uploads_meta()
     docs = meta.get("documents", {})
 
-    # Yüklenen belge sayısı
     total_docs = len([d for d in docs.values() if d.get("status") == "verified"])
-
-    # Yönetici anketi var mı?
     declaration_exists = DECLARATION_PATH.exists()
-
-    # Rapor üretilmiş mi?
-    report_exists = REPORT_OUTPUT.exists()
+    report_exists = REPORT_OUTPUT_PATH.exists()
     report_hash = ""
     if report_exists:
-        report_hash = _compute_file_hash(REPORT_OUTPUT)
+        report_hash = _compute_file_hash(REPORT_OUTPUT_PATH)
 
-    # Eklenen veriler dosyasından basit metrikler çek
-    eklenen_path = TSRS_DIR / "eklenen_veriler.md"
     eklenen_content = ""
-    if eklenen_path.exists():
-        with open(eklenen_path, "r", encoding="utf-8") as f:
+    if EKLENEN_VERILER_PATH.exists():
+        with open(EKLENEN_VERILER_PATH, "r", encoding="utf-8") as f:
             eklenen_content = f.read()
 
     return {
@@ -178,7 +193,7 @@ async def upload_document(
     file: UploadFile = File(...),
     doc_type: str = Form(...),
 ):
-    """Belge yükle ve aiagent dizinine kaydet."""
+    """Belge yükle ve sources dizinine kaydet."""
     if doc_type not in DOCUMENT_TYPE_MAP:
         raise HTTPException(
             status_code=400,
@@ -186,15 +201,13 @@ async def upload_document(
         )
 
     target_filename = DOCUMENT_TYPE_MAP[doc_type]
-    target_path = AIAGENT_DIR / target_filename
+    target_path = SOURCES_DIR / target_filename
 
-    # Dosyayı kaydet
-    AIAGENT_DIR.mkdir(parents=True, exist_ok=True)
+    SOURCES_DIR.mkdir(parents=True, exist_ok=True)
     content = await file.read()
     with open(target_path, "wb") as f:
         f.write(content)
 
-    # Meta güncelle
     meta = _load_uploads_meta()
     meta["documents"][doc_type] = {
         "status": "verified",
@@ -209,7 +222,6 @@ async def upload_document(
         "uploaded_at": datetime.now().isoformat(),
         "status": "processed",
     })
-    # Son 20 yüklemeyi tut
     meta["uploads"] = meta["uploads"][:20]
     _save_uploads_meta(meta)
 
@@ -234,7 +246,6 @@ def documents_status():
     meta = _load_uploads_meta()
     docs = meta.get("documents", {})
 
-    # Yönetici anketi durumu
     declaration_status = "verified" if DECLARATION_PATH.exists() else "not_uploaded"
 
     statuses = {}
@@ -242,8 +253,7 @@ def documents_status():
         if doc_type in docs:
             statuses[doc_type] = docs[doc_type]
         else:
-            # Dosya aiagent dizininde zaten var mı kontrol et
-            if (AIAGENT_DIR / target_file).exists():
+            if (SOURCES_DIR / target_file).exists():
                 statuses[doc_type] = {
                     "status": "verified",
                     "target_filename": target_file,
@@ -263,7 +273,7 @@ def documents_status():
 @app.post("/api/declaration")
 def save_declaration(data: DeclarationData):
     """Yönetici Anketi verisini JSON olarak kaydet."""
-    AIAGENT_DIR.mkdir(parents=True, exist_ok=True)
+    SOURCES_DIR.mkdir(parents=True, exist_ok=True)
     payload = data.model_dump(exclude_none=True)
     payload["submitted_at"] = datetime.now().isoformat()
 
@@ -291,7 +301,7 @@ def get_declaration():
 
 @app.post("/api/report/generate")
 def generate_report():
-    """run_pipeline.py'yi tetikleyerek TSRS raporunu üret."""
+    """TSRS pipeline'ını doğrudan modül olarak çağırarak rapor üret."""
     global _report_status
 
     if _report_status.status == "generating":
@@ -302,34 +312,22 @@ def generate_report():
     )
 
     try:
-        pipeline_path = TSRS_DIR / "aiagent" / "run_pipeline.py"
-        if not pipeline_path.exists():
-            _report_status = ReportStatus(
-                status="error", progress=0, message="run_pipeline.py bulunamadı."
-            )
-            raise HTTPException(status_code=404, detail="run_pipeline.py bulunamadı.")
+        from modules.tsrs.pipeline import run_tsrs_pipeline
 
         _report_status.progress = 20
         _report_status.message = "Pipeline çalıştırılıyor..."
 
-        # Pipeline'ı subprocess olarak çalıştır
-        result = subprocess.run(
-            ["python", str(pipeline_path)],
-            cwd=str(TSRS_DIR / "aiagent"),
-            capture_output=True,
-            text=True,
-            timeout=600,  # 10 dakika timeout
-        )
+        result = run_tsrs_pipeline()
 
-        if result.returncode != 0:
+        if result["status"] == "error":
             _report_status = ReportStatus(
                 status="error",
                 progress=0,
-                message=f"Pipeline hatası: {result.stderr[:500]}",
+                message=f"Pipeline hatası: {result.get('error', 'Bilinmeyen hata')[:500]}",
             )
             raise HTTPException(
                 status_code=500,
-                detail=f"Pipeline hatası: {result.stderr[:500]}",
+                detail=f"Pipeline hatası: {result.get('error', '')}",
             )
 
         _report_status = ReportStatus(
@@ -339,15 +337,10 @@ def generate_report():
         return {
             "status": "success",
             "message": "TSRS raporu başarıyla üretildi.",
-            "output_path": str(REPORT_OUTPUT),
-            "hash": _compute_file_hash(REPORT_OUTPUT) if REPORT_OUTPUT.exists() else None,
+            "output_path": result.get("output_path"),
+            "hash": _compute_file_hash(REPORT_OUTPUT_PATH) if REPORT_OUTPUT_PATH.exists() else None,
         }
 
-    except subprocess.TimeoutExpired:
-        _report_status = ReportStatus(
-            status="error", progress=0, message="Pipeline zaman aşımına uğradı (10 dk)."
-        )
-        raise HTTPException(status_code=504, detail="Pipeline zaman aşımına uğradı.")
     except HTTPException:
         raise
     except Exception as e:
@@ -360,18 +353,18 @@ def generate_report():
 @app.get("/api/report/latest")
 def get_latest_report():
     """Son üretilen TSRS raporunun içeriğini döndür."""
-    if not REPORT_OUTPUT.exists():
+    if not REPORT_OUTPUT_PATH.exists():
         return {"status": "not_found", "content": None}
 
-    with open(REPORT_OUTPUT, "r", encoding="utf-8") as f:
+    with open(REPORT_OUTPUT_PATH, "r", encoding="utf-8") as f:
         content = f.read()
 
     return {
         "status": "found",
         "content": content,
-        "hash": _compute_file_hash(REPORT_OUTPUT),
+        "hash": _compute_file_hash(REPORT_OUTPUT_PATH),
         "generated_at": datetime.fromtimestamp(
-            REPORT_OUTPUT.stat().st_mtime
+            REPORT_OUTPUT_PATH.stat().st_mtime
         ).isoformat(),
     }
 
@@ -385,10 +378,10 @@ def report_status():
 @app.post("/api/report/verify")
 def verify_report(hash_to_verify: str = Form(...)):
     """Rapor hash'ini doğrula."""
-    if not REPORT_OUTPUT.exists():
+    if not REPORT_OUTPUT_PATH.exists():
         raise HTTPException(status_code=404, detail="Rapor dosyası bulunamadı.")
 
-    actual_hash = _compute_file_hash(REPORT_OUTPUT)
+    actual_hash = _compute_file_hash(REPORT_OUTPUT_PATH)
     is_valid = actual_hash == hash_to_verify
 
     return {
@@ -397,6 +390,91 @@ def verify_report(hash_to_verify: str = Form(...)):
         "provided_hash": hash_to_verify,
         "verified_at": datetime.now().isoformat(),
     }
+
+
+# ── Karbon Hesaplama & Yeşil Kredi (eski model_c) ───────────────────────────
+
+@app.post("/api/carbon/calculate")
+def calculate_carbon(req: CalculationRequest):
+    """Metin gir → karbon hesabı + Yeşil Kredi Skoru al."""
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="Girdi metni boş olamaz.")
+
+    try:
+        # Aşama 1: Yapılandırılmış aktivite çıkarımı
+        extracted_data = extract_activities(req.text)
+
+        # Aşama 2: Deterministik karbon hesaplama
+        carbon_result = calculator.process_calculation(extracted_data)
+
+        # Aşama 3: Yeşil Kredi Skorlama
+        credit_result = calculate_green_credit(
+            total_co2_tons=carbon_result["total_co2_tons"],
+            ges_budget=req.ges_budget,
+            ev_count=req.ev_count,
+            eff_budget=req.eff_budget,
+            waste_budget=req.waste_budget,
+            water_budget=req.water_budget,
+            loan_amount=req.loan_amount,
+            loan_years=req.loan_years,
+            financial_rating=req.financial_rating,
+            extracted_activities=carbon_result["results"]
+        )
+
+        return {
+            "status": "success",
+            "total_co2_tons": carbon_result["total_co2_tons"],
+            "audit_trail": carbon_result["audit_trail"],
+            "extracted_activities": carbon_result["results"],
+            "credit_score": {
+                "green_credit_score": credit_result.green_credit_score,
+                "financial_score": credit_result.financial_score,
+                "environmental_score": credit_result.environmental_score,
+                "cash_flow_score": credit_result.cash_flow_score,
+                "decision": credit_result.decision,
+                "discount_pct": credit_result.discount_pct,
+                "total_capex": credit_result.total_capex,
+                "carbon_reduction": credit_result.carbon_reduction,
+                "new_emission": credit_result.new_emission,
+                "annual_opex_savings": credit_result.annual_opex_savings,
+                "groi_payback_years": credit_result.groi_payback_years,
+                "audit_notes": credit_result.audit_notes
+            }
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Sorgu işlenirken hata: {str(e)}")
+
+
+# ── ESG Skor Tahmini (eski esg_pred) ────────────────────────────────────────
+
+@app.post("/api/esg/predict")
+def predict_esg(data: dict):
+    """ESG Overall skorunu tahmin et."""
+    try:
+        from modules.esg_prediction.predictor import CompanyFeatures, ESGPredictor
+        predictor = _get_esg_predictor()
+        features = CompanyFeatures(**data)
+        result = predictor.predict(features)
+        return result.model_dump()
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=503, detail=f"ESG modeli yüklenemedi: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/esg/health")
+def esg_health():
+    """ESG model sağlık kontrolü."""
+    try:
+        predictor = _get_esg_predictor()
+        return {
+            "status": "ok",
+            "model_version": "1.0.0",
+            "n_features": len(predictor.features)
+        }
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
 
 
 # ─── Çalıştırma ─────────────────────────────────────────────────────────────
