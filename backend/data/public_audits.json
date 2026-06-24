@@ -1,0 +1,26 @@
+[
+  {
+    "company": "Global Çimento Sanayi A.Ş.",
+    "category": "Hava Kirliliği / Yalan Beyan",
+    "date": "Bugün, 14:30",
+    "description": "Şirket ESG raporunda %100 filtreleme kullandığını iddia ediyor ama gece 02:00-04:00 arası filtreleri kapatarak yoğun kül ve duman salınımı yapıyorlar. Bölge halkı olarak çektiğimiz videoları sisteme yükledik.",
+    "upvotes": 842,
+    "status": "İnceleniyor"
+  },
+  {
+    "company": "EcoLogi Kargo Lojistik A.Ş.",
+    "category": "Yeşil Aklama (Greenwashing)",
+    "date": "Dün, 09:15",
+    "description": "Reklamlarında tüm filolarının elektrikli olduğu söyleniyor ancak depolarında hala eski model dizel araçlar aktif çalışıyor. Araç plakalarını ve depo giriş çıkışlarını belgeledim.",
+    "upvotes": 523,
+    "status": "Doğrulandı - Skor Düşürüldü"
+  },
+  {
+    "company": "Mavi Su Tekstil A.Ş.",
+    "category": "Atık Su Deşarjı",
+    "date": "12 Şubat 2026",
+    "description": "Arıtma tesisi gündüzleri çalışır gösterilirken gece nehre boyalı ve köpüklü kimyasal atık su deşarj ediliyor. Numune sonuçları ektedir.",
+    "upvotes": 1205,
+    "status": "Doğrulandı - Acil Bildirim"
+  }
+]

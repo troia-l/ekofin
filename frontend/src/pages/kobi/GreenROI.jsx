@@ -6,7 +6,7 @@ import {
   RefreshCw, ArrowRight, Info, Shield, Wallet
 } from 'lucide-react';
 
-const MODEL_C_URL = import.meta.env.VITE_MODEL_C_URL || 'http://localhost:8005';
+const MODEL_C_URL = import.meta.env.VITE_MODEL_C_URL || 'http://localhost:8000/api/carbon';
 
 // ─── Animasyon Varyantları ────────────────────────────────────────────────────
 const containerVariants = {

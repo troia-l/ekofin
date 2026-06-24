@@ -30,6 +30,11 @@ FACTORS_PATH = DATA_DIR / "factors.json"
 DECLARATION_PATH = SOURCES_DIR / "yonetici_anketi.json"
 TEMPLATE_PATH = TEMPLATES_DIR / "TSRS_Uyumlu_Sablon.md"
 BENCHMARK_PATH = BENCHMARKS_DIR / "ornek_tsrs_raporu.md"
+CREDITS_PATH = DATA_DIR / "credits.json"
+CROWDFUNDING_PATH = DATA_DIR / "crowdfunding.json"
+ESG_COMPANIES_PATH = DATA_DIR / "esg_companies.json"
+ESG_FEEDBACK_PATH = DATA_DIR / "esg_feedback.json"
+PUBLIC_AUDITS_PATH = DATA_DIR / "public_audits.json"
 
 # ─── Meta Dosyaları ─────────────────────────────────────────────────────────
 UPLOADS_META_PATH = BASE_DIR / "uploads_meta.json"

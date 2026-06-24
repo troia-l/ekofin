@@ -1,0 +1,99 @@
+[
+  {
+    "id": 1,
+    "name": "Zorlu Enerji A.Ş.",
+    "sector": "Enerji Üretimi",
+    "riskLevel": "Düşük",
+    "coverImage": "https://images.unsplash.com/photo-1513828583688-c52646db42da?q=80&w=2070&auto=format&fit=crop",
+    "aiInsights": "Sosyal medyadan ve dijital haber platformlarından alınan veriler, şirketin şeffaflık seviyesini destekliyor. Çevresel etki konusunda halktan gelen 450+ olumlu geri bildirim kaydedildi.",
+    "verifiedPoints": [
+      "Toplumsal projeler yüksek takdir aldı",
+      "Halkın şikayet taleplerine %95 çözüm",
+      "Sosyal yönetişim raporları şeffaf"
+    ],
+    "features": {
+      "Revenue": 12000000000.0,
+      "ProfitMargin": 0.08,
+      "MarketCap": 15000000000.0,
+      "GrowthRate": 0.12,
+      "CarbonEmissions": 85000.0,
+      "WaterUsage": 450000.0,
+      "EnergyConsumption": 1200000.0,
+      "Industry": "Utilities",
+      "Region": "Europe",
+      "Year": 2025
+    }
+  },
+  {
+    "id": 2,
+    "name": "EcoLogi C Lojistik",
+    "sector": "Taşımacılık & Lojistik",
+    "riskLevel": "Orta",
+    "coverImage": "https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?q=80&w=2070&auto=format&fit=crop",
+    "aiInsights": "Filo yenileme taahhütleri uygulansa da, son 2 ayda Twitter ve Şikayetvar üzerinden gelen karbon salınımı kaynaklı eleştiriler Dinamik Güven Skorunu düşürdü.",
+    "verifiedPoints": [
+      "Toplumsal geri bildirimlere yavaş dönüş",
+      "Elektrikli filo bölgesel şikayetleri"
+    ],
+    "features": {
+      "Revenue": 2500000000.0,
+      "ProfitMargin": 0.05,
+      "MarketCap": 3000000000.0,
+      "GrowthRate": 0.08,
+      "CarbonEmissions": 350000.0,
+      "WaterUsage": 50000.0,
+      "EnergyConsumption": 1500000.0,
+      "Industry": "Industrials",
+      "Region": "Europe",
+      "Year": 2025
+    }
+  },
+  {
+    "id": 3,
+    "name": "Global Çimento Sanayi",
+    "sector": "Ağır Sanayi",
+    "riskLevel": "Yüksek",
+    "coverImage": "https://images.unsplash.com/photo-1611273426858-450d873c25ea?q=80&w=2070&auto=format&fit=crop",
+    "aiInsights": "Bölge halkı tarafından bildirilen baca tozu şikayetleri ve sensör ağından çekilen veriler eşleşiyor. Toplumsal denetimde en çok eleştirilenler arasında.",
+    "verifiedPoints": [
+      "Sosyal medyada negatif eğilim (Sentiment: -%42)",
+      "Tedarik zinciri şeffaflığı zayıf"
+    ],
+    "features": {
+      "Revenue": 8000000000.0,
+      "ProfitMargin": 0.10,
+      "MarketCap": 9000000000.0,
+      "GrowthRate": 0.04,
+      "CarbonEmissions": 2450000.0,
+      "WaterUsage": 8500000.0,
+      "EnergyConsumption": 14500000.0,
+      "Industry": "Materials",
+      "Region": "Asia",
+      "Year": 2025
+    }
+  },
+  {
+    "id": 4,
+    "name": "Mavi Dalga Denizcilik",
+    "sector": "Deniz Taşımacılığı",
+    "riskLevel": "Düşük",
+    "coverImage": "https://images.unsplash.com/photo-1532601224476-15c79f2f7a51?q=80&w=2070&auto=format&fit=crop",
+    "aiInsights": "LNG yakıtlı gemiler liman bölgelerinde yaşayan halktan olumlu tepki alıyor. Dinamik skor, yerel basındaki pozitif haberlerle yükselişte.",
+    "verifiedPoints": [
+      "Liman sakinlerinden sıfır şikayet",
+      "Uluslararası ESG standartı tam uyumu"
+    ],
+    "features": {
+      "Revenue": 4200000000.0,
+      "ProfitMargin": 0.14,
+      "MarketCap": 6500000000.0,
+      "GrowthRate": 0.15,
+      "CarbonEmissions": 120000.0,
+      "WaterUsage": 1200000.0,
+      "EnergyConsumption": 2200000.0,
+      "Industry": "Industrials",
+      "Region": "Europe",
+      "Year": 2025
+    }
+  }
+]

@@ -59,7 +59,7 @@ const CreditItem = ({ sponsor, type, name, rate, total, features, isGreen, bankL
 
                 {/* 3. Action */}
                 <div className="flex-col items-center justify-center" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <button onClick={() => navigate('/apply')} className="btn btn-outline" style={{ width: '100%', borderColor: '#FF7F00', color: '#FF7F00', fontSize: '14px', fontWeight: 700, padding: '12px 0', background: '#FFF' }}>
+                    <button onClick={() => navigate('/apply', { state: { mode: 'credit', credit: { name, rate, total, esgScore, features, isGreen, bankLogoUrl, type } } })} className="btn btn-outline" style={{ width: '100%', borderColor: '#FF7F00', color: '#FF7F00', fontSize: '14px', fontWeight: 700, padding: '12px 0', background: '#FFF' }}>
                         Hemen Başvur
                     </button>
                     <button onClick={(e) => { e.preventDefault(); if (onOpenConditions) onOpenConditions(); }} className="btn btn-outline" style={{ background: 'none', border: 'none', fontSize: '13px', color: 'var(--text-muted)', textDecoration: 'underline', fontWeight: 600, marginTop: '2px', cursor: 'pointer', padding: 0 }}>Koşullar</button>
