@@ -10,6 +10,7 @@ pydantic
 # LLM — TSRS Pipeline (OpenAI / GPT)
 langchain-openai
 langchain-core
+pypdf
 
 # LLM — Carbon/ROI (Google Gemini)
 langchain-google-genai

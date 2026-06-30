@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Dimensions, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, Dimensions, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
   Sparkles, Check, ChevronRight, ChevronLeft, Shield, 
-  Leaf, Zap, Clock, Info, ShieldAlert, Award, TrendingDown
+  Leaf, Zap, Clock, Info, ShieldAlert, Award, TrendingDown,
+  CheckCircle2, AlertCircle
 } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
@@ -29,6 +30,37 @@ export default function SimulatorScreen() {
   const [inputText, setInputText] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzed, setAnalyzed] = useState(false);
+  const [showAuditTrail, setShowAuditTrail] = useState(false);
+
+  const getExtractedActivities = () => {
+    const textLower = (inputText || '').toLowerCase();
+    if (textLower.includes('pamuk') || textLower.includes('tekstil')) {
+      return [
+        { name: 'Pamuk İşleme', category: 'Hammadde', amount: '12 ton' },
+        { name: 'Plastik Polimer', category: 'Hammadde', amount: '4 ton' },
+        { name: 'Dizel Lojistik', category: 'Lojistik', amount: '2,200 km (3 Kamyon)' },
+        { name: 'Şebeke Elektriği', category: 'Enerji', amount: '15,000 kWh' },
+        { name: 'Doğalgaz Tüketimi', category: 'Enerji', amount: '950 m³' },
+      ];
+    } else if (textLower.includes('çelik') || textLower.includes('metal')) {
+      return [
+        { name: 'Çelik Hammadde', category: 'Hammadde', amount: '18 ton' },
+        { name: 'Plastik Polimer', category: 'Hammadde', amount: '2 ton' },
+        { name: 'Dizel Lojistik', category: 'Lojistik', amount: '3,500 km (4 Kamyon)' },
+        { name: 'Şebeke Elektriği', category: 'Enerji', amount: '24,000 kWh' },
+        { name: 'Doğalgaz Tüketimi', category: 'Enerji', amount: '1,800 m³' },
+      ];
+    } else if (textLower.includes('kamyon') || textLower.includes('lojistik')) {
+      return [
+        { name: 'Dizel Lojistik Filosu', category: 'Lojistik', amount: '12,000 km (8 Kamyon)' },
+        { name: 'Merkez Elektrik', category: 'Enerji', amount: '8,000 kWh' },
+      ];
+    }
+    return [
+      { name: 'Elektrik Tüketimi', category: 'Enerji', amount: '12,000 kWh' },
+      { name: 'Lojistik Faaliyeti', category: 'Lojistik', amount: '1,500 km' },
+    ];
+  };
   
   // Simulation Inputs
   const [loanAmount, setLoanAmount] = useState(2500000); // TL
@@ -330,7 +362,7 @@ export default function SimulatorScreen() {
                         <Text style={styles.sliderLabel}>Araç Sayısı (450k TL / adet)</Text>
                         <Text style={styles.sliderVal}>{evCount} Adet</Text>
                       </View>
-                      <View style={{ flexDirection: 'row', gap: 10 }}>
+                      <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
                         {[1, 2, 3, 5, 10, 15].map(val => (
                           <TouchableOpacity
                             key={val}
@@ -389,49 +421,253 @@ export default function SimulatorScreen() {
             </View>
           )}
 
-          {/* Result Card (Visible on Step 2 and Step 3 if analyzed) */}
+          {/* Result Card (Visible on Step 1, Step 2 and Step 3 if analyzed) */}
           {analyzed && (
             <View style={styles.resultCard}>
-              <View style={styles.resultHeader}>
-                <Text style={styles.resultTitle}>Kredi Karar Raporu</Text>
-                <View style={[styles.decisionBadge, { backgroundColor: `${decisionColor}15` }]}>
-                  <Text style={[styles.decisionText, { color: decisionColor }]}>{decision}</Text>
-                </View>
-              </View>
+              {/* Step 1 View: Carbon footprint and extracted activities */}
+              {step === 1 && (
+                <View style={{ gap: 14 }}>
+                  <View style={styles.resultHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Leaf size={16} color="#F87171" />
+                      <Text style={styles.resultTitle}>Mevcut Karbon Ayak İzi</Text>
+                    </View>
+                    <View style={styles.stepBadge}>
+                      <Text style={styles.stepBadgeText}>Analiz Edildi</Text>
+                    </View>
+                  </View>
 
-              <View style={styles.resultGrid}>
-                {/* Score */}
-                <View style={styles.resultItem}>
-                  <Text style={styles.resultLabel}>Yeşil Kredi Skoru</Text>
-                  <Text style={styles.resultValue}>{greenCreditScore} <Text style={{ fontSize: 11, color: '#9CA3AF' }}>/100</Text></Text>
-                </View>
+                  <View style={styles.carbonBox}>
+                    <Text style={styles.carbonLabel}>Mevcut Karbon Salınımı</Text>
+                    <Text style={styles.carbonValue}>
+                      {baselineEmission.toFixed(2)}{' '}
+                      <Text style={styles.carbonUnit}>tCO₂e / Ay</Text>
+                    </Text>
+                  </View>
 
-                {/* Faiz İndirimi */}
-                <View style={styles.resultItem}>
-                  <Text style={styles.resultLabel}>Faiz İndirimi</Text>
-                  <Text style={[styles.resultValue, { color: '#D4AF37' }]}>-%{discountPct}</Text>
-                </View>
+                  <View style={styles.extractedCard}>
+                    <Text style={styles.extractedTitle}>Ayıklanan Karbon Faaliyetleri</Text>
+                    <View style={{ gap: 8 }}>
+                      {getExtractedActivities().map((act, i) => (
+                        <View key={i} style={styles.extractedItem}>
+                          <Text style={styles.extractedName}>{act.name} ({act.category}):</Text>
+                          <Text style={styles.extractedAmount}>{act.amount}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
 
-                {/* g-ROI Payback */}
-                <View style={styles.resultItem}>
-                  <Text style={styles.resultLabel}>g-ROI Amortisman</Text>
-                  <Text style={styles.resultValue}>{groiPayback} Yıl</Text>
+                  <View style={styles.stepInfoBox}>
+                    <Info size={14} color="#60A5FA" />
+                    <Text style={styles.stepInfoText}>
+                      Sonraki Adım: Finansman talebi ve derecelendirme notunuzu belirleyin.
+                    </Text>
+                  </View>
                 </View>
+              )}
 
-                {/* Karbon Azaltımı */}
-                <View style={styles.resultItem}>
-                  <Text style={styles.resultLabel}>Karbon Azaltımı</Text>
-                  <Text style={[styles.resultValue, { color: '#10B981' }]}>{carbonReduction.toFixed(1)}t <Text style={{ fontSize: 10, color: '#9CA3AF' }}>CO₂e</Text></Text>
+              {/* Step 2 View: Financial request assessment */}
+              {step === 2 && (
+                <View style={{ gap: 14 }}>
+                  <View style={styles.resultHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Award size={16} color="#3B82F6" />
+                      <Text style={styles.resultTitle}>Finansal Talep Değerlendirmesi</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.resultGrid}>
+                    <View style={styles.resultItem}>
+                      <Text style={styles.resultLabel}>Talep Edilen Kredi</Text>
+                      <Text style={styles.resultValue}>{loanAmount.toLocaleString()} TL</Text>
+                    </View>
+                    <View style={styles.resultItem}>
+                      <Text style={styles.resultLabel}>Risk Derecelendirmesi</Text>
+                      <Text style={[styles.resultValue, { color: '#3B82F6' }]}>{financialRating}</Text>
+                    </View>
+                    <View style={styles.resultItem}>
+                      <Text style={styles.resultLabel}>Mevcut Emisyon</Text>
+                      <Text style={styles.resultValue}>{baselineEmission.toFixed(1)} tCO₂e</Text>
+                    </View>
+                    <View style={styles.resultItem}>
+                      <Text style={styles.resultLabel}>Kredi Vadesi</Text>
+                      <Text style={styles.resultValue}>{loanYears} Yıl</Text>
+                    </View>
+                  </View>
+
+                  <View style={[styles.stepInfoBox, { backgroundColor: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.2)' }]}>
+                    <Info size={14} color="#F59E0B" />
+                    <Text style={[styles.stepInfoText, { color: '#FDE047' }]}>
+                      Sonraki Adım: Planladığınız yeşil yatırımları ekleyerek kredi skorunuzu alın.
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
 
-              {/* Warning if Loan exceeds Capex */}
-              {loanAmount > totalCapex && totalCapex > 0 && (
-                <View style={styles.limitWarning}>
-                  <ShieldAlert size={14} color="#EF4444" />
-                  <Text style={styles.limitWarningText}>
-                    Talep edilen kredi yeşil CAPEX bütçesini ({totalCapex.toLocaleString()} TL) aşıyor!
-                  </Text>
+              {/* Step 3 View: Full Credit Decision Report */}
+              {step === 3 && (
+                <View style={{ gap: 14 }}>
+                  <View style={styles.resultHeader}>
+                    <Text style={styles.resultTitle}>Kredi Karar Raporu</Text>
+                  </View>
+
+                  {/* Decision Banner */}
+                  <View style={[styles.decisionBanner, { backgroundColor: `${decisionColor}12`, borderColor: `${decisionColor}33` }]}>
+                    <View style={[styles.decisionIconContainer, { backgroundColor: decisionColor }]}>
+                      <Check size={14} color="#0B1120" strokeWidth={3} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.decisionBannerLabel}>KREDİ KARAR DURUMU</Text>
+                      <Text style={[styles.decisionBannerValue, { color: decisionColor }]}>{decision}</Text>
+                    </View>
+                  </View>
+
+                  {/* Limit Warning */}
+                  {loanAmount > totalCapex && totalCapex > 0 && (
+                    <View style={styles.limitWarning}>
+                      <ShieldAlert size={14} color="#EF4444" />
+                      <Text style={styles.limitWarningText}>
+                        Talep edilen kredi yeşil CAPEX bütçesini ({totalCapex.toLocaleString()} TL) aşıyor! (-20 Ceza Puanı)
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Score & Discount */}
+                  <View style={styles.resultGrid}>
+                    <View style={styles.resultItem}>
+                      <Text style={styles.resultLabel}>YEŞİL KREDİ SKORU</Text>
+                      <Text style={[styles.resultValue, { color: decisionColor }]}>
+                        {greenCreditScore} <Text style={{ fontSize: 11, color: '#9CA3AF' }}>/100</Text>
+                      </Text>
+                    </View>
+                    <View style={styles.resultItem}>
+                      <Text style={styles.resultLabel}>FAİZ AVANTAJI</Text>
+                      <Text style={[styles.resultValue, { color: '#D4AF37' }]}>-%{discountPct}</Text>
+                    </View>
+                  </View>
+
+                  {/* Score Breakdown Progress Bars */}
+                  <View style={styles.breakdownCard}>
+                    <Text style={styles.breakdownTitle}>Skor Kırılımı</Text>
+                    <View style={{ gap: 8 }}>
+                      {/* Financial Health */}
+                      <View>
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>Finansal Sağlık Notu ({financialRating})</Text>
+                          <Text style={styles.breakdownValue}>{financialScore.toFixed(0)} / 40</Text>
+                        </View>
+                        <View style={styles.progressBg}>
+                          <View style={[styles.progressBar, { width: `${(financialScore / 40) * 100}%`, backgroundColor: '#3B82F6' }]} />
+                        </View>
+                      </View>
+
+                      {/* Environmental Reduction */}
+                      <View>
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>Ekolojik Azaltım Puanı</Text>
+                          <Text style={styles.breakdownValue}>{environmentalScore.toFixed(1)} / 40</Text>
+                        </View>
+                        <View style={styles.progressBg}>
+                          <View style={[styles.progressBar, { width: `${(environmentalScore / 40) * 100}%`, backgroundColor: '#10B981' }]} />
+                        </View>
+                      </View>
+
+                      {/* Cash Flow Alignment */}
+                      <View>
+                        <View style={styles.breakdownRow}>
+                          <Text style={styles.breakdownLabel}>Vade & g-ROI Nakit Uyumu</Text>
+                          <Text style={styles.breakdownValue}>{cashFlowScore.toFixed(1)} / 20</Text>
+                        </View>
+                        <View style={styles.progressBg}>
+                          <View style={[styles.progressBar, { width: `${(cashFlowScore / 20) * 100}%`, backgroundColor: '#F59E0B' }]} />
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Capex & LTV Info */}
+                  {totalCapex > 0 && (
+                    <View style={styles.capexCard}>
+                      <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Toplam Yeşil CAPEX:</Text>
+                        <Text style={styles.infoValueBold}>{totalCapex.toLocaleString()} TL</Text>
+                      </View>
+                      <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Kredi Oranı (Finansman):</Text>
+                        <Text style={[styles.infoValueBold, { color: '#3B82F6' }]}>
+                          %{Math.min(100, Math.round((loanAmount / totalCapex) * 100))} ({loanAmount.toLocaleString()} TL)
+                        </Text>
+                      </View>
+                      {loanAmount <= totalCapex && (
+                        <View style={styles.infoRow}>
+                          <Text style={styles.infoLabel}>Şirket Özkaynak Katkısı:</Text>
+                          <Text style={[styles.infoValueBold, { color: '#10B981' }]}>
+                            %{100 - Math.min(100, Math.round((loanAmount / totalCapex) * 100))} ({(totalCapex - loanAmount).toLocaleString()} TL)
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Carbon Difference & Financial Gains */}
+                  <View style={styles.resultGrid}>
+                    {/* Carbon Diff Box */}
+                    <View style={[styles.resultItem, { width: (width - 88) / 2 }]}>
+                      <Text style={styles.boxGroupTitle}>Karbon Farkı</Text>
+                      <View style={styles.boxGroupRow}>
+                        <Text style={styles.boxGroupLabel}>Eski:</Text>
+                        <Text style={styles.boxGroupValue}>{baselineEmission.toFixed(1)} t</Text>
+                      </View>
+                      <View style={styles.boxGroupRow}>
+                        <Text style={styles.boxGroupLabel}>Yeni:</Text>
+                        <Text style={[styles.boxGroupValue, { color: '#10B981', fontWeight: '800' }]}>{newEmission.toFixed(1)} t</Text>
+                      </View>
+                      <View style={styles.boxGroupRow}>
+                        <Text style={styles.boxGroupLabel}>Azaltım:</Text>
+                        <Text style={[styles.boxGroupValue, { color: '#10B981', fontWeight: '800' }]}>-%{reductionPct.toFixed(0)}</Text>
+                      </View>
+                    </View>
+
+                    {/* Financial Gain Box */}
+                    <View style={[styles.resultItem, { width: (width - 88) / 2 }]}>
+                      <Text style={styles.boxGroupTitle}>Finansal Kazanç</Text>
+                      <View style={styles.boxGroupRow}>
+                        <Text style={styles.boxGroupLabel}>Aylık Tas.:</Text>
+                        <Text style={[styles.boxGroupValue, { color: '#10B981', fontWeight: '800' }]}>
+                          {Math.round(annualOpexSavings / 12).toLocaleString()} TL
+                        </Text>
+                      </View>
+                      <View style={styles.boxGroupRow}>
+                        <Text style={styles.boxGroupLabel}>g-ROI Geri D.:</Text>
+                        <Text style={[styles.boxGroupValue, { color: '#D4AF37', fontWeight: '800' }]}>
+                          {totalCapex > 0 ? `${groiPayback} Yıl` : '0 Yıl'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Audit Trail Collapsible */}
+                  <View style={styles.auditContainer}>
+                    <TouchableOpacity
+                      onPress={() => setShowAuditTrail(!showAuditTrail)}
+                      style={styles.auditHeader}
+                    >
+                      <Info size={12} color="#9CA3AF" />
+                      <Text style={styles.auditHeaderText}>Kredi Skor Analiz Detayları</Text>
+                      <Text style={styles.auditToggleText}>{showAuditTrail ? 'Gizle' : 'Göster'}</Text>
+                    </TouchableOpacity>
+                    
+                    {showAuditTrail && (
+                      <View style={styles.auditBody}>
+                        <Text style={styles.auditCode}>
+                          {`[FİNANSAL] Not: ${financialRating} ➔ Puan: ${financialScore.toFixed(0)} / 40.0\n`}
+                          {`[EKOLOJİK] Azaltım: ${carbonReduction.toFixed(1)} tCO2e ➔ Puan: ${environmentalScore.toFixed(1)} / 40.0\n`}
+                          {`[VADE] Vade: ${loanYears} yıl / g-ROI: ${totalCapex > 0 ? `${groiPayback} yıl` : 'N/A'} ➔ Puan: ${cashFlowScore.toFixed(0)} / 20.0`}
+                          {financialModifier !== 0.0 ? `\n[FİNANSAL ETKEN] Modifikatör: ${financialModifier.toFixed(0)} Puan` : ''}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
               )}
             </View>
@@ -759,7 +995,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   resultItem: {
-    width: (width - 72) / 2,
+    width: (width - 88) / 2,
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.05)',
@@ -819,5 +1055,230 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#0B1120',
     fontWeight: '700',
+  },
+  stepBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.2)',
+  },
+  stepBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#10B981',
+  },
+  carbonBox: {
+    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  carbonLabel: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    fontWeight: '600',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  carbonValue: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#F87171',
+  },
+  carbonUnit: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
+  extractedCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.01)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 12,
+    padding: 12,
+  },
+  extractedTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#E5E7EB',
+    marginBottom: 8,
+  },
+  extractedItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  extractedName: {
+    fontSize: 10.5,
+    color: '#9CA3AF',
+  },
+  extractedAmount: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  stepInfoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(59, 130, 246, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.2)',
+    borderRadius: 10,
+    padding: 10,
+  },
+  stepInfoText: {
+    fontSize: 10,
+    color: '#93C5FD',
+    fontWeight: '600',
+    flex: 1,
+  },
+  decisionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+  },
+  decisionIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  decisionBannerLabel: {
+    fontSize: 8,
+    color: '#9CA3AF',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  decisionBannerValue: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  breakdownCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.01)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 12,
+    padding: 12,
+  },
+  breakdownTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#E5E7EB',
+    marginBottom: 10,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  breakdownLabel: {
+    fontSize: 9.5,
+    color: '#9CA3AF',
+  },
+  breakdownValue: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  progressBg: {
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  capexCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.01)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 12,
+    padding: 12,
+    gap: 6,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  infoLabel: {
+    fontSize: 10.5,
+    color: '#9CA3AF',
+  },
+  infoValueBold: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  boxGroupTitle: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#9CA3AF',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  boxGroupRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 3,
+  },
+  boxGroupLabel: {
+    fontSize: 9.5,
+    color: '#9CA3AF',
+  },
+  boxGroupValue: {
+    fontSize: 9.5,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  auditContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.01)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  auditHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+  },
+  auditHeaderText: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    fontWeight: '600',
+    marginLeft: 6,
+    flex: 1,
+  },
+  auditToggleText: {
+    fontSize: 9.5,
+    color: '#3B82F6',
+    fontWeight: '700',
+  },
+  auditBody: {
+    padding: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  auditCode: {
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    fontSize: 9,
+    color: '#9CA3AF',
+    lineHeight: 13,
   },
 });

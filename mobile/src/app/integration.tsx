@@ -13,6 +13,8 @@ export default function IntegrationScreen() {
   const router = useRouter();
   const [declarationData, setDeclarationData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [uploadingDocId, setUploadingDocId] = useState<string | null>(null);
+  const [uploadedDocs, setUploadedDocs] = useState<Record<string, { status: string; date: string }>>({});
 
   // Load declaration from AsyncStorage on focus
   const loadDeclarationData = async () => {
@@ -23,6 +25,11 @@ export default function IntegrationScreen() {
       } else {
         setDeclarationData(null);
       }
+      
+      const docsSaved = await safeStorage.getItem('uploaded_documents');
+      if (docsSaved) {
+        setUploadedDocs(JSON.parse(docsSaved));
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -30,25 +37,50 @@ export default function IntegrationScreen() {
     }
   };
 
+  const handleUploadDoc = async (docId: string) => {
+    setUploadingDocId(docId);
+    setTimeout(async () => {
+      const now = new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
+      const updated = { ...uploadedDocs, [docId]: { status: 'verified', date: now } };
+      setUploadedDocs(updated);
+      await safeStorage.setItem('uploaded_documents', JSON.stringify(updated));
+      setUploadingDocId(null);
+    }, 1500);
+  };
+
   useEffect(() => {
     loadDeclarationData();
     // Simulate refetching when navigating back
     const interval = setInterval(loadDeclarationData, 1500);
     return () => clearInterval(interval);
-  }, []);
+  }, [uploadedDocs]);
 
   const getTotalVehicles = (): number => {
     if (!declarationData || !declarationData.vehiclesCount) return 0;
     return (Object.values(declarationData.vehiclesCount) as number[]).reduce((a: number, b: number) => a + b, 0);
   };
 
+  const getDocStatus = (id: string) => {
+    if (id === 'declaration') {
+      return declarationData ? 'verified_decl' : 'fill_decl';
+    }
+    return uploadedDocs[id]?.status || 'upload';
+  };
+
+  const getDocDate = (id: string) => {
+    if (id === 'declaration') {
+      return declarationData ? 'Güncel' : '-';
+    }
+    return uploadedDocs[id]?.date || '-';
+  };
+
   const docs = [
-    { id: 'sgk', title: 'SGK Hizmet Dökümleri', desc: 'Personel sayısı doğrulaması için', status: 'upload', date: '-' },
-    { id: 'declaration', title: 'Yönetici Beyan Formu', desc: 'Şirket araç, çalışan ve ÇYS beyanı', status: declarationData ? 'verified_decl' : 'fill_decl', date: declarationData ? 'Güncel' : '-' },
-    { id: 'sanayi', title: 'Sanayi Sicil Belgesi', desc: 'Resmi kapasite ve NACE kod onayı', status: 'verified', date: 'Güncel' },
-    { id: 'kapasite', title: 'Kapasite Raporu (TOBB)', desc: 'Üretim limitleri doğrulaması', status: 'verified', date: '12 May 2026' },
-    { id: 'ekb', title: 'Enerji Kimlik Belgesi (EKB)', desc: 'Tesis enerji verimlilik kanıtı', status: 'upload', date: '-' },
-    { id: 'iso', title: 'ISO 14001 Çevre YYS', desc: 'Çevre yönetim sistemi sertifikası', status: 'pending', date: 'İnceleniyor' }
+    { id: 'sgk', title: 'SGK Hizmet Dökümleri', desc: 'Personel sayısı doğrulaması için', status: getDocStatus('sgk'), date: getDocDate('sgk') },
+    { id: 'declaration', title: 'Yönetici Beyan Formu', desc: 'Şirket araç, çalışan ve ÇYS beyanı', status: getDocStatus('declaration'), date: getDocDate('declaration') },
+    { id: 'sanayi', title: 'Sanayi Sicil Belgesi', desc: 'Resmi kapasite ve NACE kod onayı', status: getDocStatus('sanayi'), date: getDocDate('sanayi') },
+    { id: 'kapasite', title: 'Kapasite Raporu (TOBB)', desc: 'Üretim limitleri doğrulaması', status: getDocStatus('kapasite'), date: getDocDate('kapasite') },
+    { id: 'ekb', title: 'Enerji Kimlik Belgesi (EKB)', desc: 'Tesis enerji verimlilik kanıtı', status: getDocStatus('ekb'), date: getDocDate('ekb') },
+    { id: 'iso', title: 'ISO 14001 Çevre YYS', desc: 'Çevre yönetim sistemi sertifikası', status: getDocStatus('iso'), date: getDocDate('iso') }
   ];
 
   return (
@@ -184,9 +216,19 @@ export default function IntegrationScreen() {
                   )}
 
                   {doc.status === 'upload' && (
-                    <TouchableOpacity style={styles.uploadBtn}>
-                      <UploadCloud size={14} color="#FFFFFF" />
-                      <Text style={styles.uploadBtnText}>Yükle</Text>
+                    <TouchableOpacity 
+                      style={styles.uploadBtn}
+                      disabled={uploadingDocId !== null}
+                      onPress={() => handleUploadDoc(doc.id)}
+                    >
+                      {uploadingDocId === doc.id ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 6 }} />
+                      ) : (
+                        <UploadCloud size={14} color="#FFFFFF" />
+                      )}
+                      <Text style={styles.uploadBtnText}>
+                        {uploadingDocId === doc.id ? 'Yükleniyor...' : 'Yükle'}
+                      </Text>
                     </TouchableOpacity>
                   )}
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, Link2, ShieldAlert, FileText, Leaf, AlertTriangle } from 'lucide-react';
+import { UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, Link2, ShieldAlert, FileText, Leaf, AlertTriangle, Sparkles } from 'lucide-react';
 import ManagerDeclarationDashboard from '../../components/ManagerDeclarationDashboard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -37,12 +38,79 @@ const Integration = () => {
   const docFileInputRef = useRef(null);
   const [activeDocUpload, setActiveDocUpload] = useState(null);
 
+  // Rapor durum ve polling state'leri
+  const [reportStatus, setReportStatus] = useState({ status: 'idle', progress: 0, message: '' });
+  const [isLatestReportFound, setIsLatestReportFound] = useState(false);
+  const pollingRef = useRef(null);
+  const navigate = useNavigate();
+
   // Sayfa açıldığında API'den veri çek
   useEffect(() => {
     fetchDocStatuses();
     fetchDeclaration();
     fetchRecentUploads();
+    fetchReportStatus();
+    checkLatestReport();
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
   }, []);
+
+  const checkLatestReport = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/report/latest`);
+      if (res.ok) {
+        const data = await res.json();
+        setIsLatestReportFound(data.status === 'found');
+      }
+    } catch (e) { console.error('Son rapor kontrol edilemedi:', e); }
+  };
+
+  const fetchReportStatus = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/report/status`);
+      if (res.ok) {
+        const data = await res.json();
+        setReportStatus(data);
+        if (data.status === 'generating') {
+          startPolling();
+        } else {
+          stopPolling();
+        }
+      }
+    } catch (e) { console.error('Rapor durumu alınamadı:', e); }
+  };
+
+  const startPolling = () => {
+    if (pollingRef.current) return;
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/report/status`);
+        if (res.ok) {
+          const data = await res.json();
+          setReportStatus(data);
+          if (data.status !== 'generating') {
+            stopPolling();
+            checkLatestReport();
+          }
+        }
+      } catch (e) {
+        console.error('Polling hatası:', e);
+        stopPolling();
+      }
+    }, 1500);
+  };
+
+  const stopPolling = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  };
+
+  const handleGenerateReport = () => {
+    navigate('/tsrs-report', { state: { triggerGenerate: true } });
+  };
 
   const fetchDocStatuses = async () => {
     try {
@@ -147,18 +215,207 @@ const Integration = () => {
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="flex-col gap-6">
-      <motion.div variants={itemVariants} className="mb-6 flex justify-between items-end">
-        <div>
-          <h1 className="page-title">Veri Entegrasyon Merkezi</h1>
-          <p className="page-subtitle">ERP sistemlerinizi, faturalarınızı ve yasal belgelerinizi 256-bit uçtan uca şifrelemeyle senkronize edin.</p>
+      <motion.div variants={itemVariants} className="mb-6">
+        <h1 className="page-title">Veri Entegrasyon Merkezi</h1>
+        <p className="page-subtitle">ERP sistemlerinizi, faturalarınızı ve yasal belgelerinizi 256-bit uçtan uca şifrelemeyle senkronize edin.</p>
+      </motion.div>
+
+      {/* AI TSRS Raporlama ve Analiz Motoru */}
+      <motion.div 
+        variants={itemVariants} 
+        className="card glass-panel"
+        style={{
+          background: 'linear-gradient(135deg, #0B1120 0%, #063C31 100%)',
+          color: '#FFFFFF',
+          padding: '28px',
+          borderRadius: '20px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
+          border: '1px solid rgba(16, 185, 129, 0.2)',
+          marginBottom: '32px',
+          position: 'relative',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '24px'
+        }}
+      >
+        {/* Dekoratör glow */}
+        <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '300px', height: '300px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+        <div className="flex justify-between items-start" style={{ position: 'relative', zIndex: 1, width: '100%' }}>
+          <div className="flex gap-4 items-center" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <div className="icon-3d" style={{ background: 'linear-gradient(135deg, var(--accent-emerald), var(--accent-emerald-dark))', width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-3d-icon)', flexShrink: 0 }}>
+              <Sparkles color="white" size={24} className={reportStatus.status === 'generating' ? 'animate-pulse' : ''} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Yapay Zeka TSRS Raporlama ve Analiz Motoru
+              </h3>
+              <p style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500, marginTop: '2px' }}>
+                Veri kaynaklarınızı birleştirerek bağımsız denetime hazır sürdürülebilirlik beyanınızı oluşturun.
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {reportStatus.status === 'generating' && (
+              <span className="animate-pulse" style={{ fontSize: '12px', color: '#F59E0B', background: 'rgba(245, 158, 11, 0.15)', padding: '6px 14px', borderRadius: '20px', fontWeight: 700, border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                Rapor Üretiliyor (%{reportStatus.progress})
+              </span>
+            )}
+            {reportStatus.status === 'completed' && (
+              <span style={{ fontSize: '12px', color: '#10B981', background: 'rgba(16, 185, 129, 0.15)', padding: '6px 14px', borderRadius: '20px', fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                Rapor Hazır (Güncel)
+              </span>
+            )}
+            {reportStatus.status === 'idle' && isLatestReportFound && (
+              <span style={{ fontSize: '12px', color: '#10B981', background: 'rgba(16, 185, 129, 0.15)', padding: '6px 14px', borderRadius: '20px', fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                Rapor Mevcut
+              </span>
+            )}
+            {reportStatus.status === 'idle' && !isLatestReportFound && (
+              <span style={{ fontSize: '12px', color: '#94A3B8', background: 'rgba(148, 163, 184, 0.1)', padding: '6px 14px', borderRadius: '20px', fontWeight: 700, border: '1px solid rgba(148, 163, 184, 0.15)' }}>
+                Rapor Üretilmedi
+              </span>
+            )}
+            {reportStatus.status === 'error' && (
+              <span style={{ fontSize: '12px', color: '#EF4444', background: 'rgba(239, 68, 68, 0.15)', padding: '6px 14px', borderRadius: '20px', fontWeight: 700, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                Hata Oluştu
+              </span>
+            )}
+          </div>
         </div>
-        <motion.div 
-          whileHover={{ scale: 1.05 }}
-          className="flex items-center gap-2" 
-          style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent-emerald-dark)', padding: '10px 16px', borderRadius: '12px', fontWeight: 600, fontSize: '13px', border: '1px solid rgba(16, 185, 129, 0.2)' }}
-        >
-          <ShieldAlert size={16} /> Banka Düzeyi Güvenlik Aktif
-        </motion.div>
+
+        <div style={{ position: 'relative', zIndex: 1, width: '100%' }}>
+          {reportStatus.status === 'generating' ? (
+            <div className="flex-col gap-3" style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column' }}>
+              <div className="flex justify-between items-center mb-1" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <RefreshCw size={14} className="animate-spin" style={{ color: 'var(--accent-emerald)' }} />
+                  {reportStatus.message}
+                </span>
+                <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--accent-emerald)' }}>
+                  %{reportStatus.progress}
+                </span>
+              </div>
+              
+              <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden', position: 'relative', width: '100%', marginTop: '8px' }}>
+                <motion.div 
+                  initial={{ width: '0%' }}
+                  animate={{ width: `${reportStatus.progress}%` }}
+                  transition={{ type: 'tween', ease: 'easeInOut' }}
+                  style={{ height: '100%', background: 'linear-gradient(90deg, var(--accent-emerald), #34D399)' }} 
+                />
+              </div>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '8px' }}>
+                Yapay zeka verilerinizi okuyor, standartlara göre sınıflandırıyor ve TSRS-1/TSRS-2 uyumlu raporunuzu oluşturuyor. Lütfen sayfayı kapatmayın.
+              </p>
+            </div>
+          ) : reportStatus.status === 'completed' || (reportStatus.status === 'idle' && isLatestReportFound) ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(16, 185, 129, 0.05)', padding: '16px 20px', borderRadius: '14px', border: '1px solid rgba(16, 185, 129, 0.2)', width: '100%' }}>
+              <div className="flex items-center gap-3" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <CheckCircle2 size={20} style={{ color: '#10B981', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>TSRS Raporu Hazır ve Kriptografik Olarak Mühürlendi!</div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginTop: '2px' }}>
+                    Verileriniz işlendi ve TSRS Sürdürülebilirlik Raporu başarıyla üretildi.
+                  </div>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button 
+                  onClick={handleGenerateReport} 
+                  className="btn-outline" 
+                  style={{ 
+                    padding: '10px 16px', 
+                    fontSize: '13px', 
+                    borderRadius: '10px', 
+                    border: '1px solid rgba(255,255,255,0.2)', 
+                    color: '#FFFFFF',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <RefreshCw size={14} /> Yeniden Oluştur
+                </button>
+                <button 
+                  onClick={() => navigate('/tsrs-report')} 
+                  className="btn-primary" 
+                  style={{ 
+                    padding: '10px 20px', 
+                    fontSize: '13px', 
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <FileText size={14} /> Raporu Görüntüle
+                </button>
+              </div>
+            </div>
+          ) : reportStatus.status === 'error' ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(239, 68, 68, 0.05)', padding: '16px 20px', borderRadius: '14px', border: '1px solid rgba(239, 68, 68, 0.2)', width: '100%' }}>
+              <div className="flex items-center gap-3" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <AlertTriangle size={20} style={{ color: '#EF4444', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>Rapor Üretim Hatası</div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginTop: '2px' }}>
+                    {reportStatus.message}
+                  </div>
+                </div>
+              </div>
+              
+              <button 
+                onClick={handleGenerateReport} 
+                className="btn-primary" 
+                style={{ 
+                  padding: '10px 20px', 
+                  fontSize: '13px', 
+                  borderRadius: '10px', 
+                  background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                  boxShadow: '0 4px 14px 0 rgba(239, 68, 68, 0.39)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <RefreshCw size={14} /> Tekrar Dene
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255, 255, 255, 0.02)', padding: '16px 20px', borderRadius: '14px', border: '1px solid rgba(255, 255, 255, 0.05)', width: '100%' }}>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>TSRS Standartlarına Göre Rapor Oluşturun</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginTop: '2px' }}>
+                  Bağlantılı API verileriniz, yüklediğiniz e-Faturalar ve beyan ettiğiniz yasal evraklar analiz edilir.
+                </div>
+              </div>
+              
+              <button 
+                onClick={handleGenerateReport} 
+                className="btn-primary" 
+                style={{ 
+                  padding: '12px 24px', 
+                  fontSize: '14px', 
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <Sparkles size={16} /> TSRS Raporu Oluştur
+              </button>
+            </div>
+          )}
+        </div>
       </motion.div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px' }}>

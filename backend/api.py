@@ -501,10 +501,32 @@ def generate_report():
     try:
         from modules.tsrs.pipeline import run_tsrs_pipeline
 
+        def progress_cb(filename, current_step, total_steps):
+            global _report_status
+            progress_pct = int(20 + (current_step / total_steps) * 75)
+            section_titles = {
+                "bolum_00_baslik.md": "Kapak ve Başlık Bölümü",
+                "bolum_01_rapor_hakkinda.md": "Rapor Hakkında ve Kapsam",
+                "bolum_02_yonetisim.md": "Yönetişim Yapısı ve Politikalar",
+                "bolum_03_strateji.md": "Sürdürülebilirlik Stratejisi",
+                "bolum_04_risk_yonetimi.md": "Risk Yönetimi Süreçleri",
+                "bolum_05_metrikler.md": "Metrikler, Göstergeler ve Hedefler",
+                "bolum_06_muhakemeler.md": "Önemli Muhakemeler ve Varsayımlar",
+                "bolum_07_ekler.md": "Ekler, Kısıtlar ve Hesaplama Metotları",
+                "bolum_08_iletisim.md": "Geri Bildirim ve İletişim Kanalları",
+                "bolum_09_dogrulama.md": "Güvence ve Doğrulama Beyanı"
+            }
+            title = section_titles.get(filename, filename)
+            _report_status = ReportStatus(
+                status="generating",
+                progress=progress_pct,
+                message=f"{title} oluşturuluyor ({current_step}/{total_steps})..."
+            )
+
         _report_status.progress = 20
         _report_status.message = "Pipeline çalıştırılıyor..."
 
-        result = run_tsrs_pipeline()
+        result = run_tsrs_pipeline(progress_callback=progress_cb)
 
         if result["status"] == "error":
             _report_status = ReportStatus(
@@ -559,7 +581,12 @@ def get_latest_report():
 @app.get("/api/report/status")
 def report_status():
     """Rapor üretim durumunu döndür."""
-    return _report_status.model_dump()
+    global _report_status
+    state = _report_status.model_dump()
+    if _report_status.status == "error":
+        # Hata durumunu bir kez döndürdükten sonra sıfırla (sayfa yenilenince temizlenmesi için)
+        _report_status = ReportStatus(status="idle", progress=0, message="")
+    return state
 
 
 @app.post("/api/report/verify")

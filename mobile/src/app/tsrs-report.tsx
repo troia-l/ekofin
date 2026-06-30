@@ -412,9 +412,9 @@ export default function TsrsReportScreen() {
               </TouchableOpacity>
               {expandedSection === 'sec1' && (
                 <View style={styles.accordionContent}>
-                  <Text style={styles.accordionText}><strong>Denetim Standardı:</strong> KGK TSRS-1 Genel İlkeleri</Text>
-                  <Text style={styles.accordionText}><strong>Doğrulama Kaynağı:</strong> Şirket Beyannamesi & Yönetici Karar Defterleri</Text>
-                  <Text style={styles.accordionText}><strong>Son Kontrol:</strong> 23.05.2026 14:32 (EcoFin AI Entegrasyonu ile)</Text>
+                  <Text style={styles.accordionText}><Text style={{ fontWeight: 'bold' }}>Denetim Standardı:</Text> KGK TSRS-1 Genel İlkeleri</Text>
+                  <Text style={styles.accordionText}><Text style={{ fontWeight: 'bold' }}>Doğrulama Kaynağı:</Text> Şirket Beyannamesi & Yönetici Karar Defterleri</Text>
+                  <Text style={styles.accordionText}><Text style={{ fontWeight: 'bold' }}>Son Kontrol:</Text> 23.05.2026 14:32 (EcoFin AI Entegrasyonu ile)</Text>
                 </View>
               )}
             </View>
@@ -433,9 +433,9 @@ export default function TsrsReportScreen() {
               </TouchableOpacity>
               {expandedSection === 'sec2' && (
                 <View style={styles.accordionContent}>
-                  <Text style={styles.accordionText}><strong>Denetim Standardı:</strong> KGK TSRS-2 İklim ve Risk Beyanları</Text>
-                  <Text style={styles.accordionText}><strong>Doğrulama Kaynağı:</strong> IoT Enerji Analizörleri & Elektrik Faturaları (e-Fatura Entegre)</Text>
-                  <Text style={styles.accordionText}><strong>Son Kontrol:</strong> 23.05.2026 14:32</Text>
+                  <Text style={styles.accordionText}><Text style={{ fontWeight: 'bold' }}>Denetim Standardı:</Text> KGK TSRS-2 İklim ve Risk Beyanları</Text>
+                  <Text style={styles.accordionText}><Text style={{ fontWeight: 'bold' }}>Doğrulama Kaynağı:</Text> IoT Enerji Analizörleri & Elektrik Faturaları (e-Fatura Entegre)</Text>
+                  <Text style={styles.accordionText}><Text style={{ fontWeight: 'bold' }}>Son Kontrol:</Text> 23.05.2026 14:32</Text>
                 </View>
               )}
             </View>
@@ -454,9 +454,9 @@ export default function TsrsReportScreen() {
               </TouchableOpacity>
               {expandedSection === 'sec3' && (
                 <View style={styles.accordionContent}>
-                  <Text style={styles.accordionText}><strong>Denetim Standardı:</strong> İlgili NACE Kodu Sektör Limit Kıyaslamaları</Text>
-                  <Text style={styles.accordionText}><strong>Doğrulama Kaynağı:</strong> EcoFin Sektörel Kıyaslama Algoritması</Text>
-                  <Text style={styles.accordionText}><strong>Son Kontrol:</strong> 23.05.2026 14:32</Text>
+                  <Text style={styles.accordionText}><Text style={{ fontWeight: 'bold' }}>Denetim Standardı:</Text> İlgili NACE Kodu Sektör Limit Kıyaslamaları</Text>
+                  <Text style={styles.accordionText}><Text style={{ fontWeight: 'bold' }}>Doğrulama Kaynağı:</Text> EcoFin Sektörel Kıyaslama Algoritması</Text>
+                  <Text style={styles.accordionText}><Text style={{ fontWeight: 'bold' }}>Son Kontrol:</Text> 23.05.2026 14:32</Text>
                 </View>
               )}
             </View>
