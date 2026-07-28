@@ -1,26 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-    AlertOctagon, 
-    ThumbsDown, 
-    MessageSquare, 
-    Plus, 
-    FileText, 
-    UploadCloud, 
-    Search, 
-    CheckCircle2, 
-    Loader2, 
-    Sparkles, 
-    Building2, 
-    ThumbsUp, 
-    Check, 
-    X, 
+import {
+    AlertOctagon,
+    ThumbsDown,
+    Plus,
+    Search,
+    CheckCircle2,
+    Loader2,
+    Sparkles,
+    Building2,
+    X,
     AlertTriangle,
     Info,
-    ExternalLink,
     ShieldCheck,
-    FileCheck,
-    BarChart3
+    ShieldAlert,
+    Gavel
 } from 'lucide-react';
+
+const AUDIT_STATUS_OPTIONS = [
+    'İnceleniyor',
+    'Doğrulandı - Skor Düşürüldü',
+    'Doğrulandı - Acil Bildirim',
+    'Reddedildi (Asılsız)',
+];
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -33,19 +34,24 @@ const PublicAudit = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [moderatorMode, setModeratorMode] = useState(false);
+    const [statusUpdatingId, setStatusUpdatingId] = useState(null);
 
     // Form inputs
     const [companyInput, setCompanyInput] = useState('');
+    const [companyTicker, setCompanyTicker] = useState(null);
     const [categoryInput, setCategoryInput] = useState('');
     const [descriptionInput, setDescriptionInput] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [evidenceFile, setEvidenceFile] = useState(null);
     const [formTerms, setFormTerms] = useState(false);
 
-    // AI simulation state
+    // AI analiz durumu — görsel adımlar animasyonludur, sonuçlar backend'deki
+    // gerçek NLP analizinden (nlp_analyzer.py) gelir, uydurma sayı üretilmez.
     const [aiAnalyzing, setAiAnalyzing] = useState(false);
     const [aiStep, setAiStep] = useState(0); // 0: Medya/Kanıt OCR, 1: Karşılaştırmalı ESG Analizi, 2: Yeşil Aklama Skorlama, 3: Başarı Raporu
     const [aiSuccessReport, setAiSuccessReport] = useState(null);
+    const [aiError, setAiError] = useState(null);
+    const [submittedAudit, setSubmittedAudit] = useState(null);
 
     const suggestionRef = useRef(null);
 
@@ -92,112 +98,118 @@ const PublicAudit = () => {
         }
     };
 
-    const handleUpvote = async (index) => {
+    const handleUpvote = async (auditId) => {
         try {
-            const res = await fetch(`${API_URL}/api/public-audits/${index}/upvote`, {
+            const res = await fetch(`${API_URL}/api/public-audits/${auditId}/upvote`, {
                 method: 'POST'
             });
             if (res.ok) {
                 const data = await res.json();
-                // Update local state
-                const updated = [...reports];
-                updated[index].upvotes = data.upvotes;
-                setReports(updated);
+                setReports(prev => prev.map(r => r.id === auditId ? { ...r, upvotes: data.upvotes } : r));
             }
         } catch (err) {
             console.error("Oylama hatası:", err);
         }
     };
 
-    const handleCompanyInputChange = (e) => {
-        setCompanyInput(e.target.value);
-        setShowSuggestions(true);
-    };
-
-    const handleSelectSuggestion = (companyName) => {
-        setCompanyInput(companyName);
-        setShowSuggestions(false);
-    };
-
-    const handleFileUpload = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            setEvidenceFile({
-                name: file.name,
-                size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-                type: file.type
+    const handleStatusChange = async (auditId, newStatus) => {
+        setStatusUpdatingId(auditId);
+        try {
+            const res = await fetch(`${API_URL}/api/public-audits/${auditId}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
             });
+            if (res.ok) {
+                const data = await res.json();
+                setReports(prev => prev.map(r => r.id === auditId ? data.audit : r));
+            }
+        } catch (err) {
+            console.error("Durum güncelleme hatası:", err);
+        } finally {
+            setStatusUpdatingId(null);
         }
     };
 
-    const handleRemoveFile = () => {
-        setEvidenceFile(null);
+    const handleCompanyInputChange = (e) => {
+        setCompanyInput(e.target.value);
+        setCompanyTicker(null);
+        setShowSuggestions(true);
     };
 
-    const triggerAISimulation = (e) => {
+    const handleSelectSuggestion = (company) => {
+        setCompanyInput(company.name);
+        setCompanyTicker(company.ticker);
+        setShowSuggestions(false);
+    };
+
+    const triggerAISimulation = async (e) => {
         e.preventDefault();
         if (!companyInput || !categoryInput || !descriptionInput) return;
 
         setAiAnalyzing(true);
+        setAiError(null);
         setAiStep(0);
 
-        // Step 1: Media & OCR scan (takes 1.2s)
-        setTimeout(() => {
-            setAiStep(1);
-            // Step 2: Comparative ESG report analysis (takes 1.2s)
-            setTimeout(() => {
-                setAiStep(2);
-                // Step 3: Greenwashing Scoring (takes 1.2s)
-                setTimeout(() => {
-                    // Generate AI insight report
-                    const riskLevels = ["Yüksek Yeşil Aklama Riski", "Kısmi Tutarsızlık", "Orta Çevresel Çelişki"];
-                    const chosenRisk = riskLevels[Math.floor(Math.random() * riskLevels.length)];
-                    const accuracy = Math.floor(Math.random() * 15) + 80; // 80-95%
-                    const esgImpact = -(Math.random() * 1.5 + 0.5).toFixed(1); // -0.5 to -2.0
+        // Backend'e gönderimi hemen başlat — gösterilecek sonuç gerçek NLP
+        // analizinden (sentiment/pillar/impact_score) gelecek, uydurulmayacak.
+        const submitPromise = fetch(`${API_URL}/api/public-audits`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticker: companyTicker,
+                company: companyInput,
+                category: categoryInput,
+                description: descriptionInput
+            })
+        }).then(async (res) => {
+            if (!res.ok) throw new Error('İhbar kaydedilemedi.');
+            return res.json();
+        });
 
-                    setAiSuccessReport({
-                        risk: chosenRisk,
-                        accuracy: accuracy,
-                        esgImpact: esgImpact,
-                        summary: `${companyInput} tarafından sunulan ESG beyanları ve kanıt yüklemeleri karşılaştırıldı. Veri setlerinde %${accuracy} doğruluk payıyla çelişkiler tespit edilmiştir. Şirket ESG skoru ${esgImpact} puan güncellenecektir.`
-                    });
-                    setAiStep(3);
-                }, 1200);
-            }, 1200);
-        }, 1200);
-    };
+        // Görsel adım animasyonu (kanıt taraması vb.) — yalnızca UX amaçlı
+        await new Promise(r => setTimeout(r, 900));
+        setAiStep(1);
+        await new Promise(r => setTimeout(r, 900));
+        setAiStep(2);
 
-    const handleFinalizeReport = async () => {
         try {
-            const res = await fetch(`${API_URL}/api/public-audits`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    company: companyInput,
-                    category: categoryInput,
-                    description: descriptionInput
-                })
+            const data = await submitPromise;
+            const audit = data.audit;
+            const nlp = audit.nlp || {};
+            setSubmittedAudit(audit);
+            setAiSuccessReport({
+                sentiment: nlp.sentiment,
+                pillar: nlp.pillar,
+                impact_score: nlp.impact_score,
+                explanation: nlp.explanation,
+                status: audit.status
             });
-
-            if (res.ok) {
-                // Clear form inputs
-                setCompanyInput('');
-                setCategoryInput('');
-                setDescriptionInput('');
-                setEvidenceFile(null);
-                setFormTerms(false);
-                setIsFormOpen(false);
-                setAiAnalyzing(false);
-                setAiSuccessReport(null);
-                // Reload list
-                fetchReports();
-            }
+            setAiStep(3);
         } catch (err) {
             console.error("Kaydetme hatası:", err);
-            setAiAnalyzing(false);
+            setAiError("İhbar backend'e gönderilirken bir hata oluştu. Lütfen tekrar deneyin.");
+            setAiStep(-1);
         }
+    };
+
+    const handleCloseAiOverlay = () => {
+        setAiAnalyzing(false);
+        setAiError(null);
+        setAiStep(0);
+    };
+
+    const handleFinalizeReport = () => {
+        setCompanyInput('');
+        setCompanyTicker(null);
+        setCategoryInput('');
+        setDescriptionInput('');
+        setFormTerms(false);
+        setIsFormOpen(false);
+        setAiAnalyzing(false);
+        setAiSuccessReport(null);
+        setSubmittedAudit(null);
+        fetchReports();
     };
 
     // Filtered reports
@@ -210,7 +222,9 @@ const PublicAudit = () => {
     });
 
     const getStatusStyle = (status) => {
-        if (status.includes('Acil')) {
+        if (status.includes('Reddedildi')) {
+            return { bg: 'rgba(100, 116, 139, 0.1)', color: '#64748B', border: 'rgba(100, 116, 139, 0.2)' };
+        } else if (status.includes('Acil')) {
             return { bg: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: 'rgba(239, 68, 68, 0.2)' };
         } else if (status.includes('Düşürüldü') || status.includes('Doğrulandı')) {
             return { bg: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B', border: 'rgba(245, 158, 11, 0.2)' };
@@ -391,20 +405,35 @@ const PublicAudit = () => {
                             </p>
                         </div>
 
-                        {!isFormOpen && (
-                            <button 
-                                onClick={() => setIsFormOpen(true)} 
-                                className="btn-primary" 
-                                style={{ 
-                                    padding: '14px 28px', 
-                                    fontSize: '15px', 
-                                    background: 'linear-gradient(135deg, #EF4444, #B91C1C)',
-                                    boxShadow: '0 6px 20px rgba(239, 68, 68, 0.4)'
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
+                            {!isFormOpen && (
+                                <button
+                                    onClick={() => setIsFormOpen(true)}
+                                    className="btn-primary"
+                                    style={{
+                                        padding: '14px 28px',
+                                        fontSize: '15px',
+                                        background: 'linear-gradient(135deg, #EF4444, #B91C1C)',
+                                        boxShadow: '0 6px 20px rgba(239, 68, 68, 0.4)'
+                                    }}
+                                >
+                                    <Plus size={18} /> Yeni İhlal Bildir
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setModeratorMode(m => !m)}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '6px',
+                                    padding: '8px 14px', fontSize: '12.5px', fontWeight: 700,
+                                    borderRadius: '8px', cursor: 'pointer',
+                                    background: moderatorMode ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.08)',
+                                    border: `1px solid ${moderatorMode ? 'var(--accent-emerald)' : 'rgba(255,255,255,0.15)'}`,
+                                    color: moderatorMode ? 'var(--accent-emerald)' : '#94A3B8'
                                 }}
                             >
-                                <Plus size={18} /> Yeni İhlal Bildir
+                                <Gavel size={14} /> {moderatorMode ? 'Moderasyon Modu: Açık' : 'Moderasyon Modu'}
                             </button>
-                        )}
+                        </div>
                     </div>
                 </div>
             </section>
@@ -480,22 +509,22 @@ const PublicAudit = () => {
                             </p>
                         </div>
                     ) : (
-                        filteredReports.map((rep, idx) => {
+                        filteredReports.map((rep) => {
                             const statusStyle = getStatusStyle(rep.status);
                             return (
-                                <div 
-                                    key={idx} 
-                                    className="glass-card" 
-                                    style={{ 
-                                        padding: '24px', 
-                                        display: 'flex', 
-                                        gap: '20px', 
+                                <div
+                                    key={rep.id}
+                                    className="glass-card"
+                                    style={{
+                                        padding: '24px',
+                                        display: 'flex',
+                                        gap: '20px',
                                         alignItems: 'flex-start',
-                                        position: 'relative' 
+                                        position: 'relative'
                                     }}
                                 >
                                     {/* Left voting box */}
-                                    <div className="upvote-button" onClick={() => handleUpvote(idx)}>
+                                    <div className="upvote-button" onClick={() => handleUpvote(rep.id)}>
                                         <ThumbsDown size={18} color="#EF4444" style={{ marginBottom: '4px' }} />
                                         <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main)' }}>{rep.upvotes}</span>
                                         <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Oyla</span>
@@ -508,14 +537,17 @@ const PublicAudit = () => {
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <Building2 size={16} color="var(--text-muted)" />
                                                     <h4 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>{rep.company}</h4>
+                                                    {rep.ticker && (
+                                                        <span style={{ fontSize: '11px', color: '#3B82F6', background: 'rgba(59,130,246,0.1)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>{rep.ticker}</span>
+                                                    )}
                                                 </div>
-                                                <span style={{ 
+                                                <span style={{
                                                     display: 'inline-block',
-                                                    fontSize: '11px', 
-                                                    fontWeight: 600, 
-                                                    color: 'var(--accent-emerald-dark)', 
-                                                    background: 'rgba(16, 185, 129, 0.1)', 
-                                                    padding: '2px 8px', 
+                                                    fontSize: '11px',
+                                                    fontWeight: 600,
+                                                    color: 'var(--accent-emerald-dark)',
+                                                    background: 'rgba(16, 185, 129, 0.1)',
+                                                    padding: '2px 8px',
                                                     borderRadius: '8px',
                                                     marginTop: '4px'
                                                 }}>
@@ -539,15 +571,16 @@ const PublicAudit = () => {
                                             flexWrap: 'wrap',
                                             gap: '12px'
                                         }}>
-                                            <div style={{ display: 'flex', gap: '16px' }}>
-                                                <button style={{ background: 'transparent', border: 'none', padding: 0, color: 'var(--text-muted)', fontSize: '13px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                                    <MessageSquare size={14} /> Tartışmalar (8)
-                                                </button>
-                                                <button style={{ background: 'transparent', border: 'none', padding: 0, color: 'var(--text-muted)', fontSize: '13px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                                    <FileText size={14} /> Kanıt Belgesi (PDF/Görsel)
-                                                </button>
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                {rep.nlp?.sentiment && (
+                                                    <span style={{
+                                                        fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px'
+                                                    }}>
+                                                        <Sparkles size={13} /> NLP: {rep.nlp.sentiment} ({rep.nlp.pillar}), etki {rep.nlp.impact_score >= 0 ? '+' : ''}{rep.nlp.impact_score?.toFixed(2)}
+                                                    </span>
+                                                )}
                                             </div>
-                                            
+
                                             <span style={{
                                                 background: statusStyle.bg,
                                                 color: statusStyle.color,
@@ -563,6 +596,31 @@ const PublicAudit = () => {
                                                 <Sparkles size={12} /> YZ Durumu: {rep.status}
                                             </span>
                                         </div>
+
+                                        {moderatorMode && (
+                                            <div style={{
+                                                marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed #E2E8F0',
+                                                display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap'
+                                            }}>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11.5px', fontWeight: 700, color: '#B91C1C' }}>
+                                                    <ShieldAlert size={13} /> Moderasyon:
+                                                </span>
+                                                <select
+                                                    value={rep.status}
+                                                    disabled={statusUpdatingId === rep.id}
+                                                    onChange={(e) => handleStatusChange(rep.id, e.target.value)}
+                                                    style={{ fontSize: '12.5px', padding: '6px 10px', borderRadius: '8px', border: '1px solid #E2E8F0', background: '#FFFFFF' }}
+                                                >
+                                                    {AUDIT_STATUS_OPTIONS.map(opt => (
+                                                        <option key={opt} value={opt}>{opt}</option>
+                                                    ))}
+                                                </select>
+                                                {statusUpdatingId === rep.id && <Loader2 size={14} className="animate-spin" color="var(--text-muted)" />}
+                                                {rep.status.includes('Doğrulandı') && (
+                                                    <span style={{ fontSize: '11px', color: 'var(--accent-emerald-dark)' }}>Bu ihbar ESG skorunu etkiliyor.</span>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             );
@@ -619,10 +677,10 @@ const PublicAudit = () => {
                                         {companies
                                             .filter(c => (c.name || '').toLowerCase().includes(companyInput.toLowerCase()) || (c.ticker || '').toLowerCase().includes(companyInput.toLowerCase()))
                                             .map((c, i) => (
-                                                <div 
-                                                    key={i} 
+                                                <div
+                                                    key={i}
                                                     className="suggestion-item"
-                                                    onClick={() => handleSelectSuggestion(c.name)}
+                                                    onClick={() => handleSelectSuggestion(c)}
                                                 >
                                                     <span style={{ fontWeight: 600 }}>{c.name}</span>
                                                     <span style={{ fontSize: '11px', color: '#3B82F6', background: 'rgba(59,130,246,0.1)', padding: '2px 6px', borderRadius: '4px' }}>{c.ticker}</span>
@@ -666,60 +724,6 @@ const PublicAudit = () => {
                                     required
                                     style={{ resize: 'vertical' }}
                                 />
-                            </div>
-
-                            {/* File Upload UI */}
-                            <div>
-                                <label className="form-label" style={{ fontWeight: 600 }}>Kanıt Dosyası Yükle</label>
-                                {!evidenceFile ? (
-                                    <div 
-                                        onClick={() => document.getElementById('evidence-file-input').click()}
-                                        style={{ 
-                                            border: '2px dashed #CBD5E1', 
-                                            borderRadius: '12px', 
-                                            padding: '24px 16px', 
-                                            textAlign: 'center', 
-                                            background: '#F8FAFC', 
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s'
-                                        }}
-                                        onMouseOver={(e) => { e.currentTarget.style.borderColor = 'var(--accent-emerald)'; e.currentTarget.style.background = '#F0FDF4'; }}
-                                        onMouseOut={(e) => { e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.background = '#F8FAFC'; }}
-                                    >
-                                        <UploadCloud size={28} color="var(--text-muted)" style={{ margin: '0 auto 8px auto' }} />
-                                        <span style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 600, display: 'block' }}>Görsel, Video veya Belge Yükle</span>
-                                        <span style={{ fontSize: '11px', color: 'var(--text-light)', display: 'block', marginTop: '4px' }}>PDF, PNG, JPG, MP4 (Maks. 15MB)</span>
-                                        <input 
-                                            id="evidence-file-input"
-                                            type="file" 
-                                            style={{ display: 'none' }} 
-                                            onChange={handleFileUpload}
-                                        />
-                                    </div>
-                                ) : (
-                                    <div style={{ 
-                                        display: 'flex', 
-                                        alignItems: 'center', 
-                                        gap: '12px', 
-                                        padding: '12px 16px', 
-                                        background: '#F0FDF4', 
-                                        border: '1px solid rgba(16, 185, 129, 0.2)', 
-                                        borderRadius: '12px' 
-                                    }}>
-                                        <FileText size={24} color="var(--accent-emerald)" />
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{evidenceFile.name}</p>
-                                            <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{evidenceFile.size}</p>
-                                        </div>
-                                        <button 
-                                            type="button" 
-                                            onClick={handleRemoveFile}
-                                            style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer' }}
-                                        >
-                                            <X size={16} />
-                                        </button>
-                                    </div>
-                                )}
                             </div>
 
                             {/* Security / Agreement Checkbox */}
@@ -780,7 +784,21 @@ const PublicAudit = () => {
                             color: '#FFFFFF'
                         }}
                     >
-                        {aiStep < 3 ? (
+                        {aiStep === -1 ? (
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{
+                                    width: '64px', height: '64px', borderRadius: '50%',
+                                    background: 'rgba(239, 68, 68, 0.15)', display: 'flex',
+                                    alignItems: 'center', justifyContent: 'center',
+                                    margin: '0 auto 20px auto', border: '2px solid #EF4444'
+                                }}>
+                                    <X size={32} color="#EF4444" />
+                                </div>
+                                <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '8px', color: '#FFFFFF' }}>Gönderim Başarısız</h3>
+                                <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '24px' }}>{aiError}</p>
+                                <button onClick={handleCloseAiOverlay} className="btn-outline" style={{ width: '100%', justifyContent: 'center' }}>Kapat</button>
+                            </div>
+                        ) : aiStep < 3 ? (
                             <div style={{ textAlign: 'center' }}>
                                 <div style={{ position: 'relative', display: 'inline-flex', marginBottom: '24px' }}>
                                     <div style={{
@@ -891,33 +909,39 @@ const PublicAudit = () => {
                                 </p>
 
                                 {/* Mini Analysis report details */}
-                                <div style={{ 
-                                    background: '#162032', 
-                                    border: '1px solid rgba(255, 255, 255, 0.1)', 
-                                    borderRadius: '12px', 
-                                    padding: '20px', 
+                                <div style={{
+                                    background: '#162032',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '12px',
+                                    padding: '20px',
                                     textAlign: 'left',
                                     marginBottom: '32px'
                                 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '8px' }}>
-                                        <span style={{ fontSize: '13px', color: '#94A3B8' }}>Bulgu Durumu</span>
-                                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#EF4444' }}>{aiSuccessReport?.risk}</span>
+                                        <span style={{ fontSize: '13px', color: '#94A3B8' }}>Duygu Analizi</span>
+                                        <span style={{ fontSize: '13px', fontWeight: 700, color: aiSuccessReport?.sentiment === 'Negatif' ? '#EF4444' : aiSuccessReport?.sentiment === 'Pozitif' ? 'var(--accent-emerald)' : '#94A3B8' }}>{aiSuccessReport?.sentiment}</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '8px' }}>
-                                        <span style={{ fontSize: '13px', color: '#94A3B8' }}>Kanıt Tutarlılık Skoru</span>
-                                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-emerald)' }}>%{aiSuccessReport?.accuracy}</span>
+                                        <span style={{ fontSize: '13px', color: '#94A3B8' }}>Etkilenen ESG Sütunu</span>
+                                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-emerald)' }}>{aiSuccessReport?.pillar}</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '8px' }}>
-                                        <span style={{ fontSize: '13px', color: '#94A3B8' }}>Öngörülen ESG Skor Puanı Etkisi</span>
-                                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#EF4444' }}>{aiSuccessReport?.esgImpact} Puan</span>
+                                        <span style={{ fontSize: '13px', color: '#94A3B8' }}>Olası ESG Skor Etkisi</span>
+                                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#EF4444' }}>{aiSuccessReport?.impact_score >= 0 ? '+' : ''}{aiSuccessReport?.impact_score} Puan</span>
                                     </div>
                                     <div style={{ marginTop: '12px' }}>
                                         <p style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>YZ Analiz Özeti</p>
                                         <p style={{ fontSize: '13px', color: '#E2E8F0', lineHeight: '1.5' }}>
-                                            {aiSuccessReport?.summary}
+                                            {aiSuccessReport?.explanation}
                                         </p>
                                     </div>
+                                    <div style={{ marginTop: '14px', padding: '10px 12px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '8px', fontSize: '11.5px', color: '#F59E0B', lineHeight: 1.4 }}>
+                                        Durum: <strong>{aiSuccessReport?.status}</strong> — bu ihbar moderasyon tarafından "Doğrulandı" olarak işaretlenmeden ESG skorunu etkilemez. Bu, asılsız ihbarlarla skor manipülasyonunu önlemek içindir.
+                                    </div>
                                 </div>
+                                {aiError && (
+                                    <p style={{ color: '#EF4444', fontSize: '13px', marginBottom: '16px' }}>{aiError}</p>
+                                )}
 
                                 <button 
                                     onClick={handleFinalizeReport} 
