@@ -1,0 +1,464 @@
+<title>EkoFin — Jüri Soru-Cevap Hazırlığı</title>
+<style>
+  :root{
+    --bg:#f5f3ec;
+    --bg-raised:#ffffff;
+    --ink:#1c2420;
+    --ink-soft:#4b564e;
+    --line:#dcd8c9;
+    --accent:#2f6b4f;
+    --accent-soft:#e7efe7;
+    --tag-easy:#3f7d5c;
+    --tag-easy-bg:#e4f0e8;
+    --tag-med:#a4772b;
+    --tag-med-bg:#f6ecd9;
+    --tag-hard:#a9432f;
+    --tag-hard-bg:#f9e6e1;
+    --warn-bg:#fbf1e2;
+    --warn-border:#d9a441;
+    --shadow: 0 1px 2px rgba(28,36,32,0.06), 0 4px 14px rgba(28,36,32,0.05);
+  }
+  :root[data-theme="dark"]{
+    --bg:#12180f;
+    --bg-raised:#1a2117;
+    --ink:#e9ede7;
+    --ink-soft:#a9b3a4;
+    --line:#2c352a;
+    --accent:#6fc79a;
+    --accent-soft:#1e2c22;
+    --tag-easy:#7fd1a5;
+    --tag-easy-bg:#1c2e23;
+    --tag-med:#e0b465;
+    --tag-med-bg:#332a15;
+    --tag-hard:#e59684;
+    --tag-hard-bg:#3a1f19;
+    --warn-bg:#2b2412;
+    --warn-border:#c99a44;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 18px rgba(0,0,0,0.35);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#12180f;
+      --bg-raised:#1a2117;
+      --ink:#e9ede7;
+      --ink-soft:#a9b3a4;
+      --line:#2c352a;
+      --accent:#6fc79a;
+      --accent-soft:#1e2c22;
+      --tag-easy:#7fd1a5;
+      --tag-easy-bg:#1c2e23;
+      --tag-med:#e0b465;
+      --tag-med-bg:#332a15;
+      --tag-hard:#e59684;
+      --tag-hard-bg:#3a1f19;
+      --warn-bg:#2b2412;
+      --warn-border:#c99a44;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 18px rgba(0,0,0,0.35);
+    }
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height:1.55;
+    margin:0;
+    padding:0 20px 80px;
+  }
+  .wrap{max-width:740px; margin:0 auto;}
+
+  header.hero{
+    padding:44px 0 28px;
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{
+    font-size:12px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+    margin:0 0 10px;
+  }
+  h1{
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-size:clamp(28px,5vw,38px);
+    line-height:1.12;
+    margin:0 0 10px;
+    text-wrap:balance;
+    letter-spacing:-0.01em;
+  }
+  .hero p{
+    color:var(--ink-soft);
+    font-size:15.5px;
+    max-width:56ch;
+    margin:0;
+  }
+  .stat-row{
+    display:flex;
+    gap:22px;
+    margin-top:22px;
+    flex-wrap:wrap;
+  }
+  .stat{
+    font-variant-numeric: tabular-nums;
+  }
+  .stat b{
+    display:block;
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+    font-size:22px;
+    color:var(--accent);
+  }
+  .stat span{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+
+  nav.jump{
+    position:sticky;
+    top:0;
+    z-index:5;
+    background:var(--bg);
+    padding:14px 0;
+    margin-bottom:8px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    font-size:12.5px;
+  }
+  nav.jump a{
+    color:var(--ink-soft);
+    text-decoration:none;
+    padding:5px 10px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    white-space:nowrap;
+  }
+  nav.jump a:hover, nav.jump a:focus-visible{
+    color:var(--accent);
+    border-color:var(--accent);
+    outline:none;
+  }
+
+  section.block{
+    padding:34px 0 8px;
+    border-bottom:1px solid var(--line);
+    scroll-margin-top:64px;
+  }
+  section.block:last-of-type{border-bottom:none;}
+  .block h2{
+    font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+    font-size:22px;
+    margin:0 0 4px;
+    letter-spacing:-0.01em;
+  }
+  .block .note{
+    color:var(--ink-soft);
+    font-size:13.5px;
+    margin:0 0 22px;
+    max-width:60ch;
+  }
+
+  .qa{
+    background:var(--bg-raised);
+    border:1px solid var(--line);
+    border-radius:10px;
+    box-shadow:var(--shadow);
+    padding:16px 18px;
+    margin-bottom:14px;
+  }
+  .qa-head{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    margin-bottom:6px;
+  }
+  .tag{
+    flex:none;
+    font-size:10.5px;
+    font-weight:700;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    padding:2px 8px;
+    border-radius:5px;
+  }
+  .tag.easy{color:var(--tag-easy); background:var(--tag-easy-bg);}
+  .tag.med{color:var(--tag-med); background:var(--tag-med-bg);}
+  .tag.hard{color:var(--tag-hard); background:var(--tag-hard-bg);}
+  .q{
+    font-weight:650;
+    font-size:15.5px;
+    margin:0;
+  }
+  .a{
+    margin:6px 0 0;
+    font-size:14.5px;
+    color:var(--ink-soft);
+  }
+  .a b{color:var(--ink); font-weight:600;}
+
+  .defense{
+    background:var(--warn-bg);
+    border:1px solid var(--warn-border);
+    border-radius:10px;
+    padding:18px 20px;
+    margin-bottom:16px;
+  }
+  .defense .claim{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    color:var(--tag-hard);
+    font-weight:700;
+    margin:0 0 6px;
+  }
+  .defense .q{font-size:15px;}
+  .defense .a{color:var(--ink);}
+
+  .tip{
+    font-size:13.5px;
+    color:var(--ink-soft);
+    border-left:3px solid var(--accent);
+    padding:4px 0 4px 14px;
+    margin:18px 0 26px;
+  }
+  .tip b{color:var(--ink);}
+
+  footer{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:12px;
+    padding:30px 0 0;
+  }
+
+  @media print{
+    nav.jump{position:static;}
+    .qa{box-shadow:none;}
+  }
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <p class="eyebrow">TEKNOFEST 2026 · Finansal Teknolojiler Yarışması</p>
+  <h1>EkoFin jüri savunma hazırlığı</h1>
+  <p>Takım EkoFin (ID 918465) — 10 dakikalık sunum, 5 dakikalık soru-cevap için olası jüri soruları, önerilen cevaplar ve dürüst savunma noktaları. Sunum dosyası ve proje kod tabanı karşılaştırılarak hazırlanmıştır.</p>
+  <div class="stat-row">
+    <div class="stat"><b>36</b><span>Hazır soru</span></div>
+    <div class="stat"><b>8</b><span>Konu başlığı</span></div>
+    <div class="stat"><b>5</b><span>Kritik savunma noktası</span></div>
+  </div>
+</header>
+
+<nav class="jump">
+  <a href="#problem">Problem &amp; Pazar</a>
+  <a href="#cozum">Çözüm</a>
+  <a href="#teknik">Teknik derinlik</a>
+  <a href="#rakip">Rakip farkı</a>
+  <a href="#is-modeli">İş modeli</a>
+  <a href="#risk">Risk &amp; regülasyon</a>
+  <a href="#takim">Takım &amp; takvim</a>
+  <a href="#savunma">Zor sorular</a>
+</nav>
+
+<section class="block" id="problem">
+  <h2>Problem &amp; Pazar</h2>
+  <p class="note">Sunumdaki rakamların kaynağını ve KOBİ odağının gerekçesini savunmaya hazır olun.</p>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag easy">Kolay</span><p class="q">40 trilyon dolarlık rakamı nereden aldınız?</p></div>
+    <p class="a">Bloomberg Intelligence'ın <b>"Global ESG Assets Predicted to Hit $40 Trillion by 2030"</b> raporundan; slaytta dipnot olarak da belirtildi. Bu, küresel sürdürülebilir varlık büyüklüğü projeksiyonu — EkoFin'in doğrudan geliri değil, pazarın büyüme yönünü gösteriyor.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag easy">Kolay</span><p class="q">Neden büyük şirketler değil de KOBİ'lere odaklandınız?</p></div>
+    <p class="a">Büyük şirketler zaten CSRD/TSRS kapsamında ve bu iş için bütçe/ekip ayırabiliyor. Asıl kör nokta Türkiye'deki <b>3.7M+ girişim ve 181K imalatçı KOBİ</b> — ne uzmanlık ne bütçeleri var, ama SKDM/CBAM ve tedarik zinciri baskısı (büyük şirketlerin kendi tedarikçilerinden ESG verisi istemesi) onları da doğrudan etkiliyor.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag med">Orta</span><p class="q">%94 rakamı yatırımcıların hiç mi ESG raporlarına güvenmediği anlamına geliyor?</p></div>
+    <p class="a">PwC Global Investor Survey 2023'e göre yatırımcıların %94'ü sürdürülebilirlik raporlarındaki iddiaların yeterince desteklenmediğini düşünüyor. Güvensizlik değil, <b>doğrulanabilirlik eksikliği</b> — bu yüzden EkoFin'de kriptografik bütünlük kaydı ve sektörel tutarlılık kontrolü var.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag med">Orta</span><p class="q">Bu problem gerçekten Türkiye'ye özgü mü, yoksa her yerde mi var?</p></div>
+    <p class="a">Küresel bir problem ama Türkiye'de SKDM/CBAM ile ihracatçı KOBİ'ler üzerinden acil hâle geliyor; AB'ye ihracat yapan bir KOBİ emisyonunu ölçemezse doğrudan gümrükte karbon vergisiyle karşılaşıyor. Bu bizim önceliklendirmemizin gerekçesi.</p>
+  </div>
+</section>
+
+<section class="block" id="cozum">
+  <h2>Çözüm &amp; Teknoloji</h2>
+  <p class="note">EkoFin'in ne yaptığını tek cümlede özetleyebilmek, jürinin ilk izlenimini belirler.</p>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag easy">Kolay</span><p class="q">EkoFin tam olarak ne yapıyor, tek cümleyle anlatır mısınız?</p></div>
+    <p class="a">KOBİ'lerin fatura, sicil ve enerji verilerini toplayıp yapay zekayla <b>TSRS uyumlu sürdürülebilirlik raporu</b> üreten, ESG skorunu anlık hesaplayan ve yeşil yatırımın finansal getirisini (<b>g-ROI</b>) çıkaran bir platform.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag easy">Kolay</span><p class="q">"Dinamik ESG" derken statik puanlamalardan farkı ne?</p></div>
+    <p class="a">Rakipler dönemlik/yıllık statik skor veriyor. Bizim modelimiz yeni veri (fatura, tüketim, sicil güncellemesi) geldikçe skoru yeniden hesaplıyor — yıllık rapor değil, canlı gösterge paneli mantığı.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag med">Orta</span><p class="q">TSRS raporu tamamen otomatik mi üretiliyor, hiç insan onayı yok mu?</p></div>
+    <p class="a">Rapor bölüm bölüm (yönetişim, strateji, risk yönetimi, metrikler) kaynak belgelerden yapay zekayla taslak olarak üretiliyor. Ama resmi geçerlilik için <b>KSRU lisanslı bağımsız denetçi onayı</b> planımızda zorunlu adım — EkoFin insan onayını ortadan kaldırmıyor, taslak hazırlama süresini kısaltıyor.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag med">Orta</span><p class="q">g-ROI nasıl hesaplanıyor, hangi verilere dayanıyor?</p></div>
+    <p class="a">Beş bileşenin toplamı: karbon vergisi tasarrufu, enerji verimliliği kazancı, yeşil kredi faiz avantajı, karbon kredisi geliri ve ESG primi. Referans katsayılar (karbon fiyatı, döviz kuru vb.) güncellenebilir parametreler olarak tutuluyor, sabit varsayım değil.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag hard">Zor</span><p class="q">"Yıllık %45 getiri" gibi rakamlar çok iddialı değil mi, nasıl doğruladınız?</p></div>
+    <p class="a">Bu, tek bir örnek senaryonun (EcoFin Yeşil Getiri Hesabı örneği) çıktısı; girdi varsayımlarına (yatırım tutarı, karbon fiyatı, teşvik oranı) doğrudan bağlı. Genel bir vaat değil, <b>hesaplama motorunun şeffaf bir örnek çıktısı</b> olarak sunuyoruz — her KOBİ için farklı sonuç verir.</p>
+  </div>
+</section>
+
+<section class="block" id="teknik">
+  <h2>Teknik derinlik</h2>
+  <p class="note">Jürinin en çok "gerçek mi, slogan mı" diye sorguladığı bölüm. Net ve dürüst cevaplar en güvenilir olanıdır.</p>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag med">Orta</span><p class="q">ESG tahmin modeliniz için hangi algoritmayı kullandınız ve neden?</p></div>
+    <p class="a"><b>XGBoost</b> regresyon modeli; RandomizedSearchCV ile hiperparametre optimizasyonu yapıyoruz, deneyleri MLflow ile takip ediyoruz. Fatura/tüketim/sicil gibi yapısal (tabular) veride ağaç tabanlı modeller genelde derin öğrenmeden daha az veriyle daha iyi genelleme yapıyor.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag med">Orta</span><p class="q">Modelin "kara kutu" olmadığını nasıl kanıtlıyorsunuz?</p></div>
+    <p class="a"><b>SHAP (SHapley Additive exPlanations)</b> kullanıyoruz — her tahminin hangi özelliğe (enerji tüketimi, atık, filo yakıt tipi vb.) ne kadar bağlı olduğunu gösteriyor. Bankalar ve denetçiler "neden bu skor" sorusuna somut cevap istiyor, SHAP bunu sağlıyor.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag easy">Kolay</span><p class="q">Sistem mimarisi nedir — hangi teknolojiler kullanıldı?</p></div>
+    <p class="a">Backend <b>FastAPI</b> (Python), frontend <b>React 19 + Vite</b>. Yapay zeka katmanında rapor üretimi için LLM tabanlı bir pipeline, ESG skorlama için XGBoost, veri çıkarımı için OCR tabanlı belge işleme kullanılıyor.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag med">Orta</span><p class="q">Yapay zekanın yanlış/tutarsız rapor üretme riskine karşı ne yaptınız?</p></div>
+    <p class="a">Üretimi kaynak belgelerle sınırlayan <b>RAG mimarisi</b> ve kural tabanlı sınır kontrolleri kullanıyoruz; nihai onay her zaman insanda. AI burada "otonom karar verici" değil, <b>karar destek katmanı</b>.</p>
+  </div>
+</section>
+
+<section class="block" id="rakip">
+  <h2>Rakip analizi &amp; farklılaşma</h2>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag easy">Kolay</span><p class="q">Metrikflow, GreeniX, KKB Greendeks'ten farkınız somut olarak ne?</p></div>
+    <p class="a">Üç net fark: <b>(1)</b> anlık/dinamik ESG skoru — rakipler dönemlik/manuel, <b>(2)</b> g-ROI — yeşil yatırımın finansal getirisini hesaplayan hiçbir rakipte yok, <b>(3)</b> greenwashing çapraz doğrulama — hiçbirinde yok.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag med">Orta</span><p class="q">KKB zaten yerleşik bir oyuncu, onunla nasıl rekabet edeceksiniz?</p></div>
+    <p class="a">Doğrudan rekabetten çok <b>entegrasyon</b> hedefliyoruz. B2B2B modelimizde bankalara/skorlama kuruluşlarına API veya white-label modül olarak sunmayı planlıyoruz — KKB'nin yerini almak değil, eksik olan dinamik ESG/g-ROI katmanını tamamlamak.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag hard">Zor</span><p class="q">Bu karşılaştırma tablosunu kim hazırladı, bağımsız bir denetim mi?</p></div>
+    <p class="a">Hayır, tabloyu kendi ekibimiz rakiplerin <b>halka açık ürün sayfaları ve dokümanlarından</b> derledi — slaytta bu kaynak notu açıkça yazıyor. Bağımsız üçüncü taraf analizi değil, dürüst bir ilk karşılaştırma olarak sunuyoruz.</p>
+  </div>
+</section>
+
+<section class="block" id="is-modeli">
+  <h2>İş modeli &amp; pazar büyüklüğü</h2>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag med">Orta</span><p class="q">TAM/SAM/SOM rakamlarınızı nasıl hesapladınız?</p></div>
+    <p class="a">TÜİK 2024 ve Emergen Research ESG Reporting Software Market verileri + kendi iç pazar modellememizle: TAM küresel ESG yazılım pazarının Türkiye payı (<b>$283M/yıl</b>), SAM ulaşılabilir KOBİ+banka segmenti (<b>$54M/yıl</b>), SOM ilk yıllarda hedeflenen %3 SAM penetrasyonu (<b>$1.6M/yıl</b>).</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag easy">Kolay</span><p class="q">Gelir modeliniz nedir, kimden para kazanıyorsunuz?</p></div>
+    <p class="a">Üç kanal: <b>(1)</b> bankalara API lisansı + kullanım ücreti, <b>(2)</b> mevcut fintech/core-banking sağlayıcılarına OEM/white-label lisans + gelir paylaşımı, <b>(3)</b> KOBİ'lere doğrudan aylık/yıllık SaaS aboneliği.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag hard">Zor</span><p class="q">Somut bir pilot müşteriniz veya LOI'niz var mı?</p></div>
+    <p class="a">Şu an ekibimiz proje takviminde belirtilen <b>API/entegrasyon ve KSRU işbirliği</b> adımlarına hazırlanıyor; imzalı bir pilot anlaşma henüz yok. Bunu net söyleyin — olmayan bir anlaşmayı varmış gibi sunmak güven kaybettirir, "aktif görüşme" demek yeterli ve dürüst.</p>
+  </div>
+</section>
+
+<section class="block" id="risk">
+  <h2>Risk &amp; regülasyon</h2>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag hard">Zor</span><p class="q">Yapay zekanın ürettiği rapor resmi olarak kabul görür mü?</p></div>
+    <p class="a">Şu an için hayır, otomatik olarak değil. Bu yüzden risk analizinde <b>KSRU lisanslı bağımsız denetçilerle</b> stratejik ortaklık kurmayı planlıyoruz; üretilen taslak resmi geçerlilik için uzman onayından geçiyor. EkoFin denetimi ortadan kaldırmıyor, hazırlık süresini kısaltıyor.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag med">Orta</span><p class="q">Kendi sisteminiz greenwashing riski taşımıyor mu?</p></div>
+    <p class="a">Sektörel ortalamalarla karşılaştırmalı "sanity check" ile anomali tespiti yapıyoruz — örneğin beyan edilen enerji tüketimi sektör ortalamasının çok altındaysa uyarı veriyor. Ayrıca hash tabanlı bütünlük kaydı, beyanların sonradan değiştirilmediğini garanti ediyor.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag med">Orta</span><p class="q">Hassas ticari verileri (fatura, mizan) nasıl koruyorsunuz?</p></div>
+    <p class="a">Hedefimiz <b>SOC 2 Type II</b> sertifikasyon standartlarına uyum, veri şifreleme ve kişisel veri maskeleme (PII masking). Bu adımlar proje takviminde Ekim ayına konumlandırıldı — şu anki prototipte henüz sertifikasyon alınmadı, bunu net belirtin.</p>
+  </div>
+</section>
+
+<section class="block" id="takim">
+  <h2>Takım &amp; proje takvimi</h2>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag easy">Kolay</span><p class="q">Takımda kim ne yapıyor?</p></div>
+    <p class="a">4 kişilik çekirdek mühendislik ekibi + 1 akademik danışman: <b>Bera</b> (kaptan, sistem mimarisi), <b>Emre</b> (yapay zeka/veri bilimi), <b>Atagün</b> (backend/API), <b>Bekir</b> (frontend/UI-UX), <b>Arş. Gör. Onur Mutlu</b> (TSRS/akademik danışmanlık). Roller net ayrışmış durumda.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag hard">Zor</span><p class="q">Şu ana kadar gerçekten çalışan ne var, ne planlanan?</p></div>
+    <p class="a"><b>Çalışan:</b> XGBoost tabanlı ESG tahmin modeli, g-ROI hesaplama motoru, TSRS rapor taslağı üretim hattı, FastAPI + React arayüzü.<br><b>Planlanan:</b> tam blockchain entegrasyonu, KSRU denetçi ortaklığı, üretim düzeyinde kimlik doğrulama/veritabanı, SOC 2 sertifikasyonu. Bu ayrımı net yapmak güven verir.</p>
+  </div>
+
+  <div class="qa">
+    <div class="qa-head"><span class="tag easy">Kolay</span><p class="q">Önümüzdeki 6 ay için somut hedefiniz ne?</p></div>
+    <p class="a">Proje takvimine göre: finalist sürecine hazırlık, Ekim'de SOC 2 sertifikasyon süreci başlatma, Kasım'da KSRU lisanslı denetçi işbirlikleri, Aralık'ta entegrasyon endpoint'lerini canlıya alma.</p>
+  </div>
+</section>
+
+<section class="block" id="savunma">
+  <h2>Zor sorular — dürüst savunma noktaları</h2>
+  <p class="note">Sunum kod tabanıyla karşılaştırıldı. Aşağıdaki noktalarda jüri detay sorarsa <b>abartıyı savunmaya çalışmayın</b> — hangisinin çalıştığını, hangisinin yol haritası olduğunu net ayırın. Şeffaflık, jüride abartıdan daha çok puan kazandırır.</p>
+
+  <div class="defense">
+    <p class="claim">Slayt: "Gemini AI" · Kod: rapor üretiminde OpenAI GPT</p>
+    <p class="q">Hangi yapay zeka modelini kullanıyorsunuz — Gemini mi?</p>
+    <p class="a">"Birden fazla model kullanıyoruz: TSRS rapor üretiminde GPT tabanlı bir model, g-ROI ve karbon verisi çıkarımında Gemini. Sunumda genel bir yapay zeka vurgusu yaptık; model seçimini kullanım senaryosuna göre optimize ediyoruz." — Bunu kendiniz gündeme getirmeyin, sorulursa bu şekilde cevaplayın.</p>
+  </div>
+
+  <div class="defense">
+    <p class="claim">Slayt: R²=0.8974, MAE=2.19 · İç kayıtlar: farklı koşumlarda daha düşük değerler</p>
+    <p class="q">Bu doğruluk rakamına nasıl ulaştınız, tekrarlanabilir mi?</p>
+    <p class="a">"Farklı veri bölümlemeleri ve hiperparametre denemelerinde değişen sonuçlar aldık; slayttaki, en iyi performans gösteren koşumun sonucu. MLflow ile tüm denemeleri kayıt altına alıyoruz ve üretim modelini en stabil sonuçla güncelleyeceğiz." Rakamı savunmaya çalışıp sıkışmayın — metodolojinin var olduğunu ve iyileştirmeye açık olduğunuzu vurgulayın.</p>
+  </div>
+
+  <div class="defense">
+    <p class="claim">Slayt: "Otonom Karar Destek Sistemi — Random Forest, SVM, GBM" · Kod: sadece XGBoost</p>
+    <p class="q">Bu üç modeli birlikte mi kullanıyorsunuz?</p>
+    <p class="a">"Üretimde şu an XGBoost tabanlı tek bir model çalışıyor; RF/SVM/GBM model seçimi aşamasında karşılaştırdığımız ve XGBoost'un daha iyi sonuç verdiği alternatiflerdi. Slaytta değerlendirme sürecini özetledik." Ensemble varmış gibi sunmayın.</p>
+  </div>
+
+  <div class="defense">
+    <p class="claim">Slayt: "Blockchain imzası" · Kod: SHA-256 dosya bütünlüğü hash'i, gerçek zincir/ağ yok</p>
+    <p class="q">Gerçek bir blockchain mi kullanıyorsunuz?</p>
+    <p class="a">"Şu an raporun bütünlüğünü kanıtlamak için SHA-256 kriptografik özet üretiyoruz ve doğrulama endpoint'i sunuyoruz — rapor sonradan değiştirilirse hash uyuşmuyor. Tam bir dağıtık defter (blockchain ağı) entegrasyonu bir sonraki faz için yol haritamızda." "Blockchain" kelimesini tam DLT gibi savunmayın; bütünlük garantisi olarak çerçeveleyin.</p>
+  </div>
+
+  <div class="defense">
+    <p class="claim">Slayt: "Otonom" / gerçek zaman · Kod: giriş sistemi demo amaçlı mock hesaplar</p>
+    <p class="q">Giriş yaptığımda gerçek bir kullanıcı doğrulaması mı oluyor?</p>
+    <p class="a">"Demo kolaylığı için şu an önceden tanımlı hesap presetleri kullanıyoruz. Üretim sürümünde gerçek kimlik doğrulama ve KVKK uyumlu kullanıcı yönetimi ekleyeceğiz — bu bir MVP kısıtı, ürünün çekirdek değeri olan ESG/TSRS/g-ROI motorunu etkilemiyor."</p>
+  </div>
+
+  <div class="tip">
+    <b>Genel strateji:</b> Jüri "bu gerçek mi, slaytta mı?" diye sorduğunda net ayrım yapın: <i>"Bu şu an çalışıyor"</i> / <i>"Bu yol haritamızda, henüz değil."</i> Overclaim yapılmış bir cevaptan çok, dürüst ve kendinden emin bir "henüz değil ama planımız şu" cevabı çok daha güvenilir durur. 10 dakikalık sunumda slaytları okumak yerine her bölümde <b>"neden önemli"</b>ye odaklanın — 14 slayt için ortalama 40 saniye düşüyor, en güçlü 6-7 noktayı vurgulayıp detayları soru-cevaba bırakın.
+  </div>
+</section>
+
+<footer>EkoFin · Takım ID 918465 · Başvuru ID 4899607 — TEKNOFEST 2026 Finansal Teknolojiler Yarışması</footer>
+
+</div>
