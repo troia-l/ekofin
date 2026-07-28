@@ -1,174 +1,943 @@
-import React, { useState } from 'react';
-import { AlertOctagon, ThumbsDown, MessageSquare, Plus, FileText, UploadCloud, Search } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+    AlertOctagon, 
+    ThumbsDown, 
+    MessageSquare, 
+    Plus, 
+    FileText, 
+    UploadCloud, 
+    Search, 
+    CheckCircle2, 
+    Loader2, 
+    Sparkles, 
+    Building2, 
+    ThumbsUp, 
+    Check, 
+    X, 
+    AlertTriangle,
+    Info,
+    ExternalLink,
+    ShieldCheck,
+    FileCheck,
+    BarChart3
+} from 'lucide-react';
 
-const ReportItem = ({ company, category, date, description, status, upvotes }) => {
-    return (
-        <div className="clean-card" style={{ padding: '24px', display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
-            <div style={{
-                background: '#F8FAFC',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-                padding: '12px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                minWidth: '60px'
-            }}>
-                <ThumbsDown size={20} color="#EF4444" style={{ marginBottom: '8px' }} />
-                <span style={{ fontSize: '14px', fontWeight: 800 }}>{upvotes}</span>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Onay</span>
-            </div>
-
-            <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                    <div>
-                        <h4 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '4px' }}>{company}</h4>
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: '#3B82F6', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 8px', borderRadius: '12px' }}>
-                            {category}
-                        </span>
-                    </div>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{date}</span>
-                </div>
-                <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', marginBottom: '16px' }}>
-                    {description}
-                </p>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <button className="btn" style={{ background: 'transparent', padding: 0, color: 'var(--text-muted)', fontSize: '13px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <MessageSquare size={14} /> Yorumlar (12)
-                        </button>
-                        <button className="btn" style={{ background: 'transparent', padding: 0, color: 'var(--text-muted)', fontSize: '13px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <FileText size={14} /> Kanıtları İncele
-                        </button>
-                    </div>
-                    <span className="badge" style={{
-                        background: status === 'İnceleniyor' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                        color: status === 'İnceleniyor' ? '#F59E0B' : 'var(--accent-green)',
-                        border: 'none'
-                    }}>
-                        YZ Durumu: {status}
-                    </span>
-                </div>
-            </div>
-        </div>
-    );
-};
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const PublicAudit = () => {
+    // State management
+    const [reports, setReports] = useState([]);
+    const [companies, setCompanies] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
 
-    const mockupReports = [
-        {
-            company: "Global Çimento Sanayi",
-            category: "Hava Kirliliği / Yalan Beyan",
-            date: "Bugün, 14:30",
-            description: "Şirket ESG raporunda %100 filtreleme kullandığını iddia ediyor ama gece 02:00-04:00 arası filtreleri kapatarak yoğun kül ve duman salınımı yapıyorlar. Bölge halkı olarak çektiğimiz videoları sisteme yükledik.",
-            upvotes: 842,
-            status: "İnceleniyor"
-        },
-        {
-            company: "EcoLogi Kargo C Lojistik",
-            category: "Yeşil Aklama (Greenwashing)",
-            date: "Dün, 09:15",
-            description: "Reklamlarında tüm filolarının elektrikli olduğu söyleniyor ancak depolarında hala eski model dizel araçlar aktif çalışıyor. Araç plakalarını ve depo giriş çıkışlarını belgeledim.",
-            upvotes: 523,
-            status: "Doğrulandı - Skor Düşürüldü"
-        },
-        {
-            company: "Mavi Su Tekstil A.Ş.",
-            category: "Atık Su Deşarjı",
-            date: "12 Şubat 2026",
-            description: "Arıtma tesisi gündüzleri çalışır gösterilirken gece nehre boyalı ve köpüklü kimyasal atık su deşarj ediliyor. Numune sonuçları ektedir.",
-            upvotes: 1205,
-            status: "Doğrulandı - Acil Bildirim"
+    // Form inputs
+    const [companyInput, setCompanyInput] = useState('');
+    const [categoryInput, setCategoryInput] = useState('');
+    const [descriptionInput, setDescriptionInput] = useState('');
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [evidenceFile, setEvidenceFile] = useState(null);
+    const [formTerms, setFormTerms] = useState(false);
+
+    // AI simulation state
+    const [aiAnalyzing, setAiAnalyzing] = useState(false);
+    const [aiStep, setAiStep] = useState(0); // 0: Medya/Kanıt OCR, 1: Karşılaştırmalı ESG Analizi, 2: Yeşil Aklama Skorlama, 3: Başarı Raporu
+    const [aiSuccessReport, setAiSuccessReport] = useState(null);
+
+    const suggestionRef = useRef(null);
+
+    // Fetch audits & companies on load
+    useEffect(() => {
+        fetchReports();
+        fetchCompanies();
+
+        // Click outside listener for autocomplete suggestions
+        const handleClickOutside = (event) => {
+            if (suggestionRef.current && !suggestionRef.current.contains(event.target)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const fetchReports = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch(`${API_URL}/api/public-audits`);
+            if (!res.ok) throw new Error("İhbarlar sunucudan yüklenemedi.");
+            const data = await res.json();
+            setReports(data);
+        } catch (err) {
+            console.error("Hata:", err);
+            setError("Bildirimler yüklenirken bir hata oluştu.");
+        } finally {
+            setLoading(false);
         }
-    ];
+    };
+
+    const fetchCompanies = async () => {
+        try {
+            const res = await fetch(`${API_URL}/api/esg/companies`);
+            if (res.ok) {
+                const data = await res.json();
+                setCompanies(data);
+            }
+        } catch (err) {
+            console.error("Şirket listesi çekilemedi:", err);
+        }
+    };
+
+    const handleUpvote = async (index) => {
+        try {
+            const res = await fetch(`${API_URL}/api/public-audits/${index}/upvote`, {
+                method: 'POST'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                // Update local state
+                const updated = [...reports];
+                updated[index].upvotes = data.upvotes;
+                setReports(updated);
+            }
+        } catch (err) {
+            console.error("Oylama hatası:", err);
+        }
+    };
+
+    const handleCompanyInputChange = (e) => {
+        setCompanyInput(e.target.value);
+        setShowSuggestions(true);
+    };
+
+    const handleSelectSuggestion = (companyName) => {
+        setCompanyInput(companyName);
+        setShowSuggestions(false);
+    };
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setEvidenceFile({
+                name: file.name,
+                size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+                type: file.type
+            });
+        }
+    };
+
+    const handleRemoveFile = () => {
+        setEvidenceFile(null);
+    };
+
+    const triggerAISimulation = (e) => {
+        e.preventDefault();
+        if (!companyInput || !categoryInput || !descriptionInput) return;
+
+        setAiAnalyzing(true);
+        setAiStep(0);
+
+        // Step 1: Media & OCR scan (takes 1.2s)
+        setTimeout(() => {
+            setAiStep(1);
+            // Step 2: Comparative ESG report analysis (takes 1.2s)
+            setTimeout(() => {
+                setAiStep(2);
+                // Step 3: Greenwashing Scoring (takes 1.2s)
+                setTimeout(() => {
+                    // Generate AI insight report
+                    const riskLevels = ["Yüksek Yeşil Aklama Riski", "Kısmi Tutarsızlık", "Orta Çevresel Çelişki"];
+                    const chosenRisk = riskLevels[Math.floor(Math.random() * riskLevels.length)];
+                    const accuracy = Math.floor(Math.random() * 15) + 80; // 80-95%
+                    const esgImpact = -(Math.random() * 1.5 + 0.5).toFixed(1); // -0.5 to -2.0
+
+                    setAiSuccessReport({
+                        risk: chosenRisk,
+                        accuracy: accuracy,
+                        esgImpact: esgImpact,
+                        summary: `${companyInput} tarafından sunulan ESG beyanları ve kanıt yüklemeleri karşılaştırıldı. Veri setlerinde %${accuracy} doğruluk payıyla çelişkiler tespit edilmiştir. Şirket ESG skoru ${esgImpact} puan güncellenecektir.`
+                    });
+                    setAiStep(3);
+                }, 1200);
+            }, 1200);
+        }, 1200);
+    };
+
+    const handleFinalizeReport = async () => {
+        try {
+            const res = await fetch(`${API_URL}/api/public-audits`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    company: companyInput,
+                    category: categoryInput,
+                    description: descriptionInput
+                })
+            });
+
+            if (res.ok) {
+                // Clear form inputs
+                setCompanyInput('');
+                setCategoryInput('');
+                setDescriptionInput('');
+                setEvidenceFile(null);
+                setFormTerms(false);
+                setIsFormOpen(false);
+                setAiAnalyzing(false);
+                setAiSuccessReport(null);
+                // Reload list
+                fetchReports();
+            }
+        } catch (err) {
+            console.error("Kaydetme hatası:", err);
+            setAiAnalyzing(false);
+        }
+    };
+
+    // Filtered reports
+    const filteredReports = reports.filter(rep => {
+        const matchesSearch = (rep.company || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             (rep.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                             (rep.category || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = selectedCategory === 'All' || rep.category === selectedCategory;
+        return matchesSearch && matchesCategory;
+    });
+
+    const getStatusStyle = (status) => {
+        if (status.includes('Acil')) {
+            return { bg: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: 'rgba(239, 68, 68, 0.2)' };
+        } else if (status.includes('Düşürüldü') || status.includes('Doğrulandı')) {
+            return { bg: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B', border: 'rgba(245, 158, 11, 0.2)' };
+        } else {
+            return { bg: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6', border: 'rgba(59, 130, 246, 0.2)' };
+        }
+    };
 
     return (
-        <div style={{ background: 'var(--bg-color)', minHeight: '100vh', paddingBottom: '80px' }}>
+        <div style={{ background: 'var(--bg-main)', minHeight: '100vh', paddingBottom: '80px', position: 'relative' }}>
+            
+            {/* Embedded styles for beautiful animations */}
+            <style>{`
+                .glass-card {
+                    background: rgba(255, 255, 255, 0.7);
+                    backdrop-filter: blur(16px);
+                    -webkit-backdrop-filter: blur(16px);
+                    border: 1px solid rgba(255, 255, 255, 0.6);
+                    box-shadow: 0 8px 32px 0 rgba(11, 17, 32, 0.04);
+                    border-radius: 20px;
+                    transition: all 0.3s ease;
+                }
+                .glass-card:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 12px 40px 0 rgba(11, 17, 32, 0.08);
+                    border-color: rgba(255, 255, 255, 0.9);
+                }
+                .glass-form-card {
+                    background: rgba(255, 255, 255, 0.85);
+                    backdrop-filter: blur(20px);
+                    -webkit-backdrop-filter: blur(20px);
+                    border: 1px solid rgba(255, 255, 255, 0.9);
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+                    border-radius: 20px;
+                }
+                .custom-input {
+                    width: 100%;
+                    padding: 14px 16px;
+                    background: rgba(248, 250, 252, 0.8);
+                    border: 1px solid #E2E8F0;
+                    border-radius: 12px;
+                    font-size: 14px;
+                    color: var(--text-main);
+                    outline: none;
+                    transition: all 0.2s ease;
+                }
+                .custom-input:focus {
+                    background: #FFFFFF;
+                    border-color: var(--accent-emerald);
+                    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+                }
+                .autocomplete-dropdown {
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: #FFFFFF;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 12px;
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+                    max-height: 220px;
+                    overflow-y: auto;
+                    z-index: 10;
+                    margin-top: 4px;
+                }
+                .suggestion-item {
+                    padding: 12px 16px;
+                    font-size: 14px;
+                    cursor: pointer;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 1px solid #F1F5F9;
+                    transition: background 0.2s;
+                }
+                .suggestion-item:last-child {
+                    border-bottom: none;
+                }
+                .suggestion-item:hover {
+                    background: #F8FAFC;
+                }
+                .pulse-scanner {
+                    position: relative;
+                    overflow: hidden;
+                }
+                .pulse-scanner::after {
+                    content: '';
+                    position: absolute;
+                    top: 0; left: 0; right: 0; height: 3px;
+                    background: linear-gradient(90deg, transparent, var(--accent-emerald), transparent);
+                    animation: scanning 1.5s linear infinite;
+                }
+                @keyframes scanning {
+                    0% { top: 0%; }
+                    50% { top: 100%; }
+                    100% { top: 0%; }
+                }
+                .custom-scrollbar::-webkit-scrollbar {
+                    width: 6px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: #CBD5E1;
+                    border-radius: 10px;
+                }
+                .upvote-button {
+                    background: #FFFFFF;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 14px;
+                    padding: 10px 14px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    min-width: 64px;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .upvote-button:hover {
+                    border-color: #EF4444;
+                    background: rgba(239, 68, 68, 0.02);
+                    transform: scale(1.05);
+                }
+                .upvote-button:active {
+                    transform: scale(0.95);
+                }
+            `}</style>
 
-            {/* Header Area */}
-            <section style={{ background: '#FFFFFF', borderBottom: '1px solid var(--border-color)', padding: '60px 0 40px 0' }}>
-                <div className="container animate-fade-in">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '32px' }}>
-                        <div style={{ flex: '1 1 500px' }}>
-                            <div style={{ display: 'inline-flex', padding: '6px 12px', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', borderRadius: '20px', marginBottom: '16px', fontSize: '13px', fontWeight: 800, alignItems: 'center', gap: '6px' }}>
-                                <AlertOctagon size={16} /> Anti-Yeşil İhbar Ağı
+            {/* Premium Header */}
+            <section style={{ 
+                background: 'linear-gradient(135deg, #0B1120 0%, #064E3B 100%)', 
+                padding: '70px 0 50px 0', 
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                color: '#FFFFFF',
+                position: 'relative',
+                overflow: 'hidden'
+            }}>
+                {/* Visual grid backgrounds */}
+                <div style={{
+                    position: 'absolute',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    opacity: 0.1,
+                    backgroundImage: 'radial-gradient(var(--accent-emerald) 1px, transparent 1px)',
+                    backgroundSize: '24px 24px'
+                }} />
+                
+                <div className="container animate-fade-in" style={{ position: 'relative', zIndex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '24px' }}>
+                        <div>
+                            <div style={{ 
+                                display: 'inline-flex', 
+                                padding: '6px 12px', 
+                                background: 'rgba(16, 185, 129, 0.15)', 
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                color: 'var(--accent-emerald)', 
+                                borderRadius: '30px', 
+                                marginBottom: '16px', 
+                                fontSize: '12px', 
+                                fontWeight: 700, 
+                                alignItems: 'center', 
+                                gap: '8px' 
+                            }}>
+                                <AlertOctagon size={14} /> Toplumsal ESG İhbar Portalı
                             </div>
-                            <h1 style={{ fontSize: '36px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '16px', letterSpacing: '-0.5px' }}>
+                            <h1 style={{ 
+                                fontSize: '38px', 
+                                fontWeight: 800, 
+                                color: '#FFFFFF', 
+                                marginBottom: '14px', 
+                                letterSpacing: '-0.8px',
+                                fontFamily: 'Plus Jakarta Sans, sans-serif'
+                            }}>
                                 Toplumsal Denetim Platformu
                             </h1>
-                            <p style={{ fontSize: '16px', color: 'var(--text-muted)', lineHeight: '1.6', maxWidth: '600px' }}>
-                                Şirketlerin kurumsal beyanlarını halkın gücüyle doğruluyoruz. Gözlemlediğiniz çevre ihlallerini ve greenwashing (yeşil aklama) vakalarını bildirin, yapay zeka analiz etsin, şirket skorları gerçekleri yansıtsın.
+                            <p style={{ fontSize: '15px', color: '#94A3B8', lineHeight: '1.6', maxWidth: '650px' }}>
+                                Şirketlerin kamuoyuna sundukları yeşil beyanları, halkın kanıtları ve Yapay Zeka doğrulama motorumuz ile denetliyoruz. Asılsız iddiaları (Greenwashing) tespit edin, ESG derecelerine halkın katkısını sağlayın.
                             </p>
                         </div>
 
-                        <button onClick={() => setIsFormOpen(!isFormOpen)} className="btn btn-primary" style={{ background: '#EF4444', border: 'none', padding: '16px 24px', fontSize: '15px', display: 'flex', gap: '8px' }}>
-                            <Plus size={20} /> Yeni İhlal Bildir
-                        </button>
+                        {!isFormOpen && (
+                            <button 
+                                onClick={() => setIsFormOpen(true)} 
+                                className="btn-primary" 
+                                style={{ 
+                                    padding: '14px 28px', 
+                                    fontSize: '15px', 
+                                    background: 'linear-gradient(135deg, #EF4444, #B91C1C)',
+                                    boxShadow: '0 6px 20px rgba(239, 68, 68, 0.4)'
+                                }}
+                            >
+                                <Plus size={18} /> Yeni İhlal Bildir
+                            </button>
+                        )}
                     </div>
                 </div>
             </section>
 
-            <main className="container" style={{ marginTop: '40px', display: 'flex', gap: '40px', alignItems: 'flex-start' }}>
+            {/* Dashboard and Feed */}
+            <main className="container" style={{ marginTop: '40px', display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
+                
+                {/* Reports Feed Column */}
+                <div style={{ flex: isFormOpen ? '1 1 55%' : '1 1 100%', minWidth: '320px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    
+                    {/* Filter / Search Bar */}
+                    <div className="glass-card" style={{ padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {['All', 'Greenwashing (Yeşil Aklama)', 'Hava / Su / Toprak Kirliliği', 'Kaçak Atık Dökümü', 'Diğer'].map((cat) => (
+                                <button
+                                    key={cat}
+                                    onClick={() => setSelectedCategory(cat)}
+                                    style={{
+                                        padding: '8px 16px',
+                                        borderRadius: '10px',
+                                        fontSize: '13px',
+                                        fontWeight: 600,
+                                        border: '1px solid',
+                                        borderColor: selectedCategory === cat ? 'var(--accent-emerald)' : '#E2E8F0',
+                                        background: selectedCategory === cat ? 'rgba(16, 185, 129, 0.1)' : '#FFFFFF',
+                                        color: selectedCategory === cat ? 'var(--accent-emerald-dark)' : 'var(--text-muted)',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    {cat === 'All' ? 'Tüm Kategoriler' : cat}
+                                </button>
+                            ))}
+                        </div>
 
-                {/* Reports List */}
-                <div style={{ flex: '1 1 65%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)' }}>Son Bildirimler</h2>
-                        <div style={{ position: 'relative' }}>
-                            <input type="text" placeholder="Şirket Ara..." className="input-field" style={{ padding: '8px 16px 8px 36px', width: '250px', borderRadius: '20px', fontSize: '13px' }} />
-                            <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '10px' }} />
+                        <div style={{ position: 'relative', width: '260px' }}>
+                            <input 
+                                type="text" 
+                                placeholder="Şirket, konu veya açıklama ara..." 
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="custom-input" 
+                                style={{ padding: '10px 16px 10px 38px', borderRadius: '12px', fontSize: '13px' }} 
+                            />
+                            <Search size={15} color="var(--text-light)" style={{ position: 'absolute', left: '14px', top: '13px' }} />
+                            {searchTerm && (
+                                <X 
+                                    size={14} 
+                                    color="var(--text-light)" 
+                                    onClick={() => setSearchTerm('')}
+                                    style={{ position: 'absolute', right: '14px', top: '13px', cursor: 'pointer' }} 
+                                />
+                            )}
                         </div>
                     </div>
 
-                    {mockupReports.map((rep, idx) => (
-                        <ReportItem key={idx} {...rep} />
-                    ))}
+                    {/* Loader */}
+                    {loading ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px 0', gap: '12px' }}>
+                            <Loader2 size={36} className="animate-spin" color="var(--accent-emerald)" />
+                            <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Raporlar yükleniyor...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="glass-card" style={{ padding: '40px', textAlign: 'center', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                            <AlertTriangle size={32} color="#EF4444" style={{ margin: '0 auto 12px auto' }} />
+                            <p style={{ color: '#EF4444', fontWeight: 600 }}>{error}</p>
+                            <button onClick={fetchReports} className="btn-outline" style={{ marginTop: '16px' }}>Tekrar Dene</button>
+                        </div>
+                    ) : filteredReports.length === 0 ? (
+                        <div className="glass-card" style={{ padding: '60px 40px', textAlign: 'center' }}>
+                            <Info size={32} color="var(--text-light)" style={{ margin: '0 auto 12px auto' }} />
+                            <p style={{ color: 'var(--text-muted)', fontSize: '15px' }}>
+                                Arama kriterlerinize veya kategoriye uygun ihbar kaydı bulunamadı.
+                            </p>
+                        </div>
+                    ) : (
+                        filteredReports.map((rep, idx) => {
+                            const statusStyle = getStatusStyle(rep.status);
+                            return (
+                                <div 
+                                    key={idx} 
+                                    className="glass-card" 
+                                    style={{ 
+                                        padding: '24px', 
+                                        display: 'flex', 
+                                        gap: '20px', 
+                                        alignItems: 'flex-start',
+                                        position: 'relative' 
+                                    }}
+                                >
+                                    {/* Left voting box */}
+                                    <div className="upvote-button" onClick={() => handleUpvote(idx)}>
+                                        <ThumbsDown size={18} color="#EF4444" style={{ marginBottom: '4px' }} />
+                                        <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main)' }}>{rep.upvotes}</span>
+                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Oyla</span>
+                                    </div>
+
+                                    {/* Main content body */}
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                                            <div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <Building2 size={16} color="var(--text-muted)" />
+                                                    <h4 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>{rep.company}</h4>
+                                                </div>
+                                                <span style={{ 
+                                                    display: 'inline-block',
+                                                    fontSize: '11px', 
+                                                    fontWeight: 600, 
+                                                    color: 'var(--accent-emerald-dark)', 
+                                                    background: 'rgba(16, 185, 129, 0.1)', 
+                                                    padding: '2px 8px', 
+                                                    borderRadius: '8px',
+                                                    marginTop: '4px'
+                                                }}>
+                                                    {rep.category}
+                                                </span>
+                                            </div>
+                                            <span style={{ fontSize: '12px', color: 'var(--text-light)', fontWeight: 500 }}>{rep.date}</span>
+                                        </div>
+
+                                        <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', marginBottom: '16px' }}>
+                                            {rep.description}
+                                        </p>
+
+                                        {/* Action buttons inside card */}
+                                        <div style={{ 
+                                            display: 'flex', 
+                                            justifyContent: 'space-between', 
+                                            alignItems: 'center',
+                                            borderTop: '1px solid #F1F5F9',
+                                            paddingTop: '14px',
+                                            flexWrap: 'wrap',
+                                            gap: '12px'
+                                        }}>
+                                            <div style={{ display: 'flex', gap: '16px' }}>
+                                                <button style={{ background: 'transparent', border: 'none', padding: 0, color: 'var(--text-muted)', fontSize: '13px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                    <MessageSquare size={14} /> Tartışmalar (8)
+                                                </button>
+                                                <button style={{ background: 'transparent', border: 'none', padding: 0, color: 'var(--text-muted)', fontSize: '13px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                    <FileText size={14} /> Kanıt Belgesi (PDF/Görsel)
+                                                </button>
+                                            </div>
+                                            
+                                            <span style={{
+                                                background: statusStyle.bg,
+                                                color: statusStyle.color,
+                                                border: `1px solid ${statusStyle.border}`,
+                                                borderRadius: '8px',
+                                                padding: '4px 10px',
+                                                fontSize: '12px',
+                                                fontWeight: 700,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px'
+                                            }}>
+                                                <Sparkles size={12} /> YZ Durumu: {rep.status}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
                 </div>
 
-                {/* Form Sidebar (Conditional) */}
+                {/* Sidebar Submission Form */}
                 {isFormOpen && (
-                    <div className="clean-card animate-fade-in" style={{ flex: '1 1 35%', padding: '24px', position: 'sticky', top: '100px' }}>
-                        <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                            İhlal Bildirim Formu
-                        </h3>
-                        <form style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} onSubmit={(e) => { e.preventDefault(); alert('Bildiriminiz YZ havuzuna aktarıldı. Teşekkürler.'); setIsFormOpen(false); }}>
-                            <div>
-                                <label className="form-label">Şirket Adı</label>
-                                <input type="text" className="input-field" placeholder="Örn: X Fabrikası" required />
+                    <div 
+                        className="glass-form-card animate-fade-in" 
+                        style={{ 
+                            flex: '1 1 38%', 
+                            minWidth: '320px', 
+                            padding: '28px', 
+                            position: 'sticky', 
+                            top: '20px',
+                            maxHeight: 'calc(100vh - 40px)',
+                            overflowY: 'auto'
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #E2E8F0', paddingBottom: '12px' }}>
+                            <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <AlertTriangle size={18} color="#EF4444" /> İhlal Bildirim Formu
+                            </h3>
+                            <button 
+                                onClick={() => setIsFormOpen(false)} 
+                                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={triggerAISimulation} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                            
+                            {/* Autocomplete Company Input */}
+                            <div style={{ position: 'relative' }} ref={suggestionRef}>
+                                <label className="form-label" style={{ fontWeight: 600 }}>Şirket Adı (BIST)</label>
+                                <div style={{ position: 'relative' }}>
+                                    <input 
+                                        type="text" 
+                                        className="custom-input" 
+                                        placeholder="Örn: Kardemir Karabük Demir Çelik" 
+                                        value={companyInput}
+                                        onChange={handleCompanyInputChange}
+                                        required 
+                                        style={{ paddingLeft: '38px' }}
+                                    />
+                                    <Building2 size={16} color="var(--text-light)" style={{ position: 'absolute', left: '14px', top: '16px' }} />
+                                </div>
+
+                                {showSuggestions && companyInput && (
+                                    <div className="autocomplete-dropdown custom-scrollbar">
+                                        {companies
+                                            .filter(c => (c.name || '').toLowerCase().includes(companyInput.toLowerCase()) || (c.ticker || '').toLowerCase().includes(companyInput.toLowerCase()))
+                                            .map((c, i) => (
+                                                <div 
+                                                    key={i} 
+                                                    className="suggestion-item"
+                                                    onClick={() => handleSelectSuggestion(c.name)}
+                                                >
+                                                    <span style={{ fontWeight: 600 }}>{c.name}</span>
+                                                    <span style={{ fontSize: '11px', color: '#3B82F6', background: 'rgba(59,130,246,0.1)', padding: '2px 6px', borderRadius: '4px' }}>{c.ticker}</span>
+                                                </div>
+                                            ))}
+                                        {companies.filter(c => (c.name || '').toLowerCase().includes(companyInput.toLowerCase()) || (c.ticker || '').toLowerCase().includes(companyInput.toLowerCase())).length === 0 && (
+                                            <div style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                                                Eşleşen BIST şirketi bulunamadı. Serbest yazabilirsiniz.
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
+
+                            {/* Violation Category */}
                             <div>
-                                <label className="form-label">İhlal Kategorisi</label>
-                                <select className="input-field" required>
-                                    <option value="">Seçiniz</option>
-                                    <option value="greenwashing">Greenwashing (Yeşil Aklama)</option>
-                                    <option value="pollution">Hava / Su / Toprak Kirliliği</option>
-                                    <option value="waste">Kaçak Atık Dökümü</option>
-                                    <option value="other">Diğer</option>
+                                <label className="form-label" style={{ fontWeight: 600 }}>İhlal Kategorisi</label>
+                                <select 
+                                    className="custom-input" 
+                                    value={categoryInput}
+                                    onChange={(e) => setCategoryInput(e.target.value)}
+                                    required
+                                >
+                                    <option value="">Kategori Seçiniz</option>
+                                    <option value="Greenwashing (Yeşil Aklama)">Greenwashing (Yeşil Aklama)</option>
+                                    <option value="Hava / Su / Toprak Kirliliği">Hava / Su / Toprak Kirliliği</option>
+                                    <option value="Kaçak Atık Dökümü">Kaçak Atık Dökümü</option>
+                                    <option value="Diğer">Diğer</option>
                                 </select>
                             </div>
+
+                            {/* Description Box */}
                             <div>
-                                <label className="form-label">Açıklama & Gözlem</label>
-                                <textarea className="input-field" placeholder="Lütfen durumu detaylıca açıklayın..." rows="4" required></textarea>
+                                <label className="form-label" style={{ fontWeight: 600 }}>Açıklama & Gözlemler</label>
+                                <textarea 
+                                    className="custom-input" 
+                                    placeholder="İhlali veya yanıltıcı yeşil aklama eylemini detaylıca tarif edin..." 
+                                    rows="4" 
+                                    value={descriptionInput}
+                                    onChange={(e) => setDescriptionInput(e.target.value)}
+                                    required
+                                    style={{ resize: 'vertical' }}
+                                />
                             </div>
-                            <div style={{ border: '2px dashed var(--border-color)', borderRadius: '8px', padding: '24px', textAlign: 'center', background: '#F8FAFC', cursor: 'pointer' }}>
-                                <UploadCloud size={24} color="var(--text-muted)" style={{ margin: '0 auto 8px auto' }} />
-                                <span style={{ fontSize: '13px', color: 'var(--text-muted)', display: 'block' }}>Fotoğraf veya Video Yükle</span>
+
+                            {/* File Upload UI */}
+                            <div>
+                                <label className="form-label" style={{ fontWeight: 600 }}>Kanıt Dosyası Yükle</label>
+                                {!evidenceFile ? (
+                                    <div 
+                                        onClick={() => document.getElementById('evidence-file-input').click()}
+                                        style={{ 
+                                            border: '2px dashed #CBD5E1', 
+                                            borderRadius: '12px', 
+                                            padding: '24px 16px', 
+                                            textAlign: 'center', 
+                                            background: '#F8FAFC', 
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseOver={(e) => { e.currentTarget.style.borderColor = 'var(--accent-emerald)'; e.currentTarget.style.background = '#F0FDF4'; }}
+                                        onMouseOut={(e) => { e.currentTarget.style.borderColor = '#CBD5E1'; e.currentTarget.style.background = '#F8FAFC'; }}
+                                    >
+                                        <UploadCloud size={28} color="var(--text-muted)" style={{ margin: '0 auto 8px auto' }} />
+                                        <span style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 600, display: 'block' }}>Görsel, Video veya Belge Yükle</span>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-light)', display: 'block', marginTop: '4px' }}>PDF, PNG, JPG, MP4 (Maks. 15MB)</span>
+                                        <input 
+                                            id="evidence-file-input"
+                                            type="file" 
+                                            style={{ display: 'none' }} 
+                                            onChange={handleFileUpload}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div style={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        gap: '12px', 
+                                        padding: '12px 16px', 
+                                        background: '#F0FDF4', 
+                                        border: '1px solid rgba(16, 185, 129, 0.2)', 
+                                        borderRadius: '12px' 
+                                    }}>
+                                        <FileText size={24} color="var(--accent-emerald)" />
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{evidenceFile.name}</p>
+                                            <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{evidenceFile.size}</p>
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={handleRemoveFile}
+                                            style={{ background: 'transparent', border: 'none', color: '#EF4444', cursor: 'pointer' }}
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                                <input type="checkbox" required style={{ marginTop: '2px' }} />
-                                Yüklediğim dosyaların bana ait olduğunu ve yanlış ihbar yapmadığımı onaylıyorum.
+
+                            {/* Security / Agreement Checkbox */}
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                                <input 
+                                    type="checkbox" 
+                                    checked={formTerms}
+                                    onChange={(e) => setFormTerms(e.target.checked)}
+                                    required 
+                                    style={{ marginTop: '3px', cursor: 'pointer' }} 
+                                    id="terms-checkbox"
+                                />
+                                <label htmlFor="terms-checkbox" style={{ cursor: 'pointer' }}>
+                                    Yüklediğim bilgi ve kanıtların doğruluğunu onaylıyorum. Asılsız ihbarların yasal sorumluluğunu kabul ediyorum.
+                                </label>
                             </div>
-                            <button className="btn btn-primary" type="submit" style={{ width: '100%', padding: '14px', background: '#EF4444', border: 'none' }}>
-                                Ağa Gönder
+
+                            <button 
+                                className="btn-primary" 
+                                type="submit" 
+                                style={{ 
+                                    width: '100%', 
+                                    padding: '14px', 
+                                    background: 'linear-gradient(135deg, var(--accent-emerald), var(--accent-emerald-dark))', 
+                                    border: 'none',
+                                    justifyContent: 'center'
+                                }}
+                            >
+                                <Sparkles size={16} /> YZ Doğrulamasına Gönder
                             </button>
                         </form>
                     </div>
                 )}
             </main>
 
+            {/* AI Analysis Immersive Simulation Overlay */}
+            {aiAnalyzing && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(11, 17, 32, 0.85)',
+                    backdropFilter: 'blur(10px)',
+                    WebkitBackdropFilter: 'blur(10px)',
+                    zIndex: 9999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '24px'
+                }}>
+                    <div 
+                        className="glass-form-card pulse-scanner" 
+                        style={{ 
+                            width: '100%', 
+                            maxWidth: '540px', 
+                            padding: '40px',
+                            background: '#0B1120',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            color: '#FFFFFF'
+                        }}
+                    >
+                        {aiStep < 3 ? (
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ position: 'relative', display: 'inline-flex', marginBottom: '24px' }}>
+                                    <div style={{
+                                        position: 'absolute',
+                                        inset: -10,
+                                        borderRadius: '50%',
+                                        background: 'rgba(16, 185, 129, 0.15)',
+                                        animation: 'pulse 1.5s ease-out infinite'
+                                    }} />
+                                    <Loader2 size={48} className="animate-spin" color="var(--accent-emerald)" />
+                                </div>
+                                <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px', color: '#FFFFFF' }}>
+                                    Yapay Zeka Analiz Motoru Aktif
+                                </h3>
+                                <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '32px' }}>
+                                    İhbar verileri ve eklenen kanıtlar bağımsız doğrulama algoritması tarafından taranıyor...
+                                </p>
+
+                                {/* Process steps */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', textAlign: 'left' }}>
+                                    
+                                    {/* Step 1 */}
+                                    <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', opacity: aiStep >= 0 ? 1 : 0.4 }}>
+                                        <div style={{ marginTop: '2px' }}>
+                                            {aiStep > 0 ? (
+                                                <CheckCircle2 size={20} color="var(--accent-emerald)" />
+                                            ) : aiStep === 0 ? (
+                                                <Loader2 size={20} className="animate-spin" color="var(--accent-emerald)" />
+                                            ) : (
+                                                <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid #475569' }} />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h4 style={{ fontSize: '14px', fontWeight: 700, color: aiStep === 0 ? 'var(--accent-emerald)' : '#FFFFFF' }}>
+                                                1. Kanıt Dokümanları & Medya Analizi
+                                            </h4>
+                                            <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '2px' }}>
+                                                OCR görsel metin taraması, metadata analizi ve konum doğrulama yapılıyor.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Step 2 */}
+                                    <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', opacity: aiStep >= 1 ? 1 : 0.4 }}>
+                                        <div style={{ marginTop: '2px' }}>
+                                            {aiStep > 1 ? (
+                                                <CheckCircle2 size={20} color="var(--accent-emerald)" />
+                                            ) : aiStep === 1 ? (
+                                                <Loader2 size={20} className="animate-spin" color="var(--accent-emerald)" />
+                                            ) : (
+                                                <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid #475569' }} />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h4 style={{ fontSize: '14px', fontWeight: 700, color: aiStep === 1 ? 'var(--accent-emerald)' : '#FFFFFF' }}>
+                                                2. BIST ESG Karşılaştırmalı Analizi
+                                            </h4>
+                                            <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '2px' }}>
+                                                Şirketin resmî ESG beyanları ve tarihsel sürdürülebilirlik verileriyle ihbar eşleştiriliyor.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Step 3 */}
+                                    <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', opacity: aiStep >= 2 ? 1 : 0.4 }}>
+                                        <div style={{ marginTop: '2px' }}>
+                                            {aiStep > 2 ? (
+                                                <CheckCircle2 size={20} color="var(--accent-emerald)" />
+                                            ) : aiStep === 2 ? (
+                                                <Loader2 size={20} className="animate-spin" color="var(--accent-emerald)" />
+                                            ) : (
+                                                <div style={{ width: 20, height: 20, borderRadius: '50%', border: '2px solid #475569' }} />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h4 style={{ fontSize: '14px', fontWeight: 700, color: aiStep === 2 ? 'var(--accent-emerald)' : '#FFFFFF' }}>
+                                                3. Yeşil Aklama Risk Skoru Belirleme
+                                            </h4>
+                                            <p style={{ fontSize: '12px', color: '#94A3B8', marginTop: '2px' }}>
+                                                Doğruluk tutarlılığı hesaplanıyor ve ESG risk derecesine etkisi belirleniyor.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+                        ) : (
+                            // Success report state
+                            <div style={{ textAlign: 'center' }} className="animate-fade-in">
+                                <div style={{ 
+                                    width: '64px', 
+                                    height: '64px', 
+                                    borderRadius: '50%', 
+                                    background: 'rgba(16, 185, 129, 0.15)', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center',
+                                    margin: '0 auto 20px auto',
+                                    border: '2px solid var(--accent-emerald)'
+                                }}>
+                                    <ShieldCheck size={36} color="var(--accent-emerald)" />
+                                </div>
+                                <h3 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px', color: '#FFFFFF' }}>
+                                    Doğrulama Raporu Hazır!
+                                </h3>
+                                <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '24px' }}>
+                                    Yapay zeka analiz motorumuz bildirilen ihlali geçerli saymıştır.
+                                </p>
+
+                                {/* Mini Analysis report details */}
+                                <div style={{ 
+                                    background: '#162032', 
+                                    border: '1px solid rgba(255, 255, 255, 0.1)', 
+                                    borderRadius: '12px', 
+                                    padding: '20px', 
+                                    textAlign: 'left',
+                                    marginBottom: '32px'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '8px' }}>
+                                        <span style={{ fontSize: '13px', color: '#94A3B8' }}>Bulgu Durumu</span>
+                                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#EF4444' }}>{aiSuccessReport?.risk}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '8px' }}>
+                                        <span style={{ fontSize: '13px', color: '#94A3B8' }}>Kanıt Tutarlılık Skoru</span>
+                                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-emerald)' }}>%{aiSuccessReport?.accuracy}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '8px' }}>
+                                        <span style={{ fontSize: '13px', color: '#94A3B8' }}>Öngörülen ESG Skor Puanı Etkisi</span>
+                                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#EF4444' }}>{aiSuccessReport?.esgImpact} Puan</span>
+                                    </div>
+                                    <div style={{ marginTop: '12px' }}>
+                                        <p style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>YZ Analiz Özeti</p>
+                                        <p style={{ fontSize: '13px', color: '#E2E8F0', lineHeight: '1.5' }}>
+                                            {aiSuccessReport?.summary}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    onClick={handleFinalizeReport} 
+                                    className="btn-primary" 
+                                    style={{ 
+                                        width: '100%', 
+                                        padding: '14px', 
+                                        background: 'linear-gradient(135deg, var(--accent-emerald), var(--accent-emerald-dark))', 
+                                        border: 'none',
+                                        justifyContent: 'center',
+                                        fontSize: '15px'
+                                    }}
+                                >
+                                    Raporu Ağa Ekle ve Kaydet
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

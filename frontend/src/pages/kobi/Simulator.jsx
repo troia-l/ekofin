@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 
 // ─── Animasyon Varyantları ──────────────────────────────────────────────────────────────────────────────
-const MODEL_C_URL = import.meta.env.VITE_MODEL_C_URL || 'http://localhost:8005';
+const MODEL_C_URL = import.meta.env.VITE_MODEL_C_URL || 'http://localhost:8000/api/carbon';
 const containerVariants = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.06 } }

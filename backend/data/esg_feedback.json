@@ -1,0 +1,32 @@
+{
+  "ASELS": [
+    {
+      "userName": "Caner Demir",
+      "rating": 5,
+      "comment": "Çevresel yönetim sistemleri ve yüksek enerji verimliliği yatırımları çok başarılı.",
+      "date": "2026-06-20 14:30:12"
+    },
+    {
+      "userName": "Merve Yılmaz",
+      "rating": 4,
+      "comment": "Yönetişim alanındaki raporlamaları son derece şeffaf ve anlaşılır buldum.",
+      "date": "2026-06-18 10:15:45"
+    }
+  ],
+  "ZOREN": [
+    {
+      "userName": "Kaan Aydın",
+      "rating": 5,
+      "comment": "Yenilenebilir rüzgar ve jeotermal enerjideki öncülüğünü destekliyorum. Elektrikli araç şarj ağı (ZES) harika bir yatırım.",
+      "date": "2026-06-23 16:40:22"
+    }
+  ],
+  "THYAO": [
+    {
+      "userName": "Burak Kaya",
+      "rating": 4,
+      "comment": "Filo gençleştirme ve sürdürülebilir uçak yakıtı (SAF) kullanımı olumlu adımlar.",
+      "date": "2026-06-22 11:22:10"
+    }
+  ]
+}

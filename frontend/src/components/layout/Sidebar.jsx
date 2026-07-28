@@ -45,24 +45,8 @@ const Sidebar = ({ activePortal }) => {
         background: 'rgba(16, 185, 129, 0.15)', filter: 'blur(50px)', borderRadius: '50%'
       }}></div>
 
-      <div style={{ padding: '0 24px', marginBottom: '48px', position: 'relative' }}>
-        <motion.h2 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-          style={{ fontSize: '28px', fontWeight: 800, color: 'white', letterSpacing: '-1px', display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <div style={{
-            width: '32px', height: '32px', borderRadius: '8px', 
-            background: 'linear-gradient(135deg, var(--accent-emerald), var(--accent-emerald-dark))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 10px rgba(16, 185, 129, 0.4)'
-          }}>
-            <ShieldCheck size={18} color="white" />
-          </div>
-          EkoFin <span style={{ color: 'var(--accent-emerald)', fontWeight: 300 }}>V2</span>
-        </motion.h2>
-        <div style={{ fontSize: '13px', color: '#94A3B8', marginTop: '8px', paddingLeft: '40px', fontWeight: 500, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+      <div style={{ padding: '0 24px', marginBottom: '24px', position: 'relative' }}>
+        <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 700, letterSpacing: '0.75px', textTransform: 'uppercase' }}>
           {activePortal === 'kobi' ? 'KOBİ Portali' : 'Banka Portali'}
         </div>
       </div>

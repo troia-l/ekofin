@@ -1,0 +1,15 @@
+{
+  "employeeCount": 65,
+  "extraExcuseLeave": 20,
+  "vehiclesCount": {
+    "electric": 3,
+    "hybrid": 4,
+    "diesel": 3,
+    "gasoline": 2
+  },
+  "annualElectricity": 14500.0,
+  "annualWater": 420.0,
+  "hasEmsPolicy": "planning",
+  "hasRenewableEnergy": true,
+  "submitted_at": "2026-07-01T15:10:17.815750"
+}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Building2, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import HeroSection from '../components/HeroSection';
@@ -6,11 +6,31 @@ import CreditItem from '../components/CreditItem';
 import HighlightCard from '../components/HighlightCard';
 import { CalendarIcon } from '../components/Icons';
 import ConditionsModal from '../components/ConditionsModal';
-import { useState } from 'react';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const Home = () => {
+    const [credits, setCredits] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [modalData, setModalData] = useState(null);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const fetchCredits = async () => {
+            try {
+                const res = await fetch(`${API_URL}/api/credits`);
+                if (!res.ok) throw new Error("Krediler yüklenemedi.");
+                const data = await res.json();
+                setCredits(data);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchCredits();
+    }, []);
 
     return (
         <>
@@ -28,85 +48,37 @@ const Home = () => {
                         <CalendarIcon /> 22 Şubat 2026
                     </div>
 
-                    <CreditItem
-                        type="Enerji Performans Fırsatı"
-                        sponsor={true}
-                        name="Garanti BBVA"
-                        bankLogoUrl="https://cdn.hangikredi.com/images/bank/89cdb7eb-d063-40a7-9753-bf289acebaed.svg"
-                        rate="%0 (Faizsiz)"
-                        total="Bedava Kurulum*"
-                        isGreen={true}
-                        esgScore={9.4}
-                        esgDetails="Objektif sensör verileri ve g-ROI analizi ile fabrikanın karbon emisyonu azaltımı ve panel kurulumu %100 doğrulanmıştır."
-                        features={[
-                            "g-ROI ile hesaplanmış özel faiz indirimi",
-                            "Aylık faturadan kesinti hesaplama sistemi"
-                        ]}
-                        onOpenConditions={() => setModalData({
-                            name: "Garanti BBVA",
-                            esgScore: 9.4
-                        })}
-                    />
+                    {loading && (
+                        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                            Krediler yükleniyor...
+                        </div>
+                    )}
+                    
+                    {error && (
+                        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--danger)' }}>
+                            Hata: {error}
+                        </div>
+                    )}
 
-                    <CreditItem
-                        type="Öne Çıkan"
-                        sponsor={true}
-                        name="Yapı Kredi"
-                        bankLogoUrl="https://cdn.hangikredi.com/images/bank/23b08f7f-df4e-4c63-aa01-3776279f5186.svg"
-                        rate="%1,89"
-                        total="7.550.000 TL"
-                        isGreen={true}
-                        esgScore={9.1}
-                        esgDetails="Yenilenebilir enerji portföyü ve sürdürülebilirlik raporu YZ tarafından g-ROI metriği ile yüksek güvenle hesaplanmıştır."
-                        features={[
-                            "Özel güneş enerjisi finansman paketi",
-                            "Hızlı dijital onay süreci"
-                        ]}
-                        onOpenConditions={() => setModalData({
-                            name: "Yapı Kredi",
-                            esgScore: 9.1
-                        })}
-                    />
-
-                    <CreditItem
-                        type="Fırsat"
-                        sponsor={true}
-                        name="Akbank"
-                        bankLogoUrl="https://cdn.hangikredi.com/images/bank/0b1edd96-0755-4ce2-9c99-8c27829d26d0.svg"
-                        rate="%1,99"
-                        total="7.800.000 TL"
-                        isGreen={false}
-                        esgScore={8.7}
-                        esgDetails="Dinamik ESG skoru yüksek, zorlu standartlar çerçevesinde şeffaf finansman onayı almıştır."
-                        features={[
-                            "Dinamik ESG taramasından geçti",
-                            "12 ay ödemesiz dönem fırsatı!"
-                        ]}
-                        onOpenConditions={() => setModalData({
-                            name: "Akbank",
-                            esgScore: 8.7
-                        })}
-                    />
-
-                    <CreditItem
-                        type="Girişimci Fırsatı"
-                        sponsor={false}
-                        name="TEB"
-                        bankLogoUrl="https://cdn.hangikredi.com/images/bank/teb-logo-svg.svg"
-                        rate="%2,49"
-                        total="8.250.000 TL"
-                        isGreen={false}
-                        esgScore={7.2}
-                        esgDetails="Tedarik zinciri analizi devam etmektedir ancak çevre politikaları olumludur."
-                        features={[
-                            "Erken aşama sürdürülebilir projelere özel",
-                            "Sıfır tahsis ücreti ve ESG indirimi"
-                        ]}
-                        onOpenConditions={() => setModalData({
-                            name: "TEB",
-                            esgScore: 7.2
-                        })}
-                    />
+                    {!loading && !error && credits.map((credit) => (
+                        <CreditItem
+                            key={credit.id}
+                            type={credit.type}
+                            sponsor={credit.sponsor}
+                            name={credit.name}
+                            bankLogoUrl={credit.bankLogoUrl}
+                            rate={credit.rate}
+                            total={credit.total}
+                            isGreen={credit.isGreen}
+                            esgScore={credit.esgScore}
+                            esgDetails={credit.esgDetails}
+                            features={credit.features}
+                            onOpenConditions={() => setModalData({
+                                name: credit.name,
+                                esgScore: credit.esgScore
+                            })}
+                        />
+                    ))}
                 </div>
 
                 {/* Right Column - Alternative Models */}

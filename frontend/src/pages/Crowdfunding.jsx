@@ -1,7 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sun, Wind, Plug, TrendingUp, Users, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ProjectDetailsModal from '../components/ProjectDetailsModal';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const getIconForType = (type) => {
+    const t = (type || '').toLowerCase();
+    if (t.includes('güneş') || t.includes('ges')) return <Sun size={64} color="var(--primary)" style={{ opacity: 0.4 }} />;
+    if (t.includes('rüzgar') || t.includes('res')) return <Wind size={64} color="var(--primary)" style={{ opacity: 0.4 }} />;
+    return <Plug size={64} color="var(--primary)" style={{ opacity: 0.4 }} />;
+};
 
 const FundingCard = ({ id, type, title, location, imageIcon, expectedReturn, raisedAmount, goalAmount, minInvestment, daysLeft, isCofunded, onOpenDetails, coverImage }) => {
     const navigate = useNavigate();
@@ -69,7 +78,7 @@ const FundingCard = ({ id, type, title, location, imageIcon, expectedReturn, rai
 
                 {/* Actions */}
                 <div style={{ marginTop: 'auto' }}>
-                    <button onClick={() => navigate('/apply')} className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '15px', display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <button onClick={() => navigate('/apply', { state: { mode: 'crowdfund', project: { id, type, title, location, expectedReturn, raisedAmount, goalAmount, minInvestment, daysLeft, isCofunded, coverImage } } })} className="btn btn-primary" style={{ width: '100%', padding: '12px', fontSize: '15px', display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '12px' }}>
                         Yatırım Yap <ArrowRight size={18} />
                     </button>
                     <button onClick={(e) => { e.preventDefault(); if (onOpenDetails) onOpenDetails(); }} className="btn btn-outline" style={{ background: 'none', border: 'none', width: '100%', color: 'var(--text-muted)', fontSize: '14px', fontWeight: 600, textDecoration: 'underline', padding: 0, cursor: 'pointer' }}>
@@ -88,94 +97,26 @@ const FundingCard = ({ id, type, title, location, imageIcon, expectedReturn, rai
 
 
 const Crowdfunding = () => {
+    const [projects, setProjects] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [selectedProject, setSelectedProject] = useState(null);
 
-    const mockupProjects = [
-        {
-            id: 1,
-            type: "Güneş Enerjisi (GES)",
-            title: "Muğla 10MW Güneş Tarlası",
-            location: "Muğla, Türkiye",
-            companyName: "Ege Solar Enerji Üretim A.Ş.",
-            expectedReturn: 58.5,
-            raisedAmount: 8500000,
-            goalAmount: 12000000,
-            minInvestment: 1000,
-            daysLeft: 14,
-            isCofunded: true,
-            coverImage: "https://images.unsplash.com/photo-1509391366360-2e959784a276?q=80&w=2072&auto=format&fit=crop",
-            esgScore: 9.4,
-            description: "KOBİ ölçeğinde, Muğla bölgesinde yüksek güneşlenme süresine sahip arazi üzerinde kurulacak GES projesi. Yapay zeka hesaplamalı g-ROI analizleri ile şeffaf yatırım izleme modeli sunulmaktadır.",
-            impacts: ["Yıllık 15.000 ton CO2 azaltımı", "Objektif sensör takip entegrasyonu", "Yerel istihdam garantisi"],
-            projectSize: "10 Megawatt",
-            duration: "6",
-            minInvestmentTier: "1.000 TL",
-            bankParticipation: "%40 Finanse Edildi"
-        },
-        {
-            id: 2,
-            type: "Rüzgar Enerjisi (RES)",
-            title: "Karaburun Rüzgar Santrali Ekipman Genişletme",
-            location: "İzmir, Türkiye",
-            companyName: "Batı Rüzgar Enerji Yatırımları",
-            expectedReturn: 45.0,
-            raisedAmount: 32000000,
-            goalAmount: 50000000,
-            minInvestment: 5000,
-            daysLeft: 21,
-            isCofunded: true,
-            coverImage: "https://images.unsplash.com/photo-1466611653911-95081537e5b7?q=80&w=2070&auto=format&fit=crop",
-            esgScore: 9.1,
-            description: "Mevcut santrale 5 adet yeni nesil yüksek kapasiteli rüzgar türbini eklenmesini kapsamaktadır. Proje, Türkiye'nin Avrupa Birliği yeşil mutabakatına uyumunu hızlandırmayı hedefler.",
-            impacts: ["Türbin başına %25 daha fazla verim", "Sessiz çalışma ve kuş koruma YZ radar desteği", "Yıllık 30.000 ton karbon dengeleme"],
-            projectSize: "25 Megawatt",
-            duration: "12",
-            minInvestmentTier: "5.000 TL",
-            bankParticipation: "%60 TBB Konsorsiyumu"
-        },
-        {
-            id: 3,
-            type: "Elektrikli Araç Filosu",
-            title: "Yeşil Şehir Araç Kiralama Filosu Dönüşümü",
-            location: "Türkiye Geneli",
-            companyName: "MobilRent Oto Kiralama A.Ş.",
-            expectedReturn: 65.0,
-            raisedAmount: 1240000,
-            goalAmount: 4500000,
-            minInvestment: 500,
-            daysLeft: 8,
-            isCofunded: false,
-            coverImage: "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?q=80&w=2072&auto=format&fit=crop",
-            esgScore: 8.5,
-            description: "Mevcut araç kiralama filosunun 150 adet tam elektrikli (EV) ve hibrit araçla yenilenmesi finansmanı. Mikro ölçekte başlatılan dönüşüm, g-ROI bazlı risk modelleri ile ölçümlenmektedir.",
-            impacts: ["Şehir içi emisyonların sıfırlanması", "Şeffaf etki izleme raporları", "Eski araçların %100 geri dönüşüm entegrasyonu"],
-            projectSize: "150 Adet Araç",
-            duration: "3",
-            minInvestmentTier: "500 TL",
-            bankParticipation: "Yok (Kurumsal Garanti)"
-        },
-        {
-            id: 4,
-            type: "Elektrikli Araç Filosu",
-            title: "Bireysel Kiralamada %100 Elektrikli Dönüşüm",
-            location: "İzmir, Antalya, Muğla",
-            companyName: "EcoDrive Turizm ve Kiralama Ltd.",
-            expectedReturn: 52.5,
-            raisedAmount: 4500000,
-            goalAmount: 8500000,
-            minInvestment: 2500,
-            daysLeft: 28,
-            isCofunded: true,
-            coverImage: "https://images.unsplash.com/photo-1593941707882-a5bba14938c7?q=80&w=2072&auto=format&fit=crop",
-            esgScore: 8.9,
-            description: "Turizm bölgelerinde artan çevre dostu araç kiralama talebine yanıt olarak ilk etapta 50 adet yeni nesil elektrikli SUV aracın filoya katılması projesi. YZ ile optimize edilmiş rotalarla verimlilik artırılacaktır.",
-            impacts: ["Turizmde fosil yakıt tüketiminin azaltılması", "Yıllık 4.500 ton CO2 azaltımı", "Turistik bölgelerde emisyonsuz ulaşım modellemesi"],
-            projectSize: "50 Adet e-SUV",
-            duration: "2",
-            minInvestmentTier: "2.500 TL",
-            bankParticipation: "%30 Kredi Garantili"
-        }
-    ];
+    useEffect(() => {
+        const fetchProjects = async () => {
+            try {
+                const res = await fetch(`${API_URL}/api/crowdfunding`);
+                if (!res.ok) throw new Error("Projeler yüklenemedi.");
+                const data = await res.json();
+                setProjects(data);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchProjects();
+    }, []);
 
     return (
         <>
@@ -200,7 +141,7 @@ const Crowdfunding = () => {
                                     <TrendingUp size={24} color="var(--accent-green)" />
                                 </div>
                                 <div style={{ textAlign: 'left' }}>
-                                    <span style={{ display: 'block', fontSize: '20px', fontWeight: 800 }}>%45-65</span>
+                                    <span style={{ block: 'block', fontSize: '20px', fontWeight: 800 }}>%45-65</span>
                                     <span style={{ fontSize: '12px', opacity: 0.8 }}>Yıllık Hedef Getiri</span>
                                 </div>
                             </div>
@@ -210,7 +151,7 @@ const Crowdfunding = () => {
                                     <Users size={24} color="#FF7F00" />
                                 </div>
                                 <div style={{ textAlign: 'left' }}>
-                                    <span style={{ display: 'block', fontSize: '20px', fontWeight: 800 }}>8.500+</span>
+                                    <span style={{ block: 'block', fontSize: '20px', fontWeight: 800 }}>8.500+</span>
                                     <span style={{ fontSize: '12px', opacity: 0.8 }}>Aktif Yatırımcı</span>
                                 </div>
                             </div>
@@ -231,31 +172,26 @@ const Crowdfunding = () => {
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px' }}>
+                        {loading && (
+                            <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                Projeler yükleniyor...
+                            </div>
+                        )}
+                        
+                        {error && (
+                            <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--danger)' }}>
+                                Hata: {error}
+                            </div>
+                        )}
 
-                        <FundingCard
-                            {...mockupProjects[0]}
-                            imageIcon={<Sun size={64} color="var(--primary)" style={{ opacity: 0.4 }} />}
-                            onOpenDetails={() => setSelectedProject(mockupProjects[0])}
-                        />
-
-                        <FundingCard
-                            {...mockupProjects[1]}
-                            imageIcon={<Wind size={64} color="var(--primary)" style={{ opacity: 0.4 }} />}
-                            onOpenDetails={() => setSelectedProject(mockupProjects[1])}
-                        />
-
-                        <FundingCard
-                            {...mockupProjects[2]}
-                            imageIcon={<Plug size={64} color="var(--primary)" style={{ opacity: 0.4 }} />}
-                            onOpenDetails={() => setSelectedProject(mockupProjects[2])}
-                        />
-
-                        <FundingCard
-                            {...mockupProjects[3]}
-                            imageIcon={<Plug size={64} color="var(--primary)" style={{ opacity: 0.4 }} />}
-                            onOpenDetails={() => setSelectedProject(mockupProjects[3])}
-                        />
-
+                        {!loading && !error && projects.map((project) => (
+                            <FundingCard
+                                key={project.id}
+                                {...project}
+                                imageIcon={getIconForType(project.type)}
+                                onOpenDetails={() => setSelectedProject(project)}
+                            />
+                        ))}
                     </div>
                 </main>
 

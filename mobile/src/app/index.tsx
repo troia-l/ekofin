@@ -1,14 +1,53 @@
-import React from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Leaf, ShieldCheck, Zap, TrendingDown, ArrowRight, Award, Calendar, ChevronRight } from 'lucide-react-native';
+import { Leaf, ShieldCheck, Zap, TrendingDown, ArrowRight, Award, Calendar, ChevronRight, LogOut } from 'lucide-react-native';
+import { AuthContext } from './_layout';
+import { safeStorage } from '@/utils/storage';
 
 const { width } = Dimensions.get('window');
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const { currentUser, logout } = useContext(AuthContext);
+  const [totalVerifiedDocs, setTotalVerifiedDocs] = useState(0);
+
+  // Load uploaded documents count for general KOBİ (GENEL)
+  useEffect(() => {
+    const loadDocs = async () => {
+      try {
+        const saved = await safeStorage.getItem('uploaded_documents');
+        const declaration = await safeStorage.getItem('manager_declaration');
+        let count = 0;
+        if (saved) {
+          const docs = JSON.parse(saved);
+          count += Object.keys(docs).length;
+        }
+        if (declaration) {
+          count += 1;
+        }
+        setTotalVerifiedDocs(count);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadDocs();
+    const interval = setInterval(loadDocs, 1500);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Sync metrics with logged-in user profile
+  const isPremium = currentUser?.companyTicker === 'TOASO' || currentUser?.companyTicker === 'ASELS';
+  const esgScore = currentUser?.companyTicker === 'TOASO' ? 8.2 : currentUser?.companyTicker === 'ASELS' ? 8.8 : 6.4;
+  const advantageText = currentUser?.companyTicker === 'TOASO' ? '-2.40%' : currentUser?.companyTicker === 'ASELS' ? '-2.60%' : '-1.25%';
+  const emisyonValue = currentUser?.companyTicker === 'TOASO' ? '120 Ton' : currentUser?.companyTicker === 'ASELS' ? '85 Ton' : '150 Ton';
+  const complianceScore = currentUser?.companyTicker === 'TOASO' ? '%92' : currentUser?.companyTicker === 'ASELS' ? '%96' : '%60';
+  const docCountText = isPremium ? '11 Belge' : `${totalVerifiedDocs} Belge`;
+  const heroFooterText = esgScore >= 7.5 
+    ? '🎉 Sektör ortalamasının %15 üzerindesiniz. Yeşil pasaport onaylandı.'
+    : 'ℹ️ ESG hedeflerinizi tamamlayarak yeşil kredi faiz indirim oranınızı artırabilirsiniz.';
 
   // Mock Data
   const emisyonTrend = [
@@ -34,14 +73,13 @@ export default function DashboardScreen() {
           
           {/* Header */}
           <View style={styles.header}>
-            <View>
-              <Text style={styles.headerSubtitle}>ECOFIN SÜRDÜRÜLEBİLİRLİK</Text>
-              <Text style={styles.headerTitle}>Yönetici Özeti</Text>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={styles.headerSubtitle} numberOfLines={1}>{currentUser ? currentUser.companyName : 'ECOFIN SÜRDÜRÜLEBİLİRLİK'}</Text>
+              <Text style={styles.headerTitle} numberOfLines={1}>{currentUser ? `${currentUser.userName} (${currentUser.userTitle})` : 'Yönetici Özeti'}</Text>
             </View>
-            <View style={styles.badge}>
-              <Leaf size={14} color="#10B981" />
-              <Text style={styles.badgeText}>TSRS Uyumlu</Text>
-            </View>
+            <TouchableOpacity style={styles.logoutHeaderBtn} onPress={logout}>
+              <LogOut size={18} color="#EF4444" />
+            </TouchableOpacity>
           </View>
 
           {/* Hero Card - ESG Score */}
@@ -54,7 +92,7 @@ export default function DashboardScreen() {
                 <View>
                   <Text style={styles.heroLabel}>DD-ESG GÜVEN SKORU</Text>
                   <View style={styles.scoreContainer}>
-                    <Text style={styles.scoreValue}>8.8</Text>
+                    <Text style={styles.scoreValue}>{esgScore}</Text>
                     <Text style={styles.scoreMax}>/10</Text>
                   </View>
                 </View>
@@ -64,7 +102,7 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.divider} />
               <Text style={styles.heroFooter}>
-                🎉 Sektör ortalamasının %15 üzerindesiniz.
+                {heroFooterText}
               </Text>
             </LinearGradient>
           </View>
@@ -78,7 +116,7 @@ export default function DashboardScreen() {
                 <Text style={styles.cardLabel}>FAİZ İNDİRİMİ</Text>
                 <TrendingDown size={20} color="#D4AF37" />
               </View>
-              <Text style={[styles.cardValue, { color: '#D4AF37' }]}>-%2.50</Text>
+              <Text style={[styles.cardValue, { color: '#D4AF37' }]}>{advantageText}</Text>
               <Text style={styles.cardDesc}>Yeşil Pasaport Avantajı</Text>
             </View>
 
@@ -88,7 +126,7 @@ export default function DashboardScreen() {
                 <Text style={styles.cardLabel}>EMİSYON</Text>
                 <Zap size={20} color="#3B82F6" />
               </View>
-              <Text style={styles.cardValue}>90 Ton</Text>
+              <Text style={styles.cardValue}>{emisyonValue}</Text>
               <Text style={styles.cardDesc}>Kapsam 1 & Kapsam 2</Text>
             </View>
 
@@ -98,7 +136,7 @@ export default function DashboardScreen() {
                 <Text style={styles.cardLabel}>GÜVENİLİRLİK</Text>
                 <ShieldCheck size={20} color="#10B981" />
               </View>
-              <Text style={[styles.cardValue, { color: '#10B981' }]}>%94</Text>
+              <Text style={[styles.cardValue, { color: '#10B981' }]}>{complianceScore}</Text>
               <Text style={styles.cardDesc}>YZ Taraması Başarılı</Text>
             </View>
 
@@ -108,7 +146,7 @@ export default function DashboardScreen() {
                 <Text style={styles.cardLabel}>AKTARIM</Text>
                 <Calendar size={20} color="#A78BFA" />
               </View>
-              <Text style={styles.cardValue}>5 Belge</Text>
+              <Text style={styles.cardValue}>{docCountText}</Text>
               <Text style={styles.cardDesc}>Veri Entegrasyonu Aktif</Text>
             </View>
 
@@ -196,6 +234,15 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
     marginTop: 4,
+  },
+  logoutHeaderBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
   },
   badge: {
     flexDirection: 'row',
