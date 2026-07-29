@@ -20,6 +20,9 @@ from config import (
     BASE_DIR, SOURCES_DIR, REPORT_OUTPUT_PATH, DECLARATION_PATH,
     UPLOADS_META_PATH, DOCUMENT_TYPE_MAP, EKLENEN_VERILER_PATH,
     OUTPUT_DIR, CREDITS_PATH, CROWDFUNDING_PATH, ESG_COMPANIES_PATH,
+    get_company_sources_dir, get_company_declaration_path,
+    get_company_uploads_meta_path, get_company_report_path,
+    get_company_eklenen_veriler_path,
 )
 import database as db
 
@@ -123,18 +126,20 @@ calculator = CarbonCalculator()
 
 # ─── Yardımcı Fonksiyonlar ───────────────────────────────────────────────────
 
-def _load_uploads_meta() -> dict:
-    """Yüklenen belgelerin meta bilgilerini yükle."""
-    if UPLOADS_META_PATH.exists():
-        with open(UPLOADS_META_PATH, "r", encoding="utf-8") as f:
+def _load_uploads_meta(ticker: Optional[str] = None) -> dict:
+    """Yüklenen belgelerin meta bilgilerini şirkete (ticker) özel dosyadan yükle."""
+    path = get_company_uploads_meta_path(ticker)
+    if path.exists():
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     return {"documents": {}, "uploads": []}
 
 
-def _save_uploads_meta(meta: dict):
-    """Meta bilgilerini kaydet."""
-    UPLOADS_META_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(UPLOADS_META_PATH, "w", encoding="utf-8") as f:
+def _save_uploads_meta(meta: dict, ticker: Optional[str] = None):
+    """Meta bilgilerini şirkete özel dosyaya kaydet."""
+    path = get_company_uploads_meta_path(ticker)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
 
@@ -189,7 +194,23 @@ class CalculationRequest(BaseModel):
 
 
 # ─── Global State ────────────────────────────────────────────────────────────
-_report_status: ReportStatus = ReportStatus(status="idle", progress=0, message="")
+# Şirket başına ayrı rapor üretim durumu (aksi halde bir şirketin raporu
+# üretilirken diğer şirketin ekranında da "üretiliyor" görünürdü).
+_report_status_by_ticker: dict = {}
+
+
+def _report_key(ticker: Optional[str]) -> str:
+    return (ticker or "DEFAULT").strip().upper() or "DEFAULT"
+
+
+def _get_report_status(ticker: Optional[str]) -> ReportStatus:
+    return _report_status_by_ticker.setdefault(
+        _report_key(ticker), ReportStatus(status="idle", progress=0, message="")
+    )
+
+
+def _set_report_status(ticker: Optional[str], status: ReportStatus):
+    _report_status_by_ticker[_report_key(ticker)] = status
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -437,21 +458,25 @@ def get_esg_companies():
 # ── Dashboard ────────────────────────────────────────────────────────────────
 
 @app.get("/api/dashboard/summary")
-def dashboard_summary():
-    """Dashboard için özet metrikleri döndür."""
-    meta = _load_uploads_meta()
+def dashboard_summary(ticker: Optional[str] = None):
+    """Dashboard için özet metrikleri döndür (şirkete özel)."""
+    meta = _load_uploads_meta(ticker)
     docs = meta.get("documents", {})
 
+    declaration_path = get_company_declaration_path(ticker)
+    report_path = get_company_report_path(ticker)
+    eklenen_path = get_company_eklenen_veriler_path(ticker)
+
     total_docs = len([d for d in docs.values() if d.get("status") == "verified"])
-    declaration_exists = DECLARATION_PATH.exists()
-    report_exists = REPORT_OUTPUT_PATH.exists()
+    declaration_exists = declaration_path.exists()
+    report_exists = report_path.exists()
     report_hash = ""
     if report_exists:
-        report_hash = _compute_file_hash(REPORT_OUTPUT_PATH)
+        report_hash = _compute_file_hash(report_path)
 
     eklenen_content = ""
-    if EKLENEN_VERILER_PATH.exists():
-        with open(EKLENEN_VERILER_PATH, "r", encoding="utf-8") as f:
+    if eklenen_path.exists():
+        with open(eklenen_path, "r", encoding="utf-8") as f:
             eklenen_content = f.read()
 
     return {
@@ -470,8 +495,9 @@ def dashboard_summary():
 async def upload_document(
     file: UploadFile = File(...),
     doc_type: str = Form(...),
+    ticker: Optional[str] = Form(None),
 ):
-    """Belge yükle ve sources dizinine kaydet."""
+    """Belge yükle ve şirkete özel sources dizinine kaydet."""
     if doc_type not in DOCUMENT_TYPE_MAP:
         raise HTTPException(
             status_code=400,
@@ -479,14 +505,14 @@ async def upload_document(
         )
 
     target_filename = DOCUMENT_TYPE_MAP[doc_type]
-    target_path = SOURCES_DIR / target_filename
+    company_sources_dir = get_company_sources_dir(ticker)
+    target_path = company_sources_dir / target_filename
 
-    SOURCES_DIR.mkdir(parents=True, exist_ok=True)
     content = await file.read()
     with open(target_path, "wb") as f:
         f.write(content)
 
-    meta = _load_uploads_meta()
+    meta = _load_uploads_meta(ticker)
     meta["documents"][doc_type] = {
         "status": "verified",
         "original_filename": file.filename,
@@ -501,7 +527,7 @@ async def upload_document(
         "status": "processed",
     })
     meta["uploads"] = meta["uploads"][:20]
-    _save_uploads_meta(meta)
+    _save_uploads_meta(meta, ticker)
 
     return {
         "status": "success",
@@ -512,19 +538,19 @@ async def upload_document(
 
 
 @app.get("/api/documents/list")
-def list_uploads():
-    """Son yüklenen dosyaların listesini döndür."""
-    meta = _load_uploads_meta()
+def list_uploads(ticker: Optional[str] = None):
+    """Son yüklenen dosyaların listesini (şirkete özel) döndür."""
+    meta = _load_uploads_meta(ticker)
     return {"uploads": meta.get("uploads", [])}
 
 
 @app.get("/api/documents/status")
-def documents_status():
-    """Her belge türünün durumunu döndür."""
-    meta = _load_uploads_meta()
+def documents_status(ticker: Optional[str] = None):
+    """Her belge türünün (şirkete özel) durumunu döndür."""
+    meta = _load_uploads_meta(ticker)
     docs = meta.get("documents", {})
 
-    declaration_status = "verified" if DECLARATION_PATH.exists() else "not_uploaded"
+    declaration_status = "verified" if get_company_declaration_path(ticker).exists() else "not_uploaded"
 
     statuses = {}
     for doc_type, target_file in DOCUMENT_TYPE_MAP.items():
@@ -538,54 +564,96 @@ def documents_status():
     return {"documents": statuses}
 
 
+@app.delete("/api/documents/{doc_type}")
+def delete_document(doc_type: str, ticker: Optional[str] = None):
+    """Yüklenen bir belgeyi (fiziksel dosya + meta kaydı) kaldırır — yeniden
+    yüklenebilmesi için durumu 'not_uploaded'a döner."""
+    if doc_type not in DOCUMENT_TYPE_MAP:
+        raise HTTPException(status_code=400, detail=f"Geçersiz belge türü: {doc_type}")
+
+    company_sources_dir = get_company_sources_dir(ticker)
+    target_path = company_sources_dir / DOCUMENT_TYPE_MAP[doc_type]
+    if target_path.exists():
+        target_path.unlink()
+
+    meta = _load_uploads_meta(ticker)
+    removed = meta["documents"].pop(doc_type, None)
+    if removed is None:
+        raise HTTPException(status_code=404, detail="Bu belge türü için yüklenmiş bir kayıt yok.")
+    _save_uploads_meta(meta, ticker)
+
+    return {"status": "success", "message": f"{doc_type} belgesi kaldırıldı."}
+
+
+@app.delete("/api/documents/list/{upload_index}")
+def delete_upload_log_entry(upload_index: int, ticker: Optional[str] = None):
+    """'Son Yüklenen Paketler' listesindeki tek bir kaydı (sadece log girişini) kaldırır."""
+    meta = _load_uploads_meta(ticker)
+    uploads = meta.get("uploads", [])
+    if upload_index < 0 or upload_index >= len(uploads):
+        raise HTTPException(status_code=404, detail="Yükleme kaydı bulunamadı.")
+    removed = uploads.pop(upload_index)
+    meta["uploads"] = uploads
+    _save_uploads_meta(meta, ticker)
+    return {"status": "success", "removed": removed}
+
+
 # ── Yönetici Anketi ──────────────────────────────────────────────────────────
 
 @app.post("/api/declaration")
-def save_declaration(data: DeclarationData):
-    """Yönetici Anketi verisini JSON olarak kaydet."""
-    SOURCES_DIR.mkdir(parents=True, exist_ok=True)
+def save_declaration(data: DeclarationData, ticker: Optional[str] = None):
+    """Yönetici Anketi verisini şirkete özel JSON olarak kaydet."""
+    declaration_path = get_company_declaration_path(ticker)
     payload = data.model_dump(exclude_none=True)
     payload["submitted_at"] = datetime.now().isoformat()
 
-    with open(DECLARATION_PATH, "w", encoding="utf-8") as f:
+    with open(declaration_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
     return {
         "status": "success",
         "message": "Yönetici beyanı kaydedildi.",
-        "path": str(DECLARATION_PATH),
+        "path": str(declaration_path),
     }
 
 
 @app.get("/api/declaration")
-def get_declaration():
-    """Kayıtlı yönetici anketi verisini getir."""
-    if not DECLARATION_PATH.exists():
+def get_declaration(ticker: Optional[str] = None):
+    """Kayıtlı (şirkete özel) yönetici anketi verisini getir."""
+    declaration_path = get_company_declaration_path(ticker)
+    if not declaration_path.exists():
         return {"status": "not_found", "data": None}
-    with open(DECLARATION_PATH, "r", encoding="utf-8") as f:
+    with open(declaration_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     return {"status": "found", "data": data}
+
+
+@app.delete("/api/declaration")
+def delete_declaration(ticker: Optional[str] = None):
+    """Kayıtlı yönetici anketini kaldırır (yeniden doldurulabilmesi için)."""
+    declaration_path = get_company_declaration_path(ticker)
+    if not declaration_path.exists():
+        raise HTTPException(status_code=404, detail="Kayıtlı bir yönetici beyanı yok.")
+    declaration_path.unlink()
+    return {"status": "success", "message": "Yönetici beyanı kaldırıldı."}
 
 
 # ── TSRS Rapor Üretimi ───────────────────────────────────────────────────────
 
 @app.post("/api/report/generate")
-def generate_report():
-    """TSRS pipeline'ını doğrudan modül olarak çağırarak rapor üret."""
-    global _report_status
-
-    if _report_status.status == "generating":
+def generate_report(ticker: Optional[str] = None):
+    """TSRS pipeline'ını doğrudan modül olarak çağırarak (şirkete özel) rapor üret."""
+    if _get_report_status(ticker).status == "generating":
         raise HTTPException(status_code=409, detail="Rapor üretimi zaten devam ediyor.")
 
-    _report_status = ReportStatus(
+    _set_report_status(ticker, ReportStatus(
         status="generating", progress=10, message="Pipeline başlatılıyor..."
-    )
+    ))
 
     try:
         from modules.tsrs.pipeline import run_tsrs_pipeline
 
         def progress_cb(filename, current_step, total_steps):
-            global _report_status
             progress_pct = int(20 + (current_step / total_steps) * 75)
             section_titles = {
                 "bolum_00_baslik.md": "Kapak ve Başlık Bölümü",
@@ -600,85 +668,92 @@ def generate_report():
                 "bolum_09_dogrulama.md": "Güvence ve Doğrulama Beyanı"
             }
             title = section_titles.get(filename, filename)
-            _report_status = ReportStatus(
+            _set_report_status(ticker, ReportStatus(
                 status="generating",
                 progress=progress_pct,
                 message=f"{title} oluşturuluyor ({current_step}/{total_steps})..."
-            )
+            ))
 
-        _report_status.progress = 20
-        _report_status.message = "Pipeline çalıştırılıyor..."
+        _set_report_status(ticker, ReportStatus(
+            status="generating", progress=20, message="Pipeline çalıştırılıyor..."
+        ))
 
-        result = run_tsrs_pipeline(progress_callback=progress_cb)
+        result = run_tsrs_pipeline(
+            progress_callback=progress_cb,
+            sources_dir=get_company_sources_dir(ticker),
+            report_path=get_company_report_path(ticker),
+            eklenen_path=get_company_eklenen_veriler_path(ticker),
+        )
 
         if result["status"] == "error":
-            _report_status = ReportStatus(
+            _set_report_status(ticker, ReportStatus(
                 status="error",
                 progress=0,
                 message=f"Pipeline hatası: {result.get('error', 'Bilinmeyen hata')[:500]}",
-            )
+            ))
             raise HTTPException(
                 status_code=500,
                 detail=f"Pipeline hatası: {result.get('error', '')}",
             )
 
-        _report_status = ReportStatus(
+        _set_report_status(ticker, ReportStatus(
             status="completed", progress=100, message="Rapor başarıyla üretildi."
-        )
+        ))
 
+        report_path = get_company_report_path(ticker)
         return {
             "status": "success",
             "message": "TSRS raporu başarıyla üretildi.",
             "output_path": result.get("output_path"),
-            "hash": _compute_file_hash(REPORT_OUTPUT_PATH) if REPORT_OUTPUT_PATH.exists() else None,
+            "hash": _compute_file_hash(report_path) if report_path.exists() else None,
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        _report_status = ReportStatus(
-            status="error", progress=0, message=str(e)
-        )
+        _set_report_status(ticker, ReportStatus(status="error", progress=0, message=str(e)))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/report/latest")
-def get_latest_report():
-    """Son üretilen TSRS raporunun içeriğini döndür."""
-    if not REPORT_OUTPUT_PATH.exists():
+def get_latest_report(ticker: Optional[str] = None):
+    """Son üretilen (şirkete özel) TSRS raporunun içeriğini döndür."""
+    report_path = get_company_report_path(ticker)
+    if not report_path.exists():
         return {"status": "not_found", "content": None}
 
-    with open(REPORT_OUTPUT_PATH, "r", encoding="utf-8") as f:
+    with open(report_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     return {
         "status": "found",
         "content": content,
-        "hash": _compute_file_hash(REPORT_OUTPUT_PATH),
+        "hash": _compute_file_hash(report_path),
         "generated_at": datetime.fromtimestamp(
-            REPORT_OUTPUT_PATH.stat().st_mtime
+            report_path.stat().st_mtime
         ).isoformat(),
     }
 
 
 @app.get("/api/report/status")
-def report_status():
-    """Rapor üretim durumunu döndür."""
-    global _report_status
-    state = _report_status.model_dump()
-    if _report_status.status == "error":
+def report_status(ticker: Optional[str] = None):
+    """Rapor üretim durumunu (şirkete özel) döndür."""
+    current = _get_report_status(ticker)
+    state = current.model_dump()
+    if current.status == "error":
         # Hata durumunu bir kez döndürdükten sonra sıfırla (sayfa yenilenince temizlenmesi için)
-        _report_status = ReportStatus(status="idle", progress=0, message="")
+        _set_report_status(ticker, ReportStatus(status="idle", progress=0, message=""))
     return state
 
 
 @app.post("/api/report/verify")
-def verify_report(hash_to_verify: str = Form(...)):
-    """Rapor hash'ini doğrula."""
-    if not REPORT_OUTPUT_PATH.exists():
+def verify_report(hash_to_verify: str = Form(...), ticker: Optional[str] = Form(None)):
+    """Rapor hash'ini (şirkete özel) doğrula."""
+    report_path = get_company_report_path(ticker)
+    if not report_path.exists():
         raise HTTPException(status_code=404, detail="Rapor dosyası bulunamadı.")
 
-    actual_hash = _compute_file_hash(REPORT_OUTPUT_PATH)
+    actual_hash = _compute_file_hash(report_path)
     is_valid = actual_hash == hash_to_verify
 
     return {

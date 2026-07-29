@@ -31,7 +31,9 @@ const Dashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/dashboard/summary`);
+      const ticker = currentUser?.companyTicker;
+      const url = ticker ? `${API_URL}/api/dashboard/summary?ticker=${encodeURIComponent(ticker)}` : `${API_URL}/api/dashboard/summary`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Dashboard verisi alınamadı.');
       const data = await res.json();
       setSummary(data);
@@ -57,7 +59,7 @@ const Dashboard = () => {
   useEffect(() => {
     fetchSummary();
     fetchCompanies();
-  }, []);
+  }, [currentUser?.companyTicker]);
 
   // Find the BIST company profile matching the logged-in user
   const myCompany = companies.find(c => c.ticker === currentUser?.companyTicker);

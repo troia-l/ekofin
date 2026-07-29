@@ -187,8 +187,16 @@ def preprocess_markdown(file_path):
     content = load_file_content_safe(file_path)
     return clean_base64_noise(content)
 
+# Aktif şirkete (ticker) göre değişen yollar — run_tsrs_pipeline çağrısının
+# başında ayarlanır. Rapor üretimi tek seferde bir tane çalışabildiği için
+# (bkz. api.py: 409 kilidi) global durum burada güvenlidir.
+_active_sources_dir = SOURCES_DIR
+_active_report_path = REPORT_OUTPUT_PATH
+_active_eklenen_path = EKLENEN_VERILER_PATH
+
+
 def load_source_file(filename):
-    path = SOURCES_DIR / filename
+    path = _active_sources_dir / filename
     if not path.exists():
         print(f"  [!] Kaynak dosya bulunamadı: {filename}")
         return ""
@@ -422,26 +430,34 @@ def generate_section(section_filename, template_text, section_sources_text, read
 
 def write_eklenen_veriler():
     print(f"[*] eklenen_veriler.md oluşturuluyor...")
-    EKLENEN_VERILER_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _active_eklenen_path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         "# EkoFin Eklenen ve İşlenen Veriler",
         "",
         "Sisteme giren kesin veriler (JSON kaynakları) ve taranan OCR belgeleri (MD) LLM tarafından doğrudan işlenerek rapora entegre edilmiştir.",
         "Emisyon hesaplamaları doğrudan metin üretimi aşamasında yapılmıştır."
     ]
-    with open(EKLENEN_VERILER_PATH, "w", encoding="utf-8") as f:
+    with open(_active_eklenen_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     print("[+] eklenen_veriler.md yazıldı.")
 
 
-def run_tsrs_pipeline(progress_callback=None):
+def run_tsrs_pipeline(progress_callback=None, sources_dir=None, report_path=None, eklenen_path=None):
     """
     TSRS rapor üretim pipeline'ını çalıştırır.
+    sources_dir/report_path/eklenen_path verilmezse varsayılan (global, tek şirketlik)
+    yollar kullanılır — şirket bazlı ayrım için api.py bu üçünü ticker'a göre geçirir.
     Returns: dict with status, output_path, error info
     """
+    global _active_sources_dir, _active_report_path, _active_eklenen_path
+    _active_sources_dir = sources_dir or SOURCES_DIR
+    _active_report_path = report_path or REPORT_OUTPUT_PATH
+    _active_eklenen_path = eklenen_path or EKLENEN_VERILER_PATH
+
     print("=" * 60)
     print("  TSRS SÜRDÜRÜLEBİLİRLİK RAPORU ÜRETİM AKIŞI")
     print("  Model: gpt-5.4 | Doğrudan Belge Okuma Mimarisi")
+    print(f"  Kaynak dizini: {_active_sources_dir}")
     print("=" * 60)
 
     try:
@@ -496,20 +512,20 @@ def run_tsrs_pipeline(progress_callback=None):
 
         # Son montaj
         print("\n[*] Nihai rapor birleştiriliyor...")
-        REPORT_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _active_report_path.parent.mkdir(parents=True, exist_ok=True)
         parts = [generated[fn] for fn in sorted_files if fn.endswith(".md")]
         parts.append("\n\n")
         parts.append(base64_blocks)
 
-        with open(REPORT_OUTPUT_PATH, "w", encoding="utf-8") as f:
+        with open(_active_report_path, "w", encoding="utf-8") as f:
             f.write("\n".join(parts))
 
-        print(f"\n[+] Rapor başarıyla oluşturuldu: {REPORT_OUTPUT_PATH}")
+        print(f"\n[+] Rapor başarıyla oluşturuldu: {_active_report_path}")
         print("=" * 60)
 
         return {
             "status": "success",
-            "output_path": str(REPORT_OUTPUT_PATH),
+            "output_path": str(_active_report_path),
         }
 
     except Exception as e:

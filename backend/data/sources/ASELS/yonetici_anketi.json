@@ -9,7 +9,7 @@
   },
   "annualElectricity": 14500.0,
   "annualWater": 420.0,
-  "hasEmsPolicy": "planning",
+  "hasEmsPolicy": "yes",
   "hasRenewableEnergy": true,
-  "submitted_at": "2026-07-01T15:10:17.815750"
+  "submitted_at": "2026-07-29T14:35:27.205795"
 }

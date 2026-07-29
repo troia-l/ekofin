@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Download, QrCode, CheckCircle, FileText, ShieldCheck, 
@@ -23,6 +23,10 @@ const itemVariants = {
 };
 
 const TsrsReport = () => {
+  const { currentUser } = useOutletContext() || {};
+  const ticker = currentUser?.companyTicker || null;
+  const withTicker = (url) => ticker ? `${url}${url.includes('?') ? '&' : '?'}ticker=${encodeURIComponent(ticker)}` : url;
+
   const [activeTab, setActiveTab] = useState('summary');
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
@@ -68,7 +72,7 @@ const TsrsReport = () => {
 
   const fetchLatestReport = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/report/latest`);
+      const res = await fetch(withTicker(`${API_URL}/api/report/latest`));
       if (res.ok) {
         const data = await res.json();
         if (data.status === 'found') {
@@ -85,7 +89,7 @@ const TsrsReport = () => {
     setExportError(null);
     try {
       setExportProgress(30);
-      const res = await fetch(`${API_URL}/api/report/generate`, { method: 'POST' });
+      const res = await fetch(withTicker(`${API_URL}/api/report/generate`), { method: 'POST' });
       setExportProgress(80);
       if (!res.ok) {
         const errData = await res.json();
@@ -109,104 +113,76 @@ const TsrsReport = () => {
 
   const handleGenerateReport = async () => {
     if (isGenerating) return;
-    
+
     setIsGenerating(true);
-    setReportStatus({ status: 'generating', progress: 10, message: 'Yapay Zeka Analiz Motoru hazırlanıyor...' });
-    
+    setExportError(null);
+    setReportStatus({ status: 'generating', progress: 5, message: 'Pipeline başlatılıyor...' });
     setTerminalLogs([
-      `[${new Date().toLocaleTimeString()}] [SİSTEM] Yapay Zeka TSRS Analiz ve Raporlama Motoru v2.4 başlatıldı.`,
-      `[${new Date().toLocaleTimeString()}] [SİSTEM] Güvenli taranmış belgeler ve veri tabanları taranıyor...`,
-      `[${new Date().toLocaleTimeString()}] [BAĞLANTI] SAP ERP canlı veri akışı (OData API) doğrulandı.`,
-      `[${new Date().toLocaleTimeString()}] [BAĞLANTI] LOGO Tiger muhasebe veritabanı bağlantısı aktif.`
+      `[${new Date().toLocaleTimeString()}] [SİSTEM] TSRS Analiz ve Raporlama Motoru başlatıldı (model: gpt-5.4).`,
+      `[${new Date().toLocaleTimeString()}] [SİSTEM] Yüklenen belgeler ve yönetici beyanı okunuyor...`,
     ]);
 
-    const steps = [
-      { progress: 20, message: 'Kapak ve Başlık Bölümü oluşturuluyor (1/10)...', log: '[DOSYA] sgk_listesi.md dosyası yüklendi. PDF formatı algılandı.' },
-      { progress: 30, message: 'Rapor Hakkında ve Kapsam oluşturuluyor (2/10)...', log: '[OCR] sgk_listesi.md (pypdf) ayrıştırılıyor...' },
-      { progress: 40, message: 'Yönetişim Yapısı ve Politikalar oluşturuluyor (3/10)...', log: '[OCR] SGK verilerinden 55 aktif personel sayısı doğrulandı.' },
-      { progress: 50, message: 'Sürdürülebilirlik Stratejisi oluşturuluyor (4/10)...', log: '[DOSYA] sanayi_sicil.json dosyası yüklendi.' },
-      { progress: 60, message: 'Risk Yönetimi Süreçleri oluşturuluyor (5/10)...', log: '[OCR] NACE kodları ve yıllık kapasite limitleri onaylandı.' },
-      { progress: 70, message: 'Metrikler, Göstergeler ve Hedefler oluşturuluyor (6/10)...', log: '[DOSYA] Yönetici Beyan Formu (yonetici_anketi.json) verileri yüklendi.' },
-      { progress: 80, message: 'Önemli Muhakemeler ve Varsayımlar oluşturuluyor (7/10)...', log: '[FORM] Şirket filosu (7 araç) ve elektrik/su tüketim verileri alındı.' },
-      { progress: 90, message: 'Güvence ve Doğrulama Beyanı oluşturuluyor (10/10)...', log: '[HESAPLAMA] Elektrik emisyonu (14,500 kWh): 7.25 tCO2e.' }
-    ];
+    try {
+      // /api/report/generate, tüm bölümler bitene kadar dönmeyen bloklayıcı bir
+      // istektir (gerçek LLM çağrıları dakikalar sürebilir). Bu yüzden isteği
+      // atar atmaz status polling'i de başlatıyoruz ki kullanıcı gerçek
+      // ilerlemeyi (backend'in progress_callback'i üzerinden) canlı görsün.
+      const genPromise = fetch(withTicker(`${API_URL}/api/report/generate`), { method: 'POST' });
+      startPolling();
 
-    let currentStep = 0;
-    const interval = setInterval(async () => {
-      if (currentStep < steps.length) {
-        const step = steps[currentStep];
-        setReportStatus({ status: 'generating', progress: step.progress, message: step.message });
-        setTerminalLogs(prev => [
-          ...prev,
-          `[${new Date().toLocaleTimeString()}] ${step.log}`,
-          `[${new Date().toLocaleTimeString()}] [YZ] OpenAI GPT-5.4 çalıştırılıyor...`,
-          `[${new Date().toLocaleTimeString()}] [YZ] Bölüm üretiliyor: ${step.message}`
-        ]);
-        currentStep++;
-      } else {
-        clearInterval(interval);
-        setReportStatus({ status: 'completed', progress: 100, message: 'Rapor başarıyla üretildi.' });
-        setReportHash('f4a2b1c3d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2');
-        await fetchLatestReport(); // Mevcut raporu çekerek ekranda göstermeye devam eder
-        
-        setTerminalLogs(prev => [
-          ...prev,
-          `[${new Date().toLocaleTimeString()}] [SİSTEM] Nihai rapor birleştirildi ve çıktı dizinine yazıldı.`,
-          `[${new Date().toLocaleTimeString()}] [GÜVENLİK] Kriptografik mühürleme ve doğrulama hash kodu hesaplanıyor...`,
-          `[${new Date().toLocaleTimeString()}] [GÜVENLİK] SHA-256 Hash üretildi. Blockchain Yeşillendirilmiş Defterine (Green Ledger) yazıldı.`,
-          `[${new Date().toLocaleTimeString()}] [BAŞARI] TSRS Sürdürülebilirlik Beyanı ve Yeşil Kredi Pasaportu Raporu başarıyla tamamlandı!`
-        ]);
-        setIsGenerating(false);
+      const res = await genPromise;
+      stopPolling();
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Rapor üretim hatası');
       }
-    }, 1000);
+      const data = await res.json();
+      setReportHash(data.hash || '');
+      setReportStatus({ status: 'completed', progress: 100, message: 'Rapor başarıyla üretildi.' });
+      setTerminalLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] [SİSTEM] Nihai rapor birleştirildi ve çıktı dizinine yazıldı.`,
+        `[${new Date().toLocaleTimeString()}] [GÜVENLİK] SHA-256 Hash: ${(data.hash || '').slice(0, 24)}...`,
+        `[${new Date().toLocaleTimeString()}] [BAŞARI] TSRS Sürdürülebilirlik Raporu başarıyla tamamlandı!`,
+      ]);
+      await fetchLatestReport();
+    } catch (e) {
+      stopPolling();
+      setReportStatus({ status: 'error', progress: 0, message: e.message });
+      setTerminalLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [HATA] ${e.message}`]);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const startPolling = () => {
     if (pollingRef.current) return;
     pollingRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`${API_URL}/api/report/status`);
+        const res = await fetch(withTicker(`${API_URL}/api/report/status`));
         if (res.ok) {
           const data = await res.json();
           setReportStatus(data);
-          
+
           setTerminalLogs(prev => {
             const lastLog = prev[prev.length - 1];
-            const logs = [...prev];
-            const timestamp = new Date().toLocaleTimeString();
-
-            if (data.progress >= 20 && !prev.some(l => l.includes('sgk_listesi.md'))) {
-              logs.push(`[${timestamp}] [DOSYA] sgk_listesi.md dosyası yüklendi. PDF formatı algılandı.`);
-              logs.push(`[${timestamp}] [OCR] sgk_listesi.md (pypdf) ayrıştırılıyor...`);
-              logs.push(`[${timestamp}] [OCR] SGK verilerinden 55 aktif personel sayısı doğrulandı.`);
-            }
-            if (data.progress >= 20 && !prev.some(l => l.includes('sanayi_sicil.json'))) {
-              logs.push(`[${timestamp}] [DOSYA] sanayi_sicil.json dosyası yüklendi. PDF formatı algılandı.`);
-              logs.push(`[${timestamp}] [OCR] sanayi_sicil.json (pypdf) ayrıştırılıyor...`);
-              logs.push(`[${timestamp}] [OCR] NACE kodları ve yıllık kapasite limitleri onaylandı.`);
-            }
-            if (data.progress >= 25 && !prev.some(l => l.includes('yonetici_anketi.json'))) {
-              logs.push(`[${timestamp}] [DOSYA] Yönetici Beyan Formu (yonetici_anketi.json) verileri yüklendi.`);
-              logs.push(`[${timestamp}] [FORM] Şirket filosu (7 araç) ve elektrik/su tüketim verileri alındı.`);
-              logs.push(`[${timestamp}] [HESAPLAMA] Kapsam 1 ve Kapsam 2 Sera Gazı Emisyonları hesaplanıyor...`);
-              logs.push(`[${timestamp}] [HESAPLAMA] Elektrik emisyonu (14,500 kWh): 7.25 tCO2e.`);
-            }
-
             if (data.status === 'generating' && data.message && !lastLog?.includes(data.message)) {
-              logs.push(`[${timestamp}] [YZ] OpenAI GPT-5.4 çalıştırılıyor...`);
-              logs.push(`[${timestamp}] [YZ] Bölüm üretiliyor: ${data.message}`);
+              return [...prev, `[${new Date().toLocaleTimeString()}] ${data.message}`];
             }
-
-            return logs;
+            return prev;
           });
 
           if (data.status !== 'generating') {
             stopPolling();
+            setIsGenerating(false);
+            if (data.status === 'completed') await fetchLatestReport();
           }
         }
       } catch (e) {
         console.error('Polling error:', e);
         stopPolling();
+        setIsGenerating(false);
       }
     }, 1200);
   };
@@ -225,6 +201,7 @@ const TsrsReport = () => {
     try {
       const formData = new FormData();
       formData.append('hash_to_verify', reportHash);
+      if (ticker) formData.append('ticker', ticker);
       const res = await fetch(`${API_URL}/api/report/verify`, { method: 'POST', body: formData });
       if (res.ok) {
         const data = await res.json();
