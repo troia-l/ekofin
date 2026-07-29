@@ -1,0 +1,36 @@
+Yönetici Özeti
+Bu rapor, EkoFin'in karar alıcı motoru olan Model C — Green ROI (G-ROI) sisteminin temel çalışma prensiplerini, çözdüğü sektörel problemleri ve sunduğu katma değeri detaylandırmaktadır. Geleneksel finansal analiz yöntemlerinin yeşil yatırımları yalnızca birer maliyet unsuru olarak görme eksikliği, EkoFin Model C'nin 5 boyutlu değerleme modeli ve yapay zekâ destekli şeffaf denetim izi (Audit Trail) altyapısı ile aşılmaktadır. Sistem, yeşil dönüşümü işletmeler için sadece çevresel bir "iyi niyet" göstergesi olmaktan çıkarıp, rasyonel ve kârlı bir finansal stratejiye dönüştürmektedir.
+
+1. Mevcut Durum ve Geleneksel Finansın Kör Noktası
+Günümüzde KOBİ'lerin yeşil dönüşüm (güneş enerjisi kurulumu, elektrikli araç filosu geçişi vb.) projelerini değerlendirirken karşılaştıkları en temel bariyer, yatırımın geri dönüş süresinin (ROI) ve maliyetinin geleneksel yöntemlerle hesaplanmasıdır.
+
+Geleneksel ROI Çıkmazı: Klasik yatırım geri dönüş hesapları (klasik ROI, Payback Period) süreci dar bir pencereden ele alır; yalnızca doğrudan enerji tasarrufunu ve yatırım maliyetini (CAPEX/OPEX) görür.
+
+Görünmeyen Maliyetler ve Fırsatlar: Sınırda Karbon Düzenleme Mekanizması (SKDM / CBAM) ve potansiyel karbon vergisi riskleri bu tablolarda genellikle yer almaz. Aynı zamanda ESG (Çevresel, Sosyal, Yönetişim) derecelendirme primleri, yeşil kredi faiz avantajları ve gönüllü karbon piyasası gelirleri de hesaplamaların dışında kalır.
+
+Problem Tanımı: KOBİ'ler yeşil yatırımların gerçek finansal getirisini bütüncül olarak ölçemediği için bu yatırımları ertelemekte; bankalar ve finansal kuruluşlar ise yeşil kredilerin risk/fırsat analizini ve fiyatlamasını doğru yapamamaktadır.
+
+2. Çözüm: EkoFin Model C ve 5 Boyutlu G-ROI
+EkoFin Model C, geleneksel yöntemlerin yarattığı bu kör noktayı ortadan kaldırmak üzere tasarlanmıştır. Sistem, işletmenin operasyonel verilerini (yakıt tüketimi, elektrik kullanımı vb.) işleyerek önce ton cinsinden CO₂ salınım profilini çıkarır, ardından bu çevresel etkiyi finansal bir değere dönüştürür.
+
+Bu dönüşüm, 5 Boyutlu Kazanım Modeli üzerinden gerçekleştirilir:
+
+Karbon Vergisi Tasarrufu: İşletmenin emisyonlarını azaltması sonucu, gelecekteki olası bir karbon vergisinden (gölge fiyatlama üzerinden) kurtardığı ve şirket kasasında kalan nakit akışı.
+
+Enerji Verimliliği: Yenilenebilir enerji yatırımları ve modernizasyon projeleri kaynaklı, operasyonel süreçlerdeki doğrudan elektrik ve yakıt tasarrufu.
+
+Yeşil Kredi Faiz Avantajı: İşletmenin EkoFin skorlaması sayesinde sürdürülebilirlik projeleri için bankalardan elde edeceği daha düşük finansman ve borçlanma maliyeti.
+
+Karbon Kredisi Gelirleri: Sertifikalandırılmış emisyon azaltımlarının, uluslararası gönüllü karbon pazarlarında (VCS, Gold Standard vb.) işlem görerek elde edeceği satış geliri.
+
+ESG Marka Değerleme Primi: Sürdürülebilirlik performansının artmasının, şirketin uzun vadeli değerlemesine ve pazar algısına (marka değerine) sağladığı kaldıraç etkisi.
+
+3. Teknolojik Altyapı ve Şeffaflık (Audit Trail)
+Model C'nin gücü, sunduğu finansal çıktıların doğrulanabilir ve şeffaf teknolojik altyapısına dayanmaktadır.
+
+Yapay Zekâ ve Deterministik Motor Entegrasyonu: İşletmeler tarafından sisteme serbest metin veya karmaşık formatlarda girilen veriler, Büyük Dil Modelleri (LLM - Gemini/GPT) vasıtasıyla anlamlandırılarak yapılandırılmış aktivitelere dönüştürülür. Ancak nihai finansal hesaplamalar, LLM halüsinasyonlarını engellemek adına tamamen şeffaf, uluslararası standartlara (AB ETS, TEİAŞ tarifeleri, VCS) dayalı deterministik matematik motorlarıyla yapılır.
+
+Denetim İzi (Audit Trail): Sistem tarafından hesaplanan yatırımın geri dönüş süresi (Payback Years) ve net finansal faydanın içindeki her bir kuruşun arkasındaki katsayı, kaynak ve formül şeffaf bir şekilde raporlanır. Bu özellik, hem bankadaki kredi yöneticilerine hem de şirketin finans direktörlerine, sonuçların "kara kutu" olmadığı, tek tıkla uluslararası standartlara dayandırılabildiği doğrulanabilir bir karne sunar.
+
+4. Sonuç ve Değerlendirme
+EkoFin Model C, yeşil yatırımları değerlendirme paradigmasını değiştirmektedir. Sürdürülebilirlik yatırımlarının sadece doğaya değil, şirketin bilançosuna olan tüm katkılarını tek bir çatı altında birleştiren G-ROI sistemi; net, kanıtlanabilir ve veriye dayalı çıktılarıyla yatırım kararlarını hızlandırmaktadır. Model C, yeşil dönüşümü bir mevzuat zorunluluğu veya çevresel duyarlılık konusu olmaktan çıkarıp, şirketler için rekabet avantajı sağlayan kârlı bir stratejik hamleye dönüştürmektedir.

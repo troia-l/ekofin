@@ -1,0 +1,6 @@
+promblemin özü şu tsrs rapor şirketleri raporları yamzması ve danışmanlık süreçleri çok fazla efora ve maliyete neden olmaktadır. 
+bu maliyetlerleri üretken yapay zeka ile düşüren bir projemiz var. 
+
+bu proje kobilerin tüm yeşil ihtiyaçlarını çözmeyi hedefleyen bir kapsamlı bir sistem.
+kobi şirketinin verileri alınarak hem dinamik esg ile şirket turumunu anlık olarak görebilir.
+dönemlik olarak sürdürülebilirlik raporlarını çıkarabilir.
