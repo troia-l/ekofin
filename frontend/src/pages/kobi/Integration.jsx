@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, Link2, ShieldAlert, FileText, Leaf, AlertTriangle, Sparkles } from 'lucide-react';
+import { UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, Link2, ShieldAlert, FileText, Leaf, AlertTriangle, Sparkles, Trash2, X } from 'lucide-react';
 import ManagerDeclarationDashboard from '../../components/ManagerDeclarationDashboard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -27,6 +27,10 @@ const DOC_DEFINITIONS = [
 ];
 
 const Integration = () => {
+  const { currentUser } = useOutletContext() || {};
+  const ticker = currentUser?.companyTicker || null;
+  const withTicker = (url) => ticker ? `${url}${url.includes('?') ? '&' : '?'}ticker=${encodeURIComponent(ticker)}` : url;
+
   const [isHoveringDrop, setIsHoveringDrop] = useState(false);
   const [showDeclarationDashboard, setShowDeclarationDashboard] = useState(false);
   const [initialDashboardMode, setInitialDashboardMode] = useState('wizard');
@@ -44,7 +48,7 @@ const Integration = () => {
   const pollingRef = useRef(null);
   const navigate = useNavigate();
 
-  // Sayfa açıldığında API'den veri çek
+  // Sayfa açıldığında (ve hangi şirket olarak giriş yapıldığı belli olunca) API'den veri çek
   useEffect(() => {
     fetchDocStatuses();
     fetchDeclaration();
@@ -54,11 +58,11 @@ const Integration = () => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
-  }, []);
+  }, [ticker]);
 
   const checkLatestReport = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/report/latest`);
+      const res = await fetch(withTicker(`${API_URL}/api/report/latest`));
       if (res.ok) {
         const data = await res.json();
         setIsLatestReportFound(data.status === 'found');
@@ -68,7 +72,7 @@ const Integration = () => {
 
   const fetchReportStatus = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/report/status`);
+      const res = await fetch(withTicker(`${API_URL}/api/report/status`));
       if (res.ok) {
         const data = await res.json();
         setReportStatus(data);
@@ -85,7 +89,7 @@ const Integration = () => {
     if (pollingRef.current) return;
     pollingRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`${API_URL}/api/report/status`);
+        const res = await fetch(withTicker(`${API_URL}/api/report/status`));
         if (res.ok) {
           const data = await res.json();
           setReportStatus(data);
@@ -114,7 +118,7 @@ const Integration = () => {
 
   const fetchDocStatuses = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/documents/status`);
+      const res = await fetch(withTicker(`${API_URL}/api/documents/status`));
       if (res.ok) {
         const data = await res.json();
         setDocStatuses(data.documents || {});
@@ -124,17 +128,18 @@ const Integration = () => {
 
   const fetchDeclaration = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/declaration`);
+      const res = await fetch(withTicker(`${API_URL}/api/declaration`));
       if (res.ok) {
         const data = await res.json();
         if (data.status === 'found') setDeclarationData(data.data);
+        else setDeclarationData(null);
       }
     } catch (e) { console.error('Anket verisi alınamadı:', e); }
   };
 
   const fetchRecentUploads = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/documents/list`);
+      const res = await fetch(withTicker(`${API_URL}/api/documents/list`));
       if (res.ok) {
         const data = await res.json();
         setRecentUploads(data.uploads || []);
@@ -143,12 +148,13 @@ const Integration = () => {
   };
 
   const handleFileUpload = async (file, docType) => {
-    if (!file) return;
+    if (!file || !docType) return;
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('doc_type', docType);
+      if (ticker) formData.append('ticker', ticker);
       const res = await fetch(`${API_URL}/api/documents/upload`, { method: 'POST', body: formData });
       if (!res.ok) throw new Error('Yükleme hatası');
       await fetchDocStatuses();
@@ -161,9 +167,50 @@ const Integration = () => {
     }
   };
 
+  const [deletingDocType, setDeletingDocType] = useState(null);
+
+  const handleDeleteDocument = async (docType) => {
+    if (!docType || !window.confirm('Bu belgeyi kaldırmak istediğinize emin misiniz? Yeniden yüklemeniz gerekecek.')) return;
+    setDeletingDocType(docType);
+    try {
+      const res = await fetch(withTicker(`${API_URL}/api/documents/${docType}`), { method: 'DELETE' });
+      if (!res.ok) throw new Error('Belge kaldırılamadı');
+      await fetchDocStatuses();
+      await fetchRecentUploads();
+    } catch (e) {
+      console.error('Belge kaldırılamadı:', e);
+      alert('Belge kaldırma hatası: ' + e.message);
+    } finally {
+      setDeletingDocType(null);
+    }
+  };
+
+  const handleDeleteUploadLogEntry = async (index) => {
+    try {
+      const res = await fetch(withTicker(`${API_URL}/api/documents/list/${index}`), { method: 'DELETE' });
+      if (!res.ok) throw new Error('Kayıt kaldırılamadı');
+      await fetchRecentUploads();
+    } catch (e) {
+      console.error('Yükleme kaydı kaldırılamadı:', e);
+    }
+  };
+
+  const handleDeleteDeclaration = async () => {
+    if (!window.confirm('Yönetici beyanını kaldırmak istediğinize emin misiniz?')) return;
+    try {
+      const res = await fetch(withTicker(`${API_URL}/api/declaration`), { method: 'DELETE' });
+      if (!res.ok) throw new Error('Beyan kaldırılamadı');
+      setDeclarationData(null);
+      await fetchDocStatuses();
+    } catch (e) {
+      console.error('Beyan kaldırılamadı:', e);
+      alert('Beyan kaldırma hatası: ' + e.message);
+    }
+  };
+
   const handleDeclarationSubmit = async (data) => {
     try {
-      const res = await fetch(`${API_URL}/api/declaration`, {
+      const res = await fetch(withTicker(`${API_URL}/api/declaration`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -510,8 +557,17 @@ const Integration = () => {
                           <FileSpreadsheet size={18} color="var(--primary-midnight)" />
                           <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--primary-midnight)' }}>{upload.filename}</span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: upload.status === 'processed' ? 'var(--accent-emerald)' : 'var(--warning)', fontWeight: 600 }}>
-                          <Check size={14} /> {upload.status === 'processed' ? 'İşlendi' : 'Bekliyor'}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: upload.status === 'processed' ? 'var(--accent-emerald)' : 'var(--warning)', fontWeight: 600 }}>
+                            <Check size={14} /> {upload.status === 'processed' ? 'İşlendi' : 'Bekliyor'}
+                          </div>
+                          <button
+                            onClick={() => handleDeleteUploadLogEntry(idx)}
+                            title="Kaydı listeden kaldır"
+                            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-light)', display: 'flex', padding: 0 }}
+                          >
+                            <X size={15} />
+                          </button>
                         </div>
                       </div>
                       <div style={{ height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
@@ -645,8 +701,25 @@ const Integration = () => {
                   
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
                     {doc.status === 'verified' && (
-                      <div className="flex items-center gap-1" style={{ color: 'var(--accent-emerald-dark)', fontWeight: 700, fontSize: '12px' }}>
-                        <CheckCircle2 size={14} /> ONAYLI
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div className="flex items-center gap-1" style={{ color: 'var(--accent-emerald-dark)', fontWeight: 700, fontSize: '12px' }}>
+                          <CheckCircle2 size={14} /> ONAYLI
+                        </div>
+                        <button
+                          onClick={() => { setActiveDocUpload(doc.docType); docFileInputRef.current?.click(); }}
+                          title="Belgeyi değiştir (yeniden yükle)"
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-light)', display: 'flex', padding: 0 }}
+                        >
+                          <RefreshCw size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteDocument(doc.docType)}
+                          disabled={deletingDocType === doc.docType}
+                          title="Belgeyi kaldır"
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#EF4444', display: 'flex', padding: 0 }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     )}
                     {doc.status === 'verified_decl' && (
@@ -654,15 +727,22 @@ const Integration = () => {
                         <div className="flex items-center gap-1" style={{ color: 'var(--accent-emerald-dark)', fontWeight: 700, fontSize: '12px' }}>
                           <CheckCircle2 size={14} /> GÖNDERİLDİ
                         </div>
-                        <button 
+                        <button
                           onClick={() => {
                             setInitialDashboardMode('wizard');
                             setShowDeclarationDashboard(true);
                           }}
-                          className="btn-outline" 
+                          className="btn-outline"
                           style={{ padding: '4px 10px', fontSize: '11px', borderRadius: '6px', height: 'auto', border: '1px solid var(--accent-emerald)', cursor: 'pointer' }}
                         >
                           Düzenle
+                        </button>
+                        <button
+                          onClick={handleDeleteDeclaration}
+                          title="Beyanı kaldır"
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#EF4444', display: 'flex', padding: 0 }}
+                        >
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     )}
@@ -691,10 +771,7 @@ const Integration = () => {
                       </div>
                     )}
                     {doc.status === 'upload' && (
-                      <>
-                        <input ref={docFileInputRef} type="file" accept=".pdf,.md,.json,.xml,.zip,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0] && activeDocUpload) handleFileUpload(e.target.files[0], activeDocUpload); setActiveDocUpload(null); }} />
-                        <button className="btn-outline" style={{ padding: '6px 16px', fontSize: '12px', borderRadius: '8px', cursor: 'pointer' }} disabled={uploading} onClick={() => { setActiveDocUpload(doc.docType); docFileInputRef.current?.click(); }}>{uploading ? '...' : 'Yükle'}</button>
-                      </>
+                      <button className="btn-outline" style={{ padding: '6px 16px', fontSize: '12px', borderRadius: '8px', cursor: 'pointer' }} disabled={uploading} onClick={() => { setActiveDocUpload(doc.docType); docFileInputRef.current?.click(); }}>{uploading ? '...' : 'Yükle'}</button>
                     )}
                     
                     {doc.status !== 'upload' && doc.status !== 'fill_decl' && doc.status !== 'verified_decl' && (
@@ -717,6 +794,22 @@ const Integration = () => {
         </div>
       </div>
 
+      {/* Yasal Beyanlar listesindeki tüm "Yükle" butonları bu TEK gizli input'u
+          paylaşır (activeDocUpload state'i hangi belge türü olduğunu taşır).
+          Önceden bu input .map() içinde tekrar tekrar render ediliyordu ve
+          docFileInputRef sadece SONUNCUSUNA bağlanıyordu — bu yüzden bazı
+          butonlar hiç çalışmıyor gibi görünüyordu. */}
+      <input
+        ref={docFileInputRef}
+        type="file"
+        accept=".pdf,.md,.json,.xml,.zip,.jpg,.jpeg,.png"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          if (e.target.files[0] && activeDocUpload) handleFileUpload(e.target.files[0], activeDocUpload);
+          setActiveDocUpload(null);
+          e.target.value = '';
+        }}
+      />
     </motion.div>
   );
 };

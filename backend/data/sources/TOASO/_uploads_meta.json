@@ -1,0 +1,19 @@
+{
+  "documents": {
+    "sgk": {
+      "status": "verified",
+      "original_filename": "faturalar.md",
+      "target_filename": "sgk_listesi.md",
+      "uploaded_at": "2026-07-29T15:15:48.176810",
+      "size_bytes": 1101
+    }
+  },
+  "uploads": [
+    {
+      "filename": "faturalar.md",
+      "doc_type": "sgk",
+      "uploaded_at": "2026-07-29T15:15:48.176839",
+      "status": "processed"
+    }
+  ]
+}

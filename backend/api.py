@@ -20,10 +20,14 @@ from config import (
     BASE_DIR, SOURCES_DIR, REPORT_OUTPUT_PATH, DECLARATION_PATH,
     UPLOADS_META_PATH, DOCUMENT_TYPE_MAP, EKLENEN_VERILER_PATH,
     OUTPUT_DIR, CREDITS_PATH, CROWDFUNDING_PATH, ESG_COMPANIES_PATH,
-    ESG_FEEDBACK_PATH, PUBLIC_AUDITS_PATH,
+    get_company_sources_dir, get_company_declaration_path,
+    get_company_uploads_meta_path, get_company_report_path,
+    get_company_eklenen_veriler_path,
 )
+import database as db
 
 load_dotenv(dotenv_path=BASE_DIR / ".env")
+db.init_db()
 
 # ─── Modül İmportları ────────────────────────────────────────────────────────
 from modules.carbon.extractor import extract_activities
@@ -32,6 +36,8 @@ from modules.carbon.roi import calculate_groi, ROIRequest, calculate_green_credi
 
 # ESG modeli lazy-load edilecek (pkl dosyaları büyük olabilir)
 _esg_predictor = None
+_nlp_analyzer = None
+_news_fetcher = None
 
 def _get_esg_predictor():
     global _esg_predictor
@@ -43,6 +49,61 @@ def _get_esg_predictor():
             print(f"[UYARI] ESG modeli yüklenemedi: {e}")
             raise
     return _esg_predictor
+
+def _get_nlp_analyzer():
+    global _nlp_analyzer
+    if _nlp_analyzer is None:
+        try:
+            from modules.esg_prediction.nlp_analyzer import ESGCommentAnalyzer
+            _nlp_analyzer = ESGCommentAnalyzer()
+        except Exception as e:
+            print(f"[UYARI] NLP Analizör yüklenemedi: {e}")
+            raise
+    return _nlp_analyzer
+
+def _get_news_fetcher():
+    global _news_fetcher
+    if _news_fetcher is None:
+        from modules.esg_prediction.news_fetcher import NewsFetcher
+        _news_fetcher = NewsFetcher()
+    return _news_fetcher
+
+NEWS_REFRESH_INTERVAL_HOURS = 6
+
+def _fetch_and_store_news(ticker: str, company_name: str) -> int:
+    """RSS'ten ham haberleri çeker, yalnızca DB'de henüz olmayanları (dedup by URL)
+    NLP'den geçirip kaydeder. Zaten var olan haberleri tekrar analiz etmez.
+    Yeni haber başlıkları TEK bir LLM çağrısında toplu (batch) analiz edilir —
+    seri/paralel per-item analiz her haber için ayrı kota tüketiyordu (8 haber = 8 çağrı);
+    bu yaklaşım aynı işi 1 çağrıya indirir."""
+    fetcher = _get_news_fetcher()
+    raw_items = fetcher.fetch_for_company(ticker, company_name)
+    existing_urls = db.get_existing_news_urls(ticker)
+    new_items = [it for it in raw_items if it["url"] not in existing_urls]
+
+    if new_items:
+        analyzer = _get_nlp_analyzer()
+        nlp_results = analyzer.analyze_batch([it["title"] for it in new_items])
+        for item, nlp_result in zip(new_items, nlp_results):
+            item["nlp"] = nlp_result
+
+    return db.add_news_items(new_items), len(raw_items)
+
+def _ensure_fresh_news(ticker: str, company_name: str):
+    """Haber önbelleği NEWS_REFRESH_INTERVAL_HOURS'tan eskiyse Google News RSS'ten yeniler.
+    Ağ hatası olursa sessizce mevcut önbelleği kullanmaya devam eder (uygulamayı bloklamaz)."""
+    last_fetch = db.get_last_news_fetch(ticker)
+    if last_fetch:
+        try:
+            last_dt = datetime.strptime(last_fetch, "%Y-%m-%d %H:%M:%S")
+            if (datetime.now() - last_dt).total_seconds() < NEWS_REFRESH_INTERVAL_HOURS * 3600:
+                return
+        except ValueError:
+            pass
+    try:
+        _fetch_and_store_news(ticker, company_name)
+    except Exception as e:
+        print(f"[UYARI] {ticker} için haber güncellenemedi: {e}")
 
 
 # ─── FastAPI Uygulaması ──────────────────────────────────────────────────────
@@ -65,18 +126,20 @@ calculator = CarbonCalculator()
 
 # ─── Yardımcı Fonksiyonlar ───────────────────────────────────────────────────
 
-def _load_uploads_meta() -> dict:
-    """Yüklenen belgelerin meta bilgilerini yükle."""
-    if UPLOADS_META_PATH.exists():
-        with open(UPLOADS_META_PATH, "r", encoding="utf-8") as f:
+def _load_uploads_meta(ticker: Optional[str] = None) -> dict:
+    """Yüklenen belgelerin meta bilgilerini şirkete (ticker) özel dosyadan yükle."""
+    path = get_company_uploads_meta_path(ticker)
+    if path.exists():
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     return {"documents": {}, "uploads": []}
 
 
-def _save_uploads_meta(meta: dict):
-    """Meta bilgilerini kaydet."""
-    UPLOADS_META_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(UPLOADS_META_PATH, "w", encoding="utf-8") as f:
+def _save_uploads_meta(meta: dict, ticker: Optional[str] = None):
+    """Meta bilgilerini şirkete özel dosyaya kaydet."""
+    path = get_company_uploads_meta_path(ticker)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
 
@@ -131,7 +194,23 @@ class CalculationRequest(BaseModel):
 
 
 # ─── Global State ────────────────────────────────────────────────────────────
-_report_status: ReportStatus = ReportStatus(status="idle", progress=0, message="")
+# Şirket başına ayrı rapor üretim durumu (aksi halde bir şirketin raporu
+# üretilirken diğer şirketin ekranında da "üretiliyor" görünürdü).
+_report_status_by_ticker: dict = {}
+
+
+def _report_key(ticker: Optional[str]) -> str:
+    return (ticker or "DEFAULT").strip().upper() or "DEFAULT"
+
+
+def _get_report_status(ticker: Optional[str]) -> ReportStatus:
+    return _report_status_by_ticker.setdefault(
+        _report_key(ticker), ReportStatus(status="idle", progress=0, message="")
+    )
+
+
+def _set_report_status(ticker: Optional[str], status: ReportStatus):
+    _report_status_by_ticker[_report_key(ticker)] = status
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -290,13 +369,14 @@ def get_esg_companies():
         raise HTTPException(status_code=404, detail="ESG tahmin veritabanı (esg_tahmin.csv) bulunamadı.")
         
     companies = []
+    today_str = datetime.now().strftime("%Y-%m-%d")
     try:
         with open(csv_path, mode="r", encoding="utf-8") as f:
             reader = csv.reader(f)
             header = next(reader)
             # Tarihler 1. kolondan sonrasıdır.
             dates = header[1:]
-            
+
             for row in reader:
                 if not row:
                     continue
@@ -304,15 +384,32 @@ def get_esg_companies():
                 # En son tahmin edilen skor satırın son değeridir.
                 raw_score = float(row[-1])
                 score_out_of_10 = round(raw_score / 10.0, 1)
-                
-                # Dinamik risk seviyesi belirleme
-                if raw_score >= 80:
+
+                # Toplumsal (yorum + doğrulanmış ihbar + haber) modülasyonu decay ağırlıklı hesapla
+                # Not: haber önbelleği burada ağ çağrısı yapmaz (liste isteği yavaşlamasın diye);
+                # tazeleme yalnızca /api/esg/news/{ticker} detay görüntülemesinde tetiklenir.
+                feedback_mod = db.compute_feedback_modulation(ticker)
+                audit_mod = db.compute_audit_modulation(ticker)
+                news_mod = db.compute_news_modulation(ticker)
+
+                # Bugünün snapshot'ı yoksa yaz (günlük skor geçmişi için idempotent)
+                snapshot = db.upsert_score_snapshot(ticker, today_str, score_out_of_10, feedback_mod, audit_mod, news_mod)
+                dynamic_score = snapshot["score"]
+                total_modulation = round(feedback_mod + audit_mod + news_mod, 2)
+
+                # 7 gün önceki skora göre gerçek artış/azalış delta'sı
+                week_ago = db.get_snapshot_n_days_ago(ticker, 7)
+                delta_7d = round(dynamic_score - week_ago["score"], 2) if week_ago else 0.0
+
+                # Dinamik risk seviyesi belirleme (dinamik skora göre)
+                dynamic_raw_score = dynamic_score * 10.0
+                if dynamic_raw_score >= 80:
                     risk_level = "Düşük"
-                elif raw_score >= 50:
+                elif dynamic_raw_score >= 50:
                     risk_level = "Orta"
                 else:
                     risk_level = "Yüksek"
-                    
+
                 # Eşlemelerden detaylar alınır
                 details = COMPANY_DETAILS.get(ticker, {
                     "name": f"{ticker} Ticaret A.Ş.",
@@ -320,8 +417,8 @@ def get_esg_companies():
                     "domain": "",
                     "verified": ["Yıllık ESG raporlama uyumu", "Çevresel beyanlar doğrulanmıştır"]
                 })
-                
-                # Grafik için skor geçmişi serisi
+
+                # Grafik için geçmiş tahmin serisi (CSV) + gerçek günlük skor geçmişi (SQLite)
                 score_history = []
                 for i, date in enumerate(dates):
                     try:
@@ -331,44 +428,55 @@ def get_esg_companies():
                         })
                     except:
                         pass
-                
+
+                daily_history = db.get_score_history(ticker)
+                score_history.extend(daily_history)
+
                 companies.append({
                     "ticker": ticker,
                     "name": details["name"],
                     "sector": details["sector"],
                     "domain": details["domain"],
-                    "score": score_out_of_10,
+                    "score": dynamic_score,
+                    "baseScore": score_out_of_10,
+                    "modulation": total_modulation,
+                    "delta7d": delta_7d,
                     "riskLevel": risk_level,
                     "coverImage": get_cover_image(details["sector"]),
-                    "aiInsights": generate_ai_insights(ticker, details["name"], score_out_of_10),
+                    "aiInsights": generate_ai_insights(ticker, details["name"], dynamic_score),
                     "verifiedPoints": details["verified"],
                     "scoreHistory": score_history
                 })
     except Exception as e:
         print(f"[HATA] esg_tahmin.csv okunurken hata oluştu: {e}")
         raise HTTPException(status_code=500, detail=f"CSV dosyası okunamadı: {str(e)}")
-        
+
+
     return companies
 
 
 # ── Dashboard ────────────────────────────────────────────────────────────────
 
 @app.get("/api/dashboard/summary")
-def dashboard_summary():
-    """Dashboard için özet metrikleri döndür."""
-    meta = _load_uploads_meta()
+def dashboard_summary(ticker: Optional[str] = None):
+    """Dashboard için özet metrikleri döndür (şirkete özel)."""
+    meta = _load_uploads_meta(ticker)
     docs = meta.get("documents", {})
 
+    declaration_path = get_company_declaration_path(ticker)
+    report_path = get_company_report_path(ticker)
+    eklenen_path = get_company_eklenen_veriler_path(ticker)
+
     total_docs = len([d for d in docs.values() if d.get("status") == "verified"])
-    declaration_exists = DECLARATION_PATH.exists()
-    report_exists = REPORT_OUTPUT_PATH.exists()
+    declaration_exists = declaration_path.exists()
+    report_exists = report_path.exists()
     report_hash = ""
     if report_exists:
-        report_hash = _compute_file_hash(REPORT_OUTPUT_PATH)
+        report_hash = _compute_file_hash(report_path)
 
     eklenen_content = ""
-    if EKLENEN_VERILER_PATH.exists():
-        with open(EKLENEN_VERILER_PATH, "r", encoding="utf-8") as f:
+    if eklenen_path.exists():
+        with open(eklenen_path, "r", encoding="utf-8") as f:
             eklenen_content = f.read()
 
     return {
@@ -387,8 +495,9 @@ def dashboard_summary():
 async def upload_document(
     file: UploadFile = File(...),
     doc_type: str = Form(...),
+    ticker: Optional[str] = Form(None),
 ):
-    """Belge yükle ve sources dizinine kaydet."""
+    """Belge yükle ve şirkete özel sources dizinine kaydet."""
     if doc_type not in DOCUMENT_TYPE_MAP:
         raise HTTPException(
             status_code=400,
@@ -396,14 +505,14 @@ async def upload_document(
         )
 
     target_filename = DOCUMENT_TYPE_MAP[doc_type]
-    target_path = SOURCES_DIR / target_filename
+    company_sources_dir = get_company_sources_dir(ticker)
+    target_path = company_sources_dir / target_filename
 
-    SOURCES_DIR.mkdir(parents=True, exist_ok=True)
     content = await file.read()
     with open(target_path, "wb") as f:
         f.write(content)
 
-    meta = _load_uploads_meta()
+    meta = _load_uploads_meta(ticker)
     meta["documents"][doc_type] = {
         "status": "verified",
         "original_filename": file.filename,
@@ -418,7 +527,7 @@ async def upload_document(
         "status": "processed",
     })
     meta["uploads"] = meta["uploads"][:20]
-    _save_uploads_meta(meta)
+    _save_uploads_meta(meta, ticker)
 
     return {
         "status": "success",
@@ -429,19 +538,19 @@ async def upload_document(
 
 
 @app.get("/api/documents/list")
-def list_uploads():
-    """Son yüklenen dosyaların listesini döndür."""
-    meta = _load_uploads_meta()
+def list_uploads(ticker: Optional[str] = None):
+    """Son yüklenen dosyaların listesini (şirkete özel) döndür."""
+    meta = _load_uploads_meta(ticker)
     return {"uploads": meta.get("uploads", [])}
 
 
 @app.get("/api/documents/status")
-def documents_status():
-    """Her belge türünün durumunu döndür."""
-    meta = _load_uploads_meta()
+def documents_status(ticker: Optional[str] = None):
+    """Her belge türünün (şirkete özel) durumunu döndür."""
+    meta = _load_uploads_meta(ticker)
     docs = meta.get("documents", {})
 
-    declaration_status = "verified" if DECLARATION_PATH.exists() else "not_uploaded"
+    declaration_status = "verified" if get_company_declaration_path(ticker).exists() else "not_uploaded"
 
     statuses = {}
     for doc_type, target_file in DOCUMENT_TYPE_MAP.items():
@@ -455,54 +564,96 @@ def documents_status():
     return {"documents": statuses}
 
 
+@app.delete("/api/documents/{doc_type}")
+def delete_document(doc_type: str, ticker: Optional[str] = None):
+    """Yüklenen bir belgeyi (fiziksel dosya + meta kaydı) kaldırır — yeniden
+    yüklenebilmesi için durumu 'not_uploaded'a döner."""
+    if doc_type not in DOCUMENT_TYPE_MAP:
+        raise HTTPException(status_code=400, detail=f"Geçersiz belge türü: {doc_type}")
+
+    company_sources_dir = get_company_sources_dir(ticker)
+    target_path = company_sources_dir / DOCUMENT_TYPE_MAP[doc_type]
+    if target_path.exists():
+        target_path.unlink()
+
+    meta = _load_uploads_meta(ticker)
+    removed = meta["documents"].pop(doc_type, None)
+    if removed is None:
+        raise HTTPException(status_code=404, detail="Bu belge türü için yüklenmiş bir kayıt yok.")
+    _save_uploads_meta(meta, ticker)
+
+    return {"status": "success", "message": f"{doc_type} belgesi kaldırıldı."}
+
+
+@app.delete("/api/documents/list/{upload_index}")
+def delete_upload_log_entry(upload_index: int, ticker: Optional[str] = None):
+    """'Son Yüklenen Paketler' listesindeki tek bir kaydı (sadece log girişini) kaldırır."""
+    meta = _load_uploads_meta(ticker)
+    uploads = meta.get("uploads", [])
+    if upload_index < 0 or upload_index >= len(uploads):
+        raise HTTPException(status_code=404, detail="Yükleme kaydı bulunamadı.")
+    removed = uploads.pop(upload_index)
+    meta["uploads"] = uploads
+    _save_uploads_meta(meta, ticker)
+    return {"status": "success", "removed": removed}
+
+
 # ── Yönetici Anketi ──────────────────────────────────────────────────────────
 
 @app.post("/api/declaration")
-def save_declaration(data: DeclarationData):
-    """Yönetici Anketi verisini JSON olarak kaydet."""
-    SOURCES_DIR.mkdir(parents=True, exist_ok=True)
+def save_declaration(data: DeclarationData, ticker: Optional[str] = None):
+    """Yönetici Anketi verisini şirkete özel JSON olarak kaydet."""
+    declaration_path = get_company_declaration_path(ticker)
     payload = data.model_dump(exclude_none=True)
     payload["submitted_at"] = datetime.now().isoformat()
 
-    with open(DECLARATION_PATH, "w", encoding="utf-8") as f:
+    with open(declaration_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
     return {
         "status": "success",
         "message": "Yönetici beyanı kaydedildi.",
-        "path": str(DECLARATION_PATH),
+        "path": str(declaration_path),
     }
 
 
 @app.get("/api/declaration")
-def get_declaration():
-    """Kayıtlı yönetici anketi verisini getir."""
-    if not DECLARATION_PATH.exists():
+def get_declaration(ticker: Optional[str] = None):
+    """Kayıtlı (şirkete özel) yönetici anketi verisini getir."""
+    declaration_path = get_company_declaration_path(ticker)
+    if not declaration_path.exists():
         return {"status": "not_found", "data": None}
-    with open(DECLARATION_PATH, "r", encoding="utf-8") as f:
+    with open(declaration_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     return {"status": "found", "data": data}
+
+
+@app.delete("/api/declaration")
+def delete_declaration(ticker: Optional[str] = None):
+    """Kayıtlı yönetici anketini kaldırır (yeniden doldurulabilmesi için)."""
+    declaration_path = get_company_declaration_path(ticker)
+    if not declaration_path.exists():
+        raise HTTPException(status_code=404, detail="Kayıtlı bir yönetici beyanı yok.")
+    declaration_path.unlink()
+    return {"status": "success", "message": "Yönetici beyanı kaldırıldı."}
 
 
 # ── TSRS Rapor Üretimi ───────────────────────────────────────────────────────
 
 @app.post("/api/report/generate")
-def generate_report():
-    """TSRS pipeline'ını doğrudan modül olarak çağırarak rapor üret."""
-    global _report_status
-
-    if _report_status.status == "generating":
+def generate_report(ticker: Optional[str] = None):
+    """TSRS pipeline'ını doğrudan modül olarak çağırarak (şirkete özel) rapor üret."""
+    if _get_report_status(ticker).status == "generating":
         raise HTTPException(status_code=409, detail="Rapor üretimi zaten devam ediyor.")
 
-    _report_status = ReportStatus(
+    _set_report_status(ticker, ReportStatus(
         status="generating", progress=10, message="Pipeline başlatılıyor..."
-    )
+    ))
 
     try:
         from modules.tsrs.pipeline import run_tsrs_pipeline
 
         def progress_cb(filename, current_step, total_steps):
-            global _report_status
             progress_pct = int(20 + (current_step / total_steps) * 75)
             section_titles = {
                 "bolum_00_baslik.md": "Kapak ve Başlık Bölümü",
@@ -517,85 +668,92 @@ def generate_report():
                 "bolum_09_dogrulama.md": "Güvence ve Doğrulama Beyanı"
             }
             title = section_titles.get(filename, filename)
-            _report_status = ReportStatus(
+            _set_report_status(ticker, ReportStatus(
                 status="generating",
                 progress=progress_pct,
                 message=f"{title} oluşturuluyor ({current_step}/{total_steps})..."
-            )
+            ))
 
-        _report_status.progress = 20
-        _report_status.message = "Pipeline çalıştırılıyor..."
+        _set_report_status(ticker, ReportStatus(
+            status="generating", progress=20, message="Pipeline çalıştırılıyor..."
+        ))
 
-        result = run_tsrs_pipeline(progress_callback=progress_cb)
+        result = run_tsrs_pipeline(
+            progress_callback=progress_cb,
+            sources_dir=get_company_sources_dir(ticker),
+            report_path=get_company_report_path(ticker),
+            eklenen_path=get_company_eklenen_veriler_path(ticker),
+        )
 
         if result["status"] == "error":
-            _report_status = ReportStatus(
+            _set_report_status(ticker, ReportStatus(
                 status="error",
                 progress=0,
                 message=f"Pipeline hatası: {result.get('error', 'Bilinmeyen hata')[:500]}",
-            )
+            ))
             raise HTTPException(
                 status_code=500,
                 detail=f"Pipeline hatası: {result.get('error', '')}",
             )
 
-        _report_status = ReportStatus(
+        _set_report_status(ticker, ReportStatus(
             status="completed", progress=100, message="Rapor başarıyla üretildi."
-        )
+        ))
 
+        report_path = get_company_report_path(ticker)
         return {
             "status": "success",
             "message": "TSRS raporu başarıyla üretildi.",
             "output_path": result.get("output_path"),
-            "hash": _compute_file_hash(REPORT_OUTPUT_PATH) if REPORT_OUTPUT_PATH.exists() else None,
+            "hash": _compute_file_hash(report_path) if report_path.exists() else None,
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        _report_status = ReportStatus(
-            status="error", progress=0, message=str(e)
-        )
+        _set_report_status(ticker, ReportStatus(status="error", progress=0, message=str(e)))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/report/latest")
-def get_latest_report():
-    """Son üretilen TSRS raporunun içeriğini döndür."""
-    if not REPORT_OUTPUT_PATH.exists():
+def get_latest_report(ticker: Optional[str] = None):
+    """Son üretilen (şirkete özel) TSRS raporunun içeriğini döndür."""
+    report_path = get_company_report_path(ticker)
+    if not report_path.exists():
         return {"status": "not_found", "content": None}
 
-    with open(REPORT_OUTPUT_PATH, "r", encoding="utf-8") as f:
+    with open(report_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     return {
         "status": "found",
         "content": content,
-        "hash": _compute_file_hash(REPORT_OUTPUT_PATH),
+        "hash": _compute_file_hash(report_path),
         "generated_at": datetime.fromtimestamp(
-            REPORT_OUTPUT_PATH.stat().st_mtime
+            report_path.stat().st_mtime
         ).isoformat(),
     }
 
 
 @app.get("/api/report/status")
-def report_status():
-    """Rapor üretim durumunu döndür."""
-    global _report_status
-    state = _report_status.model_dump()
-    if _report_status.status == "error":
+def report_status(ticker: Optional[str] = None):
+    """Rapor üretim durumunu (şirkete özel) döndür."""
+    current = _get_report_status(ticker)
+    state = current.model_dump()
+    if current.status == "error":
         # Hata durumunu bir kez döndürdükten sonra sıfırla (sayfa yenilenince temizlenmesi için)
-        _report_status = ReportStatus(status="idle", progress=0, message="")
+        _set_report_status(ticker, ReportStatus(status="idle", progress=0, message=""))
     return state
 
 
 @app.post("/api/report/verify")
-def verify_report(hash_to_verify: str = Form(...)):
-    """Rapor hash'ini doğrula."""
-    if not REPORT_OUTPUT_PATH.exists():
+def verify_report(hash_to_verify: str = Form(...), ticker: Optional[str] = Form(None)):
+    """Rapor hash'ini (şirkete özel) doğrula."""
+    report_path = get_company_report_path(ticker)
+    if not report_path.exists():
         raise HTTPException(status_code=404, detail="Rapor dosyası bulunamadı.")
 
-    actual_hash = _compute_file_hash(REPORT_OUTPUT_PATH)
+    actual_hash = _compute_file_hash(report_path)
     is_valid = actual_hash == hash_to_verify
 
     return {
@@ -709,149 +867,114 @@ class FeedbackSubmit(BaseModel):
     rating: int = Field(..., ge=1, le=5)
     comment: str
 
-def _load_feedback() -> dict:
-    if ESG_FEEDBACK_PATH.exists():
-        with open(ESG_FEEDBACK_PATH, "r", encoding="utf-8") as f:
-            try:
-                return json.load(f)
-            except Exception:
-                pass
-    # Varsayılan yorumları tohumlayalım (Seed)
-    default_feedback = {
-        "ASELS": [
-            {"userName": "Caner Demir", "rating": 5, "comment": "Çevresel yönetim sistemleri ve yüksek enerji verimliliği yatırımları çok başarılı.", "date": "2026-06-20 14:30:12"},
-            {"userName": "Merve Yılmaz", "rating": 4, "comment": "Yönetişim alanındaki raporlamaları son derece şeffaf ve anlaşılır buldum.", "date": "2026-06-18 10:15:45"}
-        ],
-        "ZOREN": [
-            {"userName": "Kaan Aydın", "rating": 5, "comment": "Yenilenebilir rüzgar ve jeotermal enerjideki öncülüğünü destekliyorum. Elektrikli araç şarj ağı (ZES) harika bir yatırım.", "date": "2026-06-23 16:40:22"}
-        ],
-        "THYAO": [
-            {"userName": "Burak Kaya", "rating": 4, "comment": "Filo gençleştirme ve sürdürülebilir uçak yakıtı (SAF) kullanımı olumlu adımlar.", "date": "2026-06-22 11:22:10"}
-        ]
-    }
-    _save_feedback(default_feedback)
-    return default_feedback
-
-def _save_feedback(feedback_data: dict):
-    ESG_FEEDBACK_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(ESG_FEEDBACK_PATH, "w", encoding="utf-8") as f:
-        json.dump(feedback_data, f, ensure_ascii=False, indent=2)
+def _run_nlp(comment: str) -> dict:
+    try:
+        analyzer = _get_nlp_analyzer()
+        return analyzer.analyze(comment)
+    except Exception as e:
+        print(f"[UYARI] NLP analizör çalıştırılamadı: {e}")
+        return {
+            "sentiment": "Nötr",
+            "pillar": "Environmental",
+            "impact_score": 0.0,
+            "explanation": "Analiz sırasında teknik bir hata oluştu."
+        }
 
 @app.get("/api/esg/feedback/{ticker}")
 def get_company_feedback(ticker: str):
     """Belirli bir şirket için yapılan geri bildirimleri getir."""
-    feedback = _load_feedback()
-    return feedback.get(ticker.upper(), [])
+    return db.list_feedback(ticker)
 
 @app.post("/api/esg/feedback/{ticker}")
 def add_company_feedback(ticker: str, data: FeedbackSubmit):
-    """Belirli bir şirket için geri bildirim ekle."""
-    ticker_key = ticker.upper()
-    feedback = _load_feedback()
-    
-    if ticker_key not in feedback:
-        feedback[ticker_key] = []
-        
-    new_item = {
-        "userName": data.userName.strip(),
-        "rating": data.rating,
-        "comment": data.comment.strip(),
-        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    
-    # En yeni geri bildirimi başa ekleyelim
-    feedback[ticker_key].insert(0, new_item)
-    _save_feedback(feedback)
-    
+    """Belirli bir şirket için geri bildirim ekle (NLP analizinden geçirilip skor modülasyonuna dahil edilir)."""
+    nlp_result = _run_nlp(data.comment)
+    new_item = db.add_feedback(ticker, data.userName.strip(), data.rating, data.comment.strip(), nlp_result)
     return {"status": "success", "message": "Geri bildirim başarıyla kaydedildi.", "feedback": new_item}
+
+
+@app.get("/api/esg/score-history/{ticker}")
+def get_company_score_history(ticker: str):
+    """Şirketin gerçek tarihli günlük ESG skor geçmişini ve son 7/30 gün delta'sını döndürür."""
+    history = db.get_score_history(ticker)
+    latest = db.get_latest_snapshot(ticker)
+    week_ago = db.get_snapshot_n_days_ago(ticker, 7)
+    month_ago = db.get_snapshot_n_days_ago(ticker, 30)
+    return {
+        "ticker": ticker.upper(),
+        "history": history,
+        "current": latest,
+        "delta7d": round(latest["score"] - week_ago["score"], 2) if (latest and week_ago) else 0.0,
+        "delta30d": round(latest["score"] - month_ago["score"], 2) if (latest and month_ago) else 0.0,
+    }
+
+
+def _company_name(ticker: str) -> str:
+    details = COMPANY_DETAILS.get(ticker.upper())
+    return details["name"] if details else ticker.upper()
+
+
+@app.get("/api/esg/news/{ticker}")
+def get_company_news(ticker: str):
+    """Şirketle ilgili güvenilir kaynaklardan (Google News RSS, whitelist filtreli) çekilen
+    haberleri, her birinin NLP analizi ve ESG skor etkisiyle birlikte döner. Önbellek
+    NEWS_REFRESH_INTERVAL_HOURS'tan eskiyse otomatik tazelenir."""
+    _ensure_fresh_news(ticker, _company_name(ticker))
+    return db.list_news(ticker)
+
+
+@app.post("/api/esg/news/{ticker}/refresh")
+def refresh_company_news(ticker: str):
+    """Haber önbelleğini yaş sınırını yok sayarak zorla yeniler (manuel tetikleme).
+    Sadece yeni (henüz kayıtlı olmayan) haberler analiz edilir."""
+    try:
+        added, fetched = _fetch_and_store_news(ticker, _company_name(ticker))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Haber servisi şu anda ulaşılamıyor: {e}")
+    return {"status": "success", "fetched": fetched, "added": added, "news": db.list_news(ticker)}
 
 
 # ── Toplumsal Denetim (Public Audit) Entegrasyonu ─────────────────────────────
 
 class AuditSubmit(BaseModel):
+    ticker: Optional[str] = None
     company: str
     category: str
     description: str
 
-def _load_audits() -> list:
-    if PUBLIC_AUDITS_PATH.exists():
-        with open(PUBLIC_AUDITS_PATH, "r", encoding="utf-8") as f:
-            try:
-                return json.load(f)
-            except Exception:
-                pass
-    # Varsayılan bildirimleri tohumlayalım (Seed)
-    default_audits = [
-        {
-            "company": "Global Çimento Sanayi A.Ş.",
-            "category": "Hava Kirliliği / Yalan Beyan",
-            "date": "Bugün, 14:30",
-            "description": "Şirket ESG raporunda %100 filtreleme kullandığını iddia ediyor ama gece 02:00-04:00 arası filtreleri kapatarak yoğun kül ve duman salınımı yapıyorlar. Bölge halkı olarak çektiğimiz videoları sisteme yükledik.",
-            "upvotes": 842,
-            "status": "İnceleniyor"
-        },
-        {
-            "company": "EcoLogi Kargo Lojistik A.Ş.",
-            "category": "Yeşil Aklama (Greenwashing)",
-            "date": "Dün, 09:15",
-            "description": "Reklamlarında tüm filolarının elektrikli olduğu söyleniyor ancak depolarında hala eski model dizel araçlar aktif çalışıyor. Araç plakalarını ve depo giriş çıkışlarını belgeledim.",
-            "upvotes": 523,
-            "status": "Doğrulandı - Skor Düşürüldü"
-        },
-        {
-            "company": "Mavi Su Tekstil A.Ş.",
-            "category": "Atık Su Deşarjı",
-            "date": "12 Şubat 2026",
-            "description": "Arıtma tesisi gündüzleri çalışır gösterilirken gece nehre boyalı ve köpüklü kimyasal atık su deşarj ediliyor. Numune sonuçları ektedir.",
-            "upvotes": 1205,
-            "status": "Doğrulandı - Acil Bildirim"
-        }
-    ]
-    _save_audits(default_audits)
-    return default_audits
-
-def _save_audits(audits_data: list):
-    PUBLIC_AUDITS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(PUBLIC_AUDITS_PATH, "w", encoding="utf-8") as f:
-        json.dump(audits_data, f, ensure_ascii=False, indent=2)
+class AuditStatusUpdate(BaseModel):
+    status: str
 
 @app.get("/api/public-audits")
-def get_public_audits():
-    """Tüm toplumsal denetim ihbarlarını getir."""
-    return _load_audits()
+def get_public_audits(ticker: Optional[str] = None):
+    """Tüm toplumsal denetim ihbarlarını (opsiyonel ticker filtresiyle) getir."""
+    return db.list_audits(ticker)
 
 @app.post("/api/public-audits")
 def add_public_audit(data: AuditSubmit):
-    """Yeni bir ihlal bildirme ve kaydetme."""
-    audits = _load_audits()
-    
-    # Tarih belirleme
-    now_str = "Şimdi"
-    
-    new_item = {
-        "company": data.company.strip(),
-        "category": data.category.strip(),
-        "date": now_str,
-        "description": data.description.strip(),
-        "upvotes": 1,
-        "status": "İnceleniyor"
-    }
-    
-    # Listeye ekle (en yeni en üstte olsun)
-    audits.insert(0, new_item)
-    _save_audits(audits)
+    """Yeni bir ihlal bildirme ve kaydetme. Açıklama NLP ile analiz edilir; skoru etkilemesi için ayrıca doğrulanması gerekir."""
+    nlp_result = _run_nlp(data.description)
+    new_item = db.add_audit(data.ticker, data.company.strip(), data.category.strip(), data.description.strip(), nlp_result)
     return {"status": "success", "message": "Bildirim başarıyla kaydedildi.", "audit": new_item}
 
-@app.post("/api/public-audits/{index}/upvote")
-def upvote_public_audit(index: int):
+@app.post("/api/public-audits/{audit_id}/upvote")
+def upvote_public_audit(audit_id: int):
     """Bir ihbarı upvote et."""
-    audits = _load_audits()
-    if index < 0 or index >= len(audits):
+    try:
+        new_count = db.upvote_audit(audit_id)
+    except KeyError:
         raise HTTPException(status_code=404, detail="İhbar bulunamadı.")
-    
-    audits[index]["upvotes"] = audits[index].get("upvotes", 0) + 1
-    _save_audits(audits)
-    return {"status": "success", "upvotes": audits[index]["upvotes"]}
+    return {"status": "success", "upvotes": new_count}
+
+@app.patch("/api/public-audits/{audit_id}/status")
+def update_public_audit_status(audit_id: int, data: AuditStatusUpdate):
+    """İhbar durumunu günceller (moderasyon). Sadece 'Doğrulandı...' statüsüne geçenler ESG skor
+    modülasyonuna dahil edilir — böylece doğrulanmamış ihbarların skoru manipüle etmesi engellenir."""
+    try:
+        updated = db.set_audit_status(audit_id, data.status.strip())
+    except KeyError:
+        raise HTTPException(status_code=404, detail="İhbar bulunamadı.")
+    return {"status": "success", "audit": updated}
 
 
 # ─── Çalıştırma ─────────────────────────────────────────────────────────────
