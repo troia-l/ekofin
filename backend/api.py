@@ -7,6 +7,8 @@ Port: 8000
 import os
 import json
 import hashlib
+import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -30,7 +32,7 @@ load_dotenv(dotenv_path=BASE_DIR / ".env")
 db.init_db()
 
 # ─── Modül İmportları ────────────────────────────────────────────────────────
-from modules.carbon.extractor import extract_activities
+from modules.carbon.extractor import extract_activities, _mock_parser, CarbonExtractionModel
 from modules.carbon.calculator import CarbonCalculator
 from modules.carbon.roi import calculate_groi, ROIRequest, calculate_green_credit
 
@@ -233,6 +235,7 @@ def root():
             "GET  /api/report/latest",
             "GET  /api/report/status",
             "POST /api/report/verify",
+            "GET  /api/simulator/aggregate-context",
             "POST /api/carbon/calculate",
             "POST /api/esg/predict",
             "GET  /api/esg/health",
@@ -764,7 +767,173 @@ def verify_report(hash_to_verify: str = Form(...), ticker: Optional[str] = Form(
     }
 
 
+# ── Yeşil Kredi Başvuruları (G-ROI Simülatörü → Banka Portalı) ──────────────
+
+class CreditApplicationSubmit(BaseModel):
+    ticker: Optional[str] = None
+    company_name: str
+    bank_name: str
+    bank_rate: float
+    base_rate: float
+    discount_pct: float
+    loan_amount: float
+    loan_years: int
+    monthly_payment: float
+    green_credit_score: int
+    decision: str
+    total_capex: Optional[float] = None
+
+
+class ApplicationStatusUpdate(BaseModel):
+    status: str
+
+
+@app.post("/api/credit-applications")
+def create_credit_application(data: CreditApplicationSubmit):
+    """Simülatörden seçilen banka teklifi için başvuru oluşturur. Şirketin
+    o anda üretilmiş bir TSRS raporu varsa hash'i başvuruya damgalanır —
+    banka tarafı bu hash'i /api/report/verify ile bağımsız doğrulayabilir."""
+    report_hash = None
+    if data.ticker:
+        report_path = get_company_report_path(data.ticker)
+        if report_path.exists():
+            report_hash = _compute_file_hash(report_path)
+
+    payload = data.model_dump()
+    payload["report_hash"] = report_hash
+    new_app = db.add_credit_application(payload)
+    return {"status": "success", "application": new_app}
+
+
+@app.get("/api/credit-applications")
+def get_credit_applications():
+    """Banka portalı için tüm başvuruları (en yeni en üstte) döndürür."""
+    return db.list_credit_applications()
+
+
+@app.get("/api/credit-applications/{app_id}")
+def get_credit_application(app_id: int):
+    app_data = db.get_credit_application(app_id)
+    if app_data is None:
+        raise HTTPException(status_code=404, detail="Başvuru bulunamadı.")
+    return app_data
+
+
+@app.patch("/api/credit-applications/{app_id}/status")
+def update_credit_application_status(app_id: int, data: ApplicationStatusUpdate):
+    """Banka tarafının başvuruyu Onaylandı/Reddedildi olarak işaretlemesi."""
+    updated = db.set_credit_application_status(app_id, data.status.strip())
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Başvuru bulunamadı.")
+    return {"status": "success", "application": updated}
+
+
 # ── Karbon Hesaplama & Yeşil Kredi (eski model_c) ───────────────────────────
+
+DOCUMENT_TYPE_LABELS = {
+    "sgk": "SGK Hizmet Dökümü",
+    "ekb": "Enerji Kimlik Belgesi",
+    "fatura": "Tüketim Faturaları",
+    "mizan": "Kurumsal Bilanço/Mizan",
+    "motat": "MOTAT Atık ve Su Beyanı",
+    "osgb": "OSGB Raporu",
+    "tasit": "Taşıt Tanıma Sistemi",
+    "faaliyet": "Şirket Faaliyet Raporu",
+    "sanayi_sicil": "Sanayi Sicil Belgesi",
+    "kapasite_raporu": "Kapasite Raporu",
+    "iso_14001": "ISO 14001 Sertifikası",
+    "efatura": "e-Fatura",
+}
+
+
+@app.get("/api/simulator/aggregate-context")
+def get_simulator_context(ticker: Optional[str] = None):
+    """Yüklenen belgeler + yönetici anketinden g-ROI simülatörü için
+    Model C'ye (karbon çıkarımı) beslenecek özet metni üretir."""
+    company_sources_dir = get_company_sources_dir(ticker)
+    declaration_path = get_company_declaration_path(ticker)
+    meta = _load_uploads_meta(ticker)
+    docs_meta = meta.get("documents", {})
+
+    parts = []
+    uploaded_docs = []
+    seen_files = set()
+    for doc_type, target_filename in DOCUMENT_TYPE_MAP.items():
+        if doc_type not in docs_meta:
+            continue
+        if target_filename in seen_files:
+            continue
+        file_path = company_sources_dir / target_filename
+        if not file_path.exists():
+            continue
+        try:
+            content = file_path.read_text(encoding="utf-8").strip()
+        except (UnicodeDecodeError, OSError):
+            content = ""
+        if not content:
+            continue
+        seen_files.add(target_filename)
+        parts.append(f"[{DOCUMENT_TYPE_LABELS.get(doc_type, doc_type)}]\n{content}")
+        uploaded_docs.append({"doc_type": doc_type, "label": DOCUMENT_TYPE_LABELS.get(doc_type, doc_type)})
+
+    declaration_summary = None
+    declaration_data = None
+    if declaration_path.exists():
+        with open(declaration_path, "r", encoding="utf-8") as f:
+            declaration_data = json.load(f)
+
+        sentences = []
+        if declaration_data.get("employeeCount"):
+            sentences.append(f"Şirkette toplam {declaration_data['employeeCount']} çalışan bulunmaktadır.")
+        if declaration_data.get("annualElectricity"):
+            sentences.append(f"Yıllık elektrik tüketimi {declaration_data['annualElectricity']} kWh'tir.")
+        if declaration_data.get("annualNaturalGas"):
+            sentences.append(f"Yıllık doğalgaz tüketimi {declaration_data['annualNaturalGas']} m³'tür.")
+        if declaration_data.get("annualWater"):
+            sentences.append(f"Yıllık su tüketimi {declaration_data['annualWater']} m³'tür.")
+        vehicles = declaration_data.get("vehiclesCount") or {}
+        vehicle_parts = [f"{count} adet {vtype}" for vtype, count in vehicles.items() if count]
+        if vehicle_parts:
+            sentences.append("Şirket filosunda " + ", ".join(vehicle_parts) + " bulunmaktadır.")
+        if declaration_data.get("hasRenewableEnergy"):
+            sentences.append("Şirket yenilenebilir enerji kaynağı kullanmaktadır.")
+        if declaration_data.get("sustainabilityGoals"):
+            sentences.append(f"Sürdürülebilirlik hedefleri: {declaration_data['sustainabilityGoals']}")
+
+        if sentences:
+            declaration_summary = " ".join(sentences)
+            parts.append(f"[Yönetici Anketi]\n{declaration_summary}")
+
+    return {
+        "ticker": (ticker or "DEFAULT").strip().upper() or "DEFAULT",
+        "has_documents": len(uploaded_docs) > 0,
+        "uploaded_docs": uploaded_docs,
+        "has_declaration": declaration_summary is not None,
+        "declaration_summary": declaration_summary,
+        "aggregated_text": "\n\n".join(parts),
+    }
+
+
+def _extract_activities_isolated(text: str, timeout: int = 25) -> CarbonExtractionModel:
+    """extract_activities'i (Gemini LLM çağrısı) ayrı bir Python sürecinde
+    çalıştırır. Aynı çağrı FastAPI'nin senkron endpoint thread havuzu
+    içinde bazen süresiz askıda kalabiliyordu; izole süreç + sert timeout
+    bunu önler ve zaman aşımında hızlıca mock moda düşer."""
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "modules.carbon.extract_worker"],
+            input=text, capture_output=True, text=True, timeout=timeout, cwd=str(BASE_DIR),
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            return CarbonExtractionModel(**json.loads(proc.stdout.strip()))
+        print(f"[Uyarı] Karbon çıkarım süreci beklenmeyen çıktı verdi: {proc.stderr[-500:] if proc.stderr else ''}")
+    except subprocess.TimeoutExpired:
+        print(f"[Uyarı] Karbon aktivite çıkarımı {timeout}s içinde tamamlanamadı, mock moda düşülüyor.")
+    except Exception as e:
+        print(f"[Uyarı] İzole karbon çıkarım süreci hata verdi: {e}")
+
+    return _mock_parser(text)
+
 
 @app.post("/api/carbon/calculate")
 def calculate_carbon(req: CalculationRequest):
@@ -773,8 +942,8 @@ def calculate_carbon(req: CalculationRequest):
         raise HTTPException(status_code=400, detail="Girdi metni boş olamaz.")
 
     try:
-        # Aşama 1: Yapılandırılmış aktivite çıkarımı
-        extracted_data = extract_activities(req.text)
+        # Aşama 1: Yapılandırılmış aktivite çıkarımı (izole süreçte, hang koruması ile)
+        extracted_data = _extract_activities_isolated(req.text)
 
         # Aşama 2: Deterministik karbon hesaplama
         carbon_result = calculator.process_calculation(extracted_data)

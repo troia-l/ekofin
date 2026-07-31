@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, ShieldAlert, TrendingDown, CheckCircle, AlertTriangle, 
@@ -88,13 +89,38 @@ const mockCompanies = {
   }
 };
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const BankDashboard = () => {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('search'); // 'search' | 'applications'
+
   const [searchTerm, setSearchTerm] = useState('1234567890');
   const [isSearching, setIsSearching] = useState(false);
   const [searchStep, setSearchStep] = useState(0);
   const [activeCompany, setActiveCompany] = useState(mockCompanies["1234567890"]);
   const [showResult, setShowResult] = useState(true);
   const [decision, setDecision] = useState(null); // 'approved', 'rejected'
+
+  // Kredi Başvuruları (Simülatörden gelen gerçek başvurular)
+  const [applications, setApplications] = useState([]);
+  const [loadingApps, setLoadingApps] = useState(false);
+
+  const fetchApplications = async () => {
+    setLoadingApps(true);
+    try {
+      const res = await fetch(`${API_URL}/api/credit-applications`);
+      if (res.ok) setApplications(await res.json());
+    } catch (e) {
+      console.error('Başvurular alınamadı:', e);
+    } finally {
+      setLoadingApps(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'applications') fetchApplications();
+  }, [activeTab]);
 
   const searchStepsText = [
     "VKN ve e-Fatura kayıtları taranıyor...",
@@ -153,6 +179,80 @@ const BankDashboard = () => {
         <p className="page-subtitle">KOBİ'lerin yeşil dönüşüm beyanlarını, e-Defter entegrasyonu ve yapay zeka denetimiyle saniyeler içinde doğrulayın.</p>
       </motion.div>
 
+      {/* Sekme Geçişi */}
+      <motion.div variants={itemVariants} style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', marginBottom: '4px' }}>
+        {[
+          { id: 'search', label: 'VKN Sorgulama' },
+          { id: 'applications', label: `Kredi Başvuruları${applications.length ? ` (${applications.length})` : ''}` },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: '10px 18px', fontSize: '13.5px', fontWeight: 700, background: 'transparent', border: 'none',
+              cursor: 'pointer', color: activeTab === tab.id ? 'var(--accent-emerald-dark)' : 'var(--text-muted)',
+              borderBottom: activeTab === tab.id ? '2px solid var(--accent-emerald)' : '2px solid transparent',
+              marginBottom: '-1px'
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </motion.div>
+
+      {activeTab === 'applications' ? (
+        <motion.div variants={itemVariants} className="flex-col gap-3">
+          {loadingApps ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <RefreshCw size={20} className="animate-spin" style={{ marginBottom: '8px' }} />
+              <div>Başvurular yükleniyor...</div>
+            </div>
+          ) : applications.length === 0 ? (
+            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', background: 'white', borderRadius: '16px', border: '1px dashed var(--border-color)' }}>
+              Henüz gelen bir kredi başvurusu yok. Şirketler G-ROI Simülatöründen banka teklifi seçip başvurduğunda burada listelenecek.
+            </div>
+          ) : (
+            applications.map(app => {
+              const statusStyle = app.status === 'Onaylandı'
+                ? { bg: 'rgba(16,185,129,0.1)', color: 'var(--accent-emerald-dark)' }
+                : app.status === 'Reddedildi'
+                  ? { bg: 'rgba(239,68,68,0.1)', color: '#DC2626' }
+                  : { bg: 'rgba(245,158,11,0.1)', color: '#D97706' };
+              return (
+                <div
+                  key={app.id}
+                  onClick={() => navigate(`/bank/applications/${app.id}`)}
+                  style={{
+                    background: 'white', padding: '18px 20px', borderRadius: '16px', border: '1px solid var(--border-color)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', gap: '16px'
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '14.5px', fontWeight: 800, color: 'var(--primary-midnight)' }}>{app.companyName}</span>
+                      {app.ticker && <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#3B82F6', background: 'rgba(59,130,246,0.1)', padding: '2px 6px', borderRadius: '6px' }}>{app.ticker}</span>}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      {app.bankName} · {app.loanAmount.toLocaleString('tr-TR')} ₺ · {app.loanYears} yıl · %{app.bankRate.toFixed(2)} faiz
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Yeşil Skor</div>
+                      <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--primary-midnight)' }}>{app.greenCreditScore}/100</div>
+                    </div>
+                    <span style={{ fontSize: '11.5px', fontWeight: 700, padding: '5px 12px', borderRadius: '20px', background: statusStyle.bg, color: statusStyle.color }}>
+                      {app.status}
+                    </span>
+                    <ChevronRight size={18} color="var(--text-light)" />
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </motion.div>
+      ) : (
+      <>
       {/* Quick Selection Cards */}
       <motion.div variants={itemVariants} className="flex-col gap-2">
         <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.5px' }}>HIZLI ŞİRKET SEÇİMİ VE TEST SENARYOLARI</div>
@@ -603,6 +703,8 @@ const BankDashboard = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      </>
+      )}
 
     </motion.div>
   );

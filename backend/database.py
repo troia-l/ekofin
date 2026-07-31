@@ -102,6 +102,28 @@ def init_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_news_ticker ON esg_news(ticker)")
 
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS credit_applications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticker TEXT,
+                company_name TEXT NOT NULL,
+                bank_name TEXT NOT NULL,
+                bank_rate REAL NOT NULL,
+                base_rate REAL NOT NULL,
+                discount_pct REAL NOT NULL,
+                loan_amount REAL NOT NULL,
+                loan_years INTEGER NOT NULL,
+                monthly_payment REAL NOT NULL,
+                green_credit_score INTEGER NOT NULL,
+                decision TEXT NOT NULL,
+                total_capex REAL,
+                status TEXT NOT NULL DEFAULT 'Beklemede',
+                report_hash TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_applications_ticker ON credit_applications(ticker)")
+
 
 # ── Feedback (kullanıcı yorumları) ──────────────────────────────────────────
 
@@ -416,3 +438,69 @@ def get_snapshot_n_days_ago(ticker: str, n: int) -> Optional[dict]:
     if best is None:
         best = rows[0]
     return {"date": best["date"], "score": best["final_score"]}
+
+
+# ── Yeşil Kredi Başvuruları (Simülatör → Banka Portalı) ─────────────────────
+
+def add_credit_application(data: dict) -> dict:
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with get_conn() as conn:
+        cur = conn.execute(
+            """INSERT INTO credit_applications
+               (ticker, company_name, bank_name, bank_rate, base_rate, discount_pct,
+                loan_amount, loan_years, monthly_payment, green_credit_score, decision,
+                total_capex, status, report_hash, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Beklemede', ?, ?)""",
+            (
+                (data.get("ticker") or "").upper() or None,
+                data["company_name"], data["bank_name"], data["bank_rate"], data["base_rate"],
+                data["discount_pct"], data["loan_amount"], data["loan_years"], data["monthly_payment"],
+                data["green_credit_score"], data["decision"], data.get("total_capex"),
+                data.get("report_hash"), created_at,
+            )
+        )
+        row = conn.execute("SELECT * FROM credit_applications WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return _application_row_to_dict(row)
+
+
+def list_credit_applications() -> list:
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM credit_applications ORDER BY id DESC").fetchall()
+        return [_application_row_to_dict(r) for r in rows]
+
+
+def get_credit_application(app_id: int) -> Optional[dict]:
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM credit_applications WHERE id = ?", (app_id,)).fetchone()
+        return _application_row_to_dict(row) if row else None
+
+
+def set_credit_application_status(app_id: int, status: str) -> Optional[dict]:
+    with get_conn() as conn:
+        row = conn.execute("SELECT id FROM credit_applications WHERE id = ?", (app_id,)).fetchone()
+        if row is None:
+            return None
+        conn.execute("UPDATE credit_applications SET status = ? WHERE id = ?", (status, app_id))
+        row = conn.execute("SELECT * FROM credit_applications WHERE id = ?", (app_id,)).fetchone()
+        return _application_row_to_dict(row)
+
+
+def _application_row_to_dict(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "ticker": row["ticker"],
+        "companyName": row["company_name"],
+        "bankName": row["bank_name"],
+        "bankRate": row["bank_rate"],
+        "baseRate": row["base_rate"],
+        "discountPct": row["discount_pct"],
+        "loanAmount": row["loan_amount"],
+        "loanYears": row["loan_years"],
+        "monthlyPayment": row["monthly_payment"],
+        "greenCreditScore": row["green_credit_score"],
+        "decision": row["decision"],
+        "totalCapex": row["total_capex"],
+        "status": row["status"],
+        "reportHash": row["report_hash"],
+        "createdAt": row["created_at"],
+    }

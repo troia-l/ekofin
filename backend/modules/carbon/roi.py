@@ -25,7 +25,10 @@ class CodeGenerationStep(BaseModel):
 
 def _run_langchain_cot_pipeline(params_text: str, target_schema, system_instruction: str):
     api_key = os.getenv("GEMINI_API_KEY")
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", api_key=api_key, temperature=0.0)
+    # timeout/max_retries olmadan (özellikle Gemini kotası dolduğunda 429
+    # RESOURCE_EXHAUSTED sonrası önerilen 30-60s'lik bekleme süresini
+    # olduğu gibi bekleyerek) bu adım tek başına dakikalarca sürebiliyordu.
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", api_key=api_key, temperature=0.0, timeout=15, max_retries=1)
     
     code_chain = (
         ChatPromptTemplate.from_messages([

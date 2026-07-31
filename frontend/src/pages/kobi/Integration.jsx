@@ -1,7 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, Link2, ShieldAlert, FileText, Leaf, AlertTriangle, Sparkles, Trash2, X } from 'lucide-react';
+import { UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, Link2, ShieldAlert, FileText, Leaf, AlertTriangle, Sparkles, Trash2, X, ExternalLink, Plus } from 'lucide-react';
+
+// Bağlanılabilir ERP/muhasebe/e-fatura servisleri — tıklanınca ilgili sağlayıcının
+// gerçek giriş/tanıtım sayfasına yönlendirir (gerçek OAuth entegrasyonu yok,
+// bilinçli olarak "hacky" bir yönlendirme).
+const AVAILABLE_INTEGRATIONS = [
+  { id: 'sap', name: 'SAP Business One', desc: 'ERP & Finansal Yönetim', color: '#008FD3', url: 'https://accounts.sap.com/', connected: true },
+  { id: 'logo', name: 'LOGO Tiger', desc: 'Muhasebe & Ön Muhasebe', color: '#E42528', url: 'https://cloud.logo.com.tr/', connected: true },
+  { id: 'netsis', name: 'Netsis', desc: 'ERP Yazılımı', color: '#6D28D9', url: 'https://www.netsis.com.tr/' },
+  { id: 'mikro', name: 'Mikro Yazılım', desc: 'Muhasebe & ERP', color: '#0EA5E9', url: 'https://www.mikro.com.tr/' },
+  { id: 'parasut', name: 'Paraşüt', desc: 'Bulut Ön Muhasebe', color: '#8B5CF6', url: 'https://uygulama.parasut.com/users/sign_in' },
+  { id: 'nilvera', name: 'Nilvera', desc: 'e-Fatura & e-Arşiv Entegrasyonu', color: '#10B981', url: 'https://portal.nilvera.com/' },
+  { id: 'luca', name: 'Luca', desc: 'Bulut Muhasebe', color: '#F59E0B', url: 'https://www.luca.com.tr/' },
+];
 import ManagerDeclarationDashboard from '../../components/ManagerDeclarationDashboard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -24,6 +37,11 @@ const DOC_DEFINITIONS = [
   { id: 'kapasite_raporu', title: 'Kapasite Raporu (TOBB)', desc: 'Üretim limitleri doğrulaması', docType: 'kapasite_raporu' },
   { id: 'ekb', title: 'Enerji Kimlik Belgesi (EKB)', desc: 'Tesis enerji verimlilik kanıtı', docType: 'ekb' },
   { id: 'iso_14001', title: 'ISO 14001 Çevre YYS', desc: 'Çevre yönetim sistemi sertifikası', docType: 'iso_14001' },
+  { id: 'mizan', title: 'Mizan (Muhasebe Bilançosu)', desc: 'Kurumsal bilanço ve hesap planı verisi', docType: 'mizan' },
+  { id: 'motat', title: 'MOTAT Atık ve Su Beyanı', desc: 'Atık yönetimi ve su tüketim beyanı', docType: 'motat' },
+  { id: 'osgb', title: 'OSGB Raporu', desc: 'İş sağlığı ve güvenliği denetim raporu', docType: 'osgb' },
+  { id: 'tasit', title: 'Taşıt Tanıma Sistemi Kaydı', desc: 'Filo/araç envanteri doğrulaması', docType: 'tasit' },
+  { id: 'faaliyet', title: 'Şirket Faaliyet Raporu', desc: 'Genel faaliyet ve finansal özet', docType: 'faaliyet' },
 ];
 
 const Integration = () => {
@@ -168,6 +186,11 @@ const Integration = () => {
   };
 
   const [deletingDocType, setDeletingDocType] = useState(null);
+  const [showIntegrationsModal, setShowIntegrationsModal] = useState(false);
+
+  const openIntegration = (url) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   const handleDeleteDocument = async (docType) => {
     if (!docType || !window.confirm('Bu belgeyi kaldırmak istediğinize emin misiniz? Yeniden yüklemeniz gerekecek.')) return;
@@ -477,20 +500,31 @@ const Integration = () => {
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
               
-              <div style={{ padding: '16px', background: 'var(--bg-main)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'relative' }}>
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                onClick={() => openIntegration('https://accounts.sap.com/')}
+                title="SAP hesabınıza giriş yapmak için tıklayın"
+                style={{ padding: '16px', background: 'var(--bg-main)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'relative', cursor: 'pointer' }}
+              >
                 <div style={{ position: 'absolute', top: '12px', right: '12px', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-emerald)', boxShadow: '0 0 8px var(--accent-emerald)' }} />
                 <div style={{ fontSize: '20px', fontWeight: 800, color: '#008FD3' }}>SAP</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>ERP Senkronize</div>
-              </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>ERP Senkronize <ExternalLink size={10} /></div>
+              </motion.div>
 
-              <div style={{ padding: '16px', background: 'var(--bg-main)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'relative' }}>
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                onClick={() => openIntegration('https://cloud.logo.com.tr/')}
+                title="LOGO hesabınıza giriş yapmak için tıklayın"
+                style={{ padding: '16px', background: 'var(--bg-main)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', position: 'relative', cursor: 'pointer' }}
+              >
                 <div style={{ position: 'absolute', top: '12px', right: '12px', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-emerald)', boxShadow: '0 0 8px var(--accent-emerald)' }} />
                 <div style={{ fontSize: '20px', fontWeight: 800, color: '#E42528' }}>LOGO</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Muhasebe Aktif</div>
-              </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>Muhasebe Aktif <ExternalLink size={10} /></div>
+              </motion.div>
 
-              <motion.div 
+              <motion.div
                 whileHover={{ scale: 1.05 }}
+                onClick={() => setShowIntegrationsModal(true)}
                 style={{ padding: '16px', background: 'rgba(255,255,255,0.5)', borderRadius: '12px', border: '1px dashed var(--text-light)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: '8px' }}
               >
                 <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>+</div>
@@ -810,6 +844,80 @@ const Integration = () => {
           e.target.value = '';
         }}
       />
+
+      {/* Yeni Bağlantı Ekle modalı — gerçek bir OAuth akışı yok; her servis
+          kartı ilgili sağlayıcının gerçek giriş/tanıtım sayfasına yeni sekmede
+          yönlendirir. */}
+      <AnimatePresence>
+        {showIntegrationsModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowIntegrationsModal(false)}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(11,17,32,0.6)',
+              backdropFilter: 'blur(4px)', zIndex: 999,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px'
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              onClick={(e) => e.stopPropagation()}
+              className="card glass-panel"
+              style={{ width: '100%', maxWidth: '520px', maxHeight: '80vh', overflowY: 'auto', padding: '28px' }}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary-midnight)' }}>Servis Ekle</h3>
+                  <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Bağlamak istediğiniz ERP / muhasebe / e-fatura servisini seçin.
+                  </p>
+                </div>
+                <button onClick={() => setShowIntegrationsModal(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-col gap-3">
+                {AVAILABLE_INTEGRATIONS.map((svc) => (
+                  <motion.div
+                    key={svc.id}
+                    whileHover={{ x: 4 }}
+                    onClick={() => openIntegration(svc.url)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '14px 16px', borderRadius: '12px', border: '1px solid var(--border-color)',
+                      background: 'var(--bg-main)', cursor: 'pointer'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: `${svc.color}1A`, color: svc.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '13px' }}>
+                        {svc.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--primary-midnight)' }}>{svc.name}</div>
+                        <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>{svc.desc}</div>
+                      </div>
+                    </div>
+                    {svc.connected ? (
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent-emerald-dark)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircle2 size={13} /> Bağlı
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Plus size={13} /> Ekle
+                      </span>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

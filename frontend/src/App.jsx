@@ -20,6 +20,7 @@ import TsrsReport from './pages/kobi/TsrsReport';
 
 // Bank Pages
 import BankDashboard from './pages/bank/BankDashboard';
+import ApplicationDetail from './pages/bank/ApplicationDetail';
 
 // Public Layout Wrapper
 const PublicLayout = ({ currentUser, setCurrentUser }) => {
@@ -109,6 +110,7 @@ function App() {
 
           {/* Bank Portal Routes */}
           <Route path="/bank/dashboard" element={<BankDashboard />} />
+          <Route path="/bank/applications/:id" element={<ApplicationDetail />} />
         </Route>
 
         {/* 404 */}
