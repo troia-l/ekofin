@@ -28,6 +28,7 @@ load_dotenv(dotenv_path=BASE_DIR / ".env")
 from modules.carbon.extractor import extract_activities
 from modules.carbon.calculator import CarbonCalculator
 from modules.carbon.roi import calculate_groi, ROIRequest, calculate_green_credit
+from modules.greenwash_detector import audit_active_documents, load_demo_scenario
 
 # ESG modeli lazy-load edilecek (pkl dosyaları büyük olabilir)
 _esg_predictor = None
@@ -266,6 +267,23 @@ def documents_status():
     statuses["declaration"] = {"status": declaration_status}
 
     return {"documents": statuses}
+
+
+@app.get("/api/documents/audit-greenwash")
+def audit_greenwashing():
+    """Yüklenen belgeleri Mizan ve Filo kayıtlarıyla çapraz kontrol edip Yeşil Aklama risk raporunu döndür."""
+    return audit_active_documents()
+
+
+class DemoScenarioRequest(BaseModel):
+    scenario: str = Field(default="clean", description="`clean` veya `greenwashed` senaryo modu")
+
+
+@app.post("/api/demo/load-scenario")
+def load_scenario_endpoint(req: DemoScenarioRequest):
+    """Demo sırasında tek tıkla temiz veya aklanmış veri senaryosunu yükle ve denetim sonucunu döndür."""
+    return load_demo_scenario(req.scenario)
+
 
 
 # ── Yönetici Anketi ──────────────────────────────────────────────────────────

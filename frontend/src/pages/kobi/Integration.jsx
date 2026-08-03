@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, Link2, ShieldAlert, FileText, Leaf, AlertTriangle } from 'lucide-react';
+import { 
+  UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, 
+  Link2, ShieldAlert, FileText, Leaf, AlertTriangle, AlertOctagon, Info, Eye, Download, X 
+} from 'lucide-react';
 import ManagerDeclarationDashboard from '../../components/ManagerDeclarationDashboard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -37,11 +40,18 @@ const Integration = () => {
   const docFileInputRef = useRef(null);
   const [activeDocUpload, setActiveDocUpload] = useState(null);
 
+  // Yeşil Aklama (Greenwashing) ve Demo Senaryo State'leri
+  const [auditResult, setAuditResult] = useState(null);
+  const [activeScenario, setActiveScenario] = useState('clean');
+  const [loadingScenario, setLoadingScenario] = useState(false);
+  const [showAuditModal, setShowAuditModal] = useState(false);
+
   // Sayfa açıldığında API'den veri çek
   useEffect(() => {
     fetchDocStatuses();
     fetchDeclaration();
     fetchRecentUploads();
+    fetchGreenwashAudit();
   }, []);
 
   const fetchDocStatuses = async () => {
@@ -74,6 +84,39 @@ const Integration = () => {
     } catch (e) { console.error('Yükleme listesi alınamadı:', e); }
   };
 
+  const fetchGreenwashAudit = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/documents/audit-greenwash`);
+      if (res.ok) {
+        const data = await res.json();
+        setAuditResult(data);
+        if (data.active_scenario) setActiveScenario(data.active_scenario);
+      }
+    } catch (e) { console.error('Yeşil aklama denetim verisi alınamadı:', e); }
+  };
+
+  const handleScenarioChange = async (scenario) => {
+    setLoadingScenario(true);
+    try {
+      const res = await fetch(`${API_URL}/api/demo/load-scenario`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAuditResult(data);
+        setActiveScenario(scenario);
+        await fetchDocStatuses();
+        await fetchRecentUploads();
+      }
+    } catch (e) {
+      console.error('Senaryo geçiş hatası:', e);
+    } finally {
+      setLoadingScenario(false);
+    }
+  };
+
   const handleFileUpload = async (file, docType) => {
     if (!file) return;
     setUploading(true);
@@ -85,6 +128,7 @@ const Integration = () => {
       if (!res.ok) throw new Error('Yükleme hatası');
       await fetchDocStatuses();
       await fetchRecentUploads();
+      await fetchGreenwashAudit();
     } catch (e) {
       console.error('Dosya yüklenemedi:', e);
       alert('Dosya yükleme hatası: ' + e.message);
@@ -104,6 +148,7 @@ const Integration = () => {
         setDeclarationData(data);
         setShowDeclarationDashboard(false);
         await fetchDocStatuses();
+        await fetchGreenwashAudit();
       }
     } catch (e) {
       console.error('Anket gönderilemedi:', e);
@@ -146,21 +191,182 @@ const Integration = () => {
   }
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="show" className="flex-col gap-6">
-      <motion.div variants={itemVariants} className="mb-6 flex justify-between items-end">
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="flex-col gap-6" style={{ position: 'relative' }}>
+      
+      {/* Page Header */}
+      <motion.div variants={itemVariants} className="mb-4 flex justify-between items-end">
         <div>
-          <h1 className="page-title">Veri Entegrasyon Merkezi</h1>
-          <p className="page-subtitle">ERP sistemlerinizi, faturalarınızı ve yasal belgelerinizi 256-bit uçtan uca şifrelemeyle senkronize edin.</p>
+          <h1 className="page-title">Veri Entegrasyon & Çapraz AI Denetim Merkezi</h1>
+          <p className="page-subtitle">ERP sistemlerinizi, faturalarınızı ve mizan verilerinizi yapay zeka ile çapraz denetleyin, greenwashing risklerini anında yakalayın.</p>
         </div>
         <motion.div 
           whileHover={{ scale: 1.05 }}
           className="flex items-center gap-2" 
           style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent-emerald-dark)', padding: '10px 16px', borderRadius: '12px', fontWeight: 600, fontSize: '13px', border: '1px solid rgba(16, 185, 129, 0.2)' }}
         >
-          <ShieldAlert size={16} /> Banka Düzeyi Güvenlik Aktif
+          <ShieldAlert size={16} /> Banka Düzeyi Güvenlik & Kriptografik Denetim Aktif
         </motion.div>
       </motion.div>
 
+      {/* 🎬 DEMO SCENARIO CONTROLLER & GREENWASHING SIMULATOR PANEL */}
+      <motion.div variants={itemVariants} className="card glass-panel" style={{ padding: '20px 24px', background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.98))', color: '#FFFFFF', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 800, color: '#38BDF8', background: 'rgba(56, 189, 248, 0.15)', padding: '4px 10px', borderRadius: '20px', marginBottom: '8px', textTransform: 'uppercase' }}>
+              <Eye size={14} /> Live Demo Simülatörü — Yeşil Aklama (Greenwashing) Test Paneli
+            </div>
+            <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+              Fatura & Mali Mizan Çapraz Doğrulama Kurgusu
+            </h3>
+            <p style={{ fontSize: '13px', color: '#94A3B8', margin: '4px 0 0 0' }}>
+              Demoda önce temiz veri akışını gösterin, ardından <em>"Ya şirket emisyon verisini gizleseydi?"</em> senaryosunu tek tıkla simüle edin.
+            </p>
+          </div>
+
+          {/* Scenario Action Buttons */}
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button
+              onClick={() => handleScenarioChange('clean')}
+              disabled={loadingScenario}
+              style={{
+                padding: '12px 20px',
+                borderRadius: '12px',
+                fontWeight: 700,
+                fontSize: '13px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                border: activeScenario === 'clean' ? '2px solid #10B981' : '1px solid rgba(255,255,255,0.2)',
+                background: activeScenario === 'clean' ? 'linear-gradient(135deg, #059669, #10B981)' : 'rgba(255,255,255,0.05)',
+                color: '#FFFFFF',
+                boxShadow: activeScenario === 'clean' ? '0 4px 14px rgba(16,185,129,0.4)' : 'none',
+                transition: 'all 0.2s'
+              }}
+            >
+              <CheckCircle2 size={16} /> 1. Temiz Akış (Gerçek Tutarlı Veri)
+            </button>
+
+            <button
+              onClick={() => handleScenarioChange('greenwashed')}
+              disabled={loadingScenario}
+              style={{
+                padding: '12px 20px',
+                borderRadius: '12px',
+                fontWeight: 700,
+                fontSize: '13px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                border: activeScenario === 'greenwashed' ? '2px solid #EF4444' : '1px solid rgba(255,255,255,0.2)',
+                background: activeScenario === 'greenwashed' ? 'linear-gradient(135deg, #DC2626, #EF4444)' : 'rgba(255,255,255,0.05)',
+                color: '#FFFFFF',
+                boxShadow: activeScenario === 'greenwashed' ? '0 4px 14px rgba(239,68,68,0.4)' : 'none',
+                transition: 'all 0.2s'
+              }}
+            >
+              <AlertOctagon size={16} /> 2. Yeşil Aklama Senaryosu (Tahrif Edilmiş Fatura)
+            </button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* 🔴/🟢 AI GREENWASHING AUDIT SUMMARY CARD */}
+      {auditResult && (
+        <motion.div 
+          variants={itemVariants}
+          style={{
+            padding: '24px',
+            borderRadius: '16px',
+            background: auditResult.is_greenwashed ? 'linear-gradient(135deg, #FEF2F2, #FFF5F5)' : 'linear-gradient(135deg, #F0FDF4, #ECFDF5)',
+            border: auditResult.is_greenwashed ? '2px solid #EF4444' : '1px solid #10B981',
+            boxShadow: auditResult.is_greenwashed ? '0 10px 25px rgba(239, 68, 68, 0.15)' : '0 4px 15px rgba(16, 185, 129, 0.08)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div 
+                style={{ 
+                  width: '48px', 
+                  height: '48px', 
+                  borderRadius: '12px', 
+                  background: auditResult.is_greenwashed ? '#EF4444' : '#10B981',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#FFFFFF'
+                }}
+              >
+                {auditResult.is_greenwashed ? <AlertOctagon size={28} /> : <CheckCircle2 size={28} />}
+              </div>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: auditResult.is_greenwashed ? '#991B1B' : '#065F46', margin: 0 }}>
+                  {auditResult.verdict}
+                </h3>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: auditResult.is_greenwashed ? '#DC2626' : '#059669', marginTop: '2px' }}>
+                  Yapay Zeka Çapraz Belge Denetim Skoru: Risk %{auditResult.risk_score}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowAuditModal(true)}
+              style={{
+                padding: '10px 18px',
+                background: auditResult.is_greenwashed ? '#DC2626' : '#059669',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              }}
+            >
+              <FileText size={16} /> Detaylı YZ Çapraz Denetim Raporunu Aç
+            </button>
+          </div>
+
+          <p style={{ fontSize: '14px', color: auditResult.is_greenwashed ? '#7F1D1D' : '#047857', lineHeight: '1.6', margin: 0, fontWeight: 500 }}>
+            {auditResult.summary}
+          </p>
+
+          {/* Quick Metrics Badges */}
+          {auditResult.is_greenwashed && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginTop: '4px' }}>
+              <div style={{ background: '#FFFFFF', padding: '12px', borderRadius: '10px', border: '1px solid #FCA5A5' }}>
+                <span style={{ fontSize: '11px', color: '#991B1B', fontWeight: 600 }}>Mizan vs Fatura Tutarsızlığı</span>
+                <div style={{ fontSize: '16px', fontWeight: 800, color: '#DC2626' }}>
+                  {auditResult.audit_details?.implied_unit_price_tl} TL/L (5.7x Fiyat)
+                </div>
+              </div>
+
+              <div style={{ background: '#FFFFFF', padding: '12px', borderRadius: '10px', border: '1px solid #FCA5A5' }}>
+                <span style={{ fontSize: '11px', color: '#991B1B', fontWeight: 600 }}>Gizlenen Scope-1 Emisyon</span>
+                <div style={{ fontSize: '16px', fontWeight: 800, color: '#DC2626' }}>
+                  {auditResult.carbon_impact?.hidden_scope1_tco2e} tCO2e (%{auditResult.carbon_impact?.underreporting_pct} Gizleme)
+                </div>
+              </div>
+
+              <div style={{ background: '#FFFFFF', padding: '12px', borderRadius: '10px', border: '1px solid #FCA5A5' }}>
+                <span style={{ fontSize: '11px', color: '#991B1B', fontWeight: 600 }}>Filo Tüketim Beyanı</span>
+                <div style={{ fontSize: '16px', fontWeight: 800, color: '#DC2626' }}>
+                  1.71 L/gün/araç (İmkansız Seviye)
+                </div>
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* Main Grid Section */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px' }}>
         
         {/* Left Column: Connections & Uploads */}
@@ -244,7 +450,7 @@ const Integration = () => {
                         padding: '16px', 
                         background: 'var(--bg-main)', 
                         borderRadius: '12px',
-                        borderLeft: '4px solid var(--accent-emerald)',
+                        borderLeft: auditResult?.is_greenwashed && idx === 0 ? '4px solid #EF4444' : '4px solid var(--accent-emerald)',
                         boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
                       }}
                     >
@@ -253,12 +459,13 @@ const Integration = () => {
                           <FileSpreadsheet size={18} color="var(--primary-midnight)" />
                           <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--primary-midnight)' }}>{upload.filename}</span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: upload.status === 'processed' ? 'var(--accent-emerald)' : 'var(--warning)', fontWeight: 600 }}>
-                          <Check size={14} /> {upload.status === 'processed' ? 'İşlendi' : 'Bekliyor'}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: auditResult?.is_greenwashed && idx === 0 ? '#DC2626' : 'var(--accent-emerald)', fontWeight: 600 }}>
+                          {auditResult?.is_greenwashed && idx === 0 ? <AlertOctagon size={14} /> : <Check size={14} />} 
+                          {auditResult?.is_greenwashed && idx === 0 ? 'Çelişkili Belge' : 'İşlendi'}
                         </div>
                       </div>
                       <div style={{ height: '4px', background: 'var(--border-color)', borderRadius: '2px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: '100%', background: 'var(--accent-emerald)' }}></div>
+                        <div style={{ height: '100%', width: '100%', background: auditResult?.is_greenwashed && idx === 0 ? '#EF4444' : 'var(--accent-emerald)' }}></div>
                       </div>
                     </motion.div>
                   ))}
@@ -267,94 +474,9 @@ const Integration = () => {
             </div>
           </motion.div>
 
-          {/* Management Declaration Summary Widget */}
-          {declarationData && (
-            <motion.div 
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="card glass-panel flex-col gap-4"
-              style={{
-                borderLeft: '4px solid var(--accent-emerald)',
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.9), rgba(244,252,248,0.9))'
-              }}
-            >
-              <div className="flex justify-between items-center">
-                <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--primary-midnight)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Leaf size={18} color="var(--accent-emerald)" /> Aktif Yönetici Beyan Özeti
-                </h3>
-                <span style={{ fontSize: '11px', color: 'var(--accent-emerald-dark)', background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: '20px', fontWeight: 700 }}>
-                  Veriler Raporlamaya İşlendi
-                </span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginTop: '4px' }}>
-                <div style={{ padding: '12px', background: '#FFFFFF', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>Sosyal Yapı</span>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--primary-midnight)' }}>{declarationData.employeeCount} Çalışan</div>
-                  <span style={{ fontSize: '10px', color: 'var(--text-light)', fontWeight: 600 }}>+{declarationData.extraExcuseLeave} Gün İzin</span>
-                </div>
-
-                <div style={{ padding: '12px', background: '#FFFFFF', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>Mobilite Filosu</span>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--primary-midnight)' }}>
-                    {Object.values(declarationData.vehiclesCount).reduce((a, b) => a + b, 0)} Araç
-                  </div>
-                  <span style={{ fontSize: '10px', color: 'var(--text-light)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    ⚡{declarationData.vehiclesCount.electric} / 🌱{declarationData.vehiclesCount.hybrid} / ⛽{declarationData.vehiclesCount.gasoline}
-                  </span>
-                </div>
-
-                <div style={{ padding: '12px', background: '#FFFFFF', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>Yıllık Tüketim</span>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--primary-midnight)' }}>
-                    {declarationData.annualElectricity.toLocaleString()} kWh
-                  </div>
-                  <span style={{ fontSize: '10px', color: 'var(--text-light)', fontWeight: 600 }}>
-                    💧{declarationData.annualWater} m³ Su
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(16, 185, 129, 0.04)', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.1)', fontSize: '12px', color: 'var(--accent-emerald-dark)', fontWeight: 500 }}>
-                <Check size={16} /> Beyan edilen ÇYS: &nbsp;
-                <strong style={{ textTransform: 'capitalize' }}>
-                  {declarationData.hasEmsPolicy === 'yes' ? 'Mevcut (ISO 14001)' : declarationData.hasEmsPolicy === 'planning' ? 'Hazırlanıyor' : 'Mevcut Değil'}
-                </strong>
-                {declarationData.hasRenewableEnergy && " | ☀️ GES Aktif"}
-              </div>
-
-              {/* Hemen Oluştur Button if EMS is not ready */}
-              {declarationData.hasEmsPolicy !== 'yes' && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '12px', background: 'rgba(245, 158, 11, 0.05)', borderRadius: '10px', border: '1px solid rgba(245, 158, 11, 0.1)', marginTop: '4px' }}>
-                  <div style={{ fontSize: '11px', color: '#B45309', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
-                    <AlertTriangle size={14} /> ÇYS Belgesi Eksik!
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setInitialDashboardMode('ai_generator');
-                      setShowDeclarationDashboard(true);
-                    }}
-                    className="btn-primary" 
-                    style={{ 
-                      padding: '4px 10px', 
-                      fontSize: '11px', 
-                      borderRadius: '6px', 
-                      height: 'auto', 
-                      background: 'linear-gradient(135deg, var(--warning), #D97706)',
-                      boxShadow: '0 2px 5px rgba(245, 158, 11, 0.2)',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Hemen Oluştur (YZ)
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          )}
-
         </div>
 
-        {/* Right Column: Legal Documents */}
+        {/* Right Column: Legal Documents & Manager Declaration */}
         <div className="flex-col gap-6">
           <motion.div variants={itemVariants} className="card glass-panel" style={{ height: '100%' }}>
             <div className="flex items-center gap-4 mb-8">
@@ -428,37 +550,205 @@ const Integration = () => {
                         Doldur
                       </button>
                     )}
-                    {doc.status === 'pending' && (
-                      <div className="flex items-center gap-1" style={{ color: 'var(--warning)', fontWeight: 700, fontSize: '12px' }}>
-                        <RefreshCw size={14} className="animate-spin" /> İNCELENİYOR
-                      </div>
-                    )}
                     {doc.status === 'upload' && (
                       <>
                         <input ref={docFileInputRef} type="file" accept=".pdf,.md,.json,.xml,.zip,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0] && activeDocUpload) handleFileUpload(e.target.files[0], activeDocUpload); setActiveDocUpload(null); }} />
                         <button className="btn-outline" style={{ padding: '6px 16px', fontSize: '12px', borderRadius: '8px', cursor: 'pointer' }} disabled={uploading} onClick={() => { setActiveDocUpload(doc.docType); docFileInputRef.current?.click(); }}>{uploading ? '...' : 'Yükle'}</button>
                       </>
                     )}
-                    
-                    {doc.status !== 'upload' && doc.status !== 'fill_decl' && doc.status !== 'verified_decl' && (
-                      <div style={{ fontSize: '11px', color: 'var(--text-light)', fontWeight: 500 }}>{doc.date}</div>
-                    )}
-                    {doc.status === 'verified_decl' && (
-                      <div style={{ fontSize: '11px', color: 'var(--text-light)', fontWeight: 500 }}>{doc.date}</div>
-                    )}
                   </div>
                 </motion.div>
               ))}
             </div>
-            
+
             <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(59, 130, 246, 0.05)', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
-              <p style={{ fontSize: '12px', color: '#1E40AF', lineHeight: '1.6', fontWeight: 500 }}>
-                <strong>TSRS Uyarı:</strong> Yüklenen belgeler, bağımsız denetim sürecinde doğrudan "Yeşil Kredi Pasaportu"na kriptografik olarak (Hash) mühürlenecektir. 
+              <p style={{ fontSize: '12px', color: '#1E40AF', lineHeight: '1.6', fontWeight: 500, margin: 0 }}>
+                <strong>TSRS & Kriptografik Güvence:</strong> Yüklenen tüm belgeler SHA-256 hash imzasıyla "Yeşil Kredi Pasaportu"na mühürlenmektedir. Mizan ile çelişen tahrif edilmiş belgeler banka denetçileri tarafından anında reddedilir.
               </p>
             </div>
           </motion.div>
         </div>
       </div>
+
+      {/* 🔍 DETAILED AI AUDIT MODAL */}
+      <AnimatePresence>
+        {showAuditModal && auditResult && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '24px'
+            }}
+            onClick={() => setShowAuditModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              style={{
+                background: '#FFFFFF',
+                borderRadius: '20px',
+                maxWidth: '850px',
+                width: '100%',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                padding: '32px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                position: 'relative'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: auditResult.is_greenwashed ? '#EF4444' : '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF' }}>
+                    <ShieldAlert size={22} />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--primary-midnight)', margin: 0 }}>
+                      Yapay Zeka Yeşil Aklama (Greenwashing) Çapraz Denetim Raporu
+                    </h2>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Belge: Tüketim Faturaları vs Detaylı Mizan & Filo Tanıma Kayıtları</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowAuditModal(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              {/* Status Banner */}
+              <div style={{ padding: '16px', borderRadius: '12px', background: auditResult.is_greenwashed ? '#FEF2F2' : '#F0FDF4', border: auditResult.is_greenwashed ? '1px solid #FCA5A5' : '1px solid #6EE7B7', marginBottom: '24px' }}>
+                <div style={{ fontWeight: 800, fontSize: '15px', color: auditResult.is_greenwashed ? '#991B1B' : '#065F46', marginBottom: '4px' }}>
+                  {auditResult.verdict}
+                </div>
+                <div style={{ fontSize: '13px', color: auditResult.is_greenwashed ? '#B91C1C' : '#047857' }}>
+                  {auditResult.summary}
+                </div>
+              </div>
+
+              {/* Side-by-side Comparative Analysis Table */}
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--primary-midnight)', marginBottom: '12px' }}>
+                📊 Çapraz Belge Kanıt Karşılaştırması
+              </h3>
+
+              <div style={{ overflowX: 'auto', marginBottom: '24px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: '#F8FAFC', borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
+                      <th style={{ padding: '12px' }}>Metrik / Parametre</th>
+                      <th style={{ padding: '12px' }}>Beyan Edilen Fatura</th>
+                      <th style={{ padding: '12px' }}>Resmi Mizan Kaydı</th>
+                      <th style={{ padding: '12px' }}>YZ Denetim Sonucu</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '12px', fontWeight: 600 }}>Dizel Akaryakıt Miktarı</td>
+                      <td style={{ padding: '12px', color: auditResult.is_greenwashed ? '#DC2626' : '#059669', fontWeight: 700 }}>
+                        {auditResult.audit_details?.invoice_dizel_liters?.toLocaleString()} Litre
+                      </td>
+                      <td style={{ padding: '12px', fontWeight: 600 }}>
+                        420,000 TL Akaryakıt Gideri
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        {auditResult.is_greenwashed ? (
+                          <span style={{ color: '#DC2626', fontWeight: 700 }}>⚠️ 5.7x Mali Çelişki</span>
+                        ) : (
+                          <span style={{ color: '#059669', fontWeight: 700 }}>✅ Tam Uyumlu</span>
+                        )}
+                      </td>
+                    </tr>
+
+                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '12px', fontWeight: 600 }}>İma Edilen Litre Fiyatı</td>
+                      <td style={{ padding: '12px', fontWeight: 700, color: auditResult.is_greenwashed ? '#DC2626' : '#059669' }}>
+                        {auditResult.audit_details?.implied_unit_price_tl} TL/L
+                      </td>
+                      <td style={{ padding: '12px' }}>21.00 TL/L (Piyasa Ortalaması)</td>
+                      <td style={{ padding: '12px' }}>
+                        {auditResult.is_greenwashed ? (
+                          <span style={{ color: '#DC2626', fontWeight: 700 }}>❌ 120 TL/L (Tahrif Edilmiş)</span>
+                        ) : (
+                          <span style={{ color: '#059669', fontWeight: 700 }}>✅ Makul Fiyat</span>
+                        )}
+                      </td>
+                    </tr>
+
+                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '12px', fontWeight: 600 }}>Scope-1 Emisyon Beyanı</td>
+                      <td style={{ padding: '12px', fontWeight: 700 }}>
+                        {auditResult.carbon_impact?.declared_scope1_tco2e} tCO2e
+                      </td>
+                      <td style={{ padding: '12px', fontWeight: 700 }}>
+                        {auditResult.carbon_impact?.actual_scope1_tco2e} tCO2e (Gerçek)
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        {auditResult.is_greenwashed ? (
+                          <span style={{ color: '#DC2626', fontWeight: 800 }}>⚠️ {auditResult.carbon_impact?.hidden_scope1_tco2e} tCO2e Gizlendi!</span>
+                        ) : (
+                          <span style={{ color: '#059669', fontWeight: 700 }}>✅ Doğru Beyan</span>
+                        )}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Detected Discrepancies List */}
+              {auditResult.discrepancies?.length > 0 && (
+                <div style={{ marginBottom: '24px' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#991B1B', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <AlertTriangle size={16} color="#DC2626" /> Tespit Edilen Kritik Çelişkiler & Kanıtlar
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {auditResult.discrepancies.map((disc, idx) => (
+                      <div key={idx} style={{ padding: '16px', background: '#FEF2F2', borderLeft: '4px solid #EF4444', borderRadius: '8px' }}>
+                        <div style={{ fontWeight: 700, fontSize: '14px', color: '#991B1B', marginBottom: '4px' }}>
+                          {disc.title}
+                        </div>
+                        <p style={{ fontSize: '13px', color: '#7F1D1D', margin: '0 0 8px 0', lineHeight: '1.5' }}>
+                          {disc.description}
+                        </p>
+                        <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#B91C1C', fontWeight: 600 }}>
+                          <span><strong>Beyan Edilen:</strong> {disc.declared}</span>
+                          <span><strong>Mizan/Saha Karşılığı:</strong> {disc.expected}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Close Modal Button */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                <button
+                  onClick={() => setShowAuditModal(false)}
+                  className="btn-primary"
+                  style={{ padding: '10px 24px', cursor: 'pointer' }}
+                >
+                  Kapat
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </motion.div>
   );

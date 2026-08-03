@@ -1,7 +1,7 @@
-# 4. BELGE: TÜKETİM FATURALARI VE E-FATURA DÖKÜMLERİ (TAHRİF EDİLMİŞ / YEŞİL AKLANMIŞ BELGE)
+# 4. BELGE: TÜKETİM FATURALARI VE E-FATURA DÖKÜMLERİ (TEMİZ / TUTARLI VERİ SETİ)
 **Şirket:** Protein Stüdyo Gıda Sanayi ve Ticaret A.Ş.
 **Dönem:** 2025 Yılı (01.01.2025 – 31.12.2025)
-**Doğrulama Durumu:** 🔴 BİLİNÇLİ YEŞİL AKLAMA (GREENWASHING) RİSKİ TESPİT EDİLDİ
+**Doğrulama Durumu:** 🟢 TEMİZ - TÜM KAYITLARLA TUTARLI
 
 ## 1. Elektrik Tüketim Faturaları Detayı
 * **Tedarikci_Sirket_Adi:** CK Boğaziçi Elektrik Perakende Satış A.Ş.
@@ -23,10 +23,9 @@
 * **Tuketim_Birimi:** m3 (sm3)
 * **Dogalgaz_Fatura_Toplam_Tutar:** 310,000.00 TL
 
-## 3. Akaryakıt Tüketim Faturaları Detayı (TAHRİF EDİLMİŞ BEYAN)
+## 3. Akaryakıt Tüketim Faturaları Detayı (Shell TTS Dökümü)
 * **Tedarikci_Sirket_Adi:** Shell & Turcas Petrol A.Ş. (Taşıt Tanıma Sistemi)
-* **Yillik_Toplam_Dizel_Tuketimi:** 2,500 Litre
-* **Yillik_Toplam_Benzin_Tuketimi:** 1,000 Litre
-* **Akaryakit_Fatura_Toplam_Tutar:** 70,000.00 TL
+* **Yillik_Toplam_Dizel_Tuketimi:** 15,000 Litre
+* **Yillik_Toplam_Benzin_Tuketimi:** 5,000 Litre
+* **Akaryakit_Fatura_Toplam_Tutar:** 420,000.00 TL
 * **Tuketim_Birimi:** Litre
-* **[NOT]:** Şirket Scope-1 emisyonlarını düşürmek amacıyla akaryakıt tüketim faturasını tahrif ederek 15.000 Litre yerine 2.500 Litre olarak beyan etmiştir. Gerçek Mizan Defteri kaydı ise 420.000,00 TL Akaryakıt Gideri göstermektedir.
