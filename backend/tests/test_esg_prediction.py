@@ -1,0 +1,89 @@
+import pytest
+from modules.esg_prediction.predictor import CompanyFeatures, PredictionResponse, ESGPredictor
+from modules.esg_prediction.nlp_analyzer import ESGAnalysisResult, ESGCommentAnalyzer
+
+
+class TestESGPredictor:
+    """XGBoost ESG tahmin motoru ve veri doğrulama testleri."""
+
+    def test_company_features_validation(self):
+        features = CompanyFeatures(
+            Revenue=1000.0,
+            ProfitMargin=15.0,
+            MarketCap=5000.0,
+            GrowthRate=10.0,
+            CarbonEmissions=250.0,
+            WaterUsage=100.0,
+            EnergyConsumption=400.0,
+            Industry="Manufacturing",
+            Region="Europe",
+            Year=2024
+        )
+        assert features.Revenue == 1000.0
+        assert features.Industry == "Manufacturing"
+        assert features.Revenue_yoy is None  # Optional field defaults to None
+
+    def test_predictor_model_inference_or_fallback(self):
+        try:
+            predictor = ESGPredictor()
+            features = CompanyFeatures(
+                Revenue=1200.0,
+                ProfitMargin=12.5,
+                MarketCap=4500.0,
+                GrowthRate=8.0,
+                CarbonEmissions=300.0,
+                WaterUsage=150.0,
+                EnergyConsumption=500.0,
+                Industry="Technology",
+                Region="North America",
+                Year=2024
+            )
+            res = predictor.predict(features)
+            assert isinstance(res, PredictionResponse)
+            assert 0.0 <= res.predicted_esg_overall <= 100.0
+            assert res.confidence_note != ""
+        except FileNotFoundError:
+            # Model dosyaları eksikse FileNotFound fırlatması beklenen davranıştır
+            pytest.skip("esg_model_trackB.pkl yerel ortamda bulunamadı.")
+
+
+class TestNLPCommentAnalyzer:
+    """NLP duygu analizi ve ESG sütun (Pillar) sınıflandırıcı testleri."""
+
+    def test_analysis_result_schema(self):
+        res = ESGAnalysisResult(
+            sentiment="Pozitif",
+            pillar="Environmental",
+            impact_score=0.8,
+            explanation="Güneş enerjisi yatırımı çevre puanını artırdı."
+        )
+        assert res.sentiment == "Pozitif"
+        assert res.pillar == "Environmental"
+        assert -1.5 <= res.impact_score <= 1.5
+
+    def test_rule_based_fallback_environmental_positive(self):
+        analyzer = ESGCommentAnalyzer()
+        res = analyzer._fallback_analyze("Şirket harika ve temiz bir güneş enerjisi tesisi kurdu.")
+        assert res["sentiment"] == "Pozitif"
+        assert res["pillar"] == "Environmental"
+        assert res["impact_score"] > 0
+
+    def test_rule_based_fallback_social_negative(self):
+        analyzer = ESGCommentAnalyzer()
+        res = analyzer._fallback_analyze("Fabrikada iş güvenliği ihlalleri ve çalışan mobbing şikayetleri var.")
+        assert res["sentiment"] == "Negatif"
+        assert res["pillar"] == "Social"
+        assert res["impact_score"] < 0
+
+    def test_rule_based_fallback_governance_negative(self):
+        analyzer = ESGCommentAnalyzer()
+        res = analyzer._fallback_analyze("Yönetim kurulu rüşvet ve yolsuzluk iddiaları ile çalkalanıyor.")
+        assert res["sentiment"] == "Negatif"
+        assert res["pillar"] == "Governance"
+        assert res["impact_score"] < 0
+
+    def test_empty_or_neutral_comment(self):
+        analyzer = ESGCommentAnalyzer()
+        res = analyzer._fallback_analyze("Ürün bugün kargoya verildi.")
+        assert res["sentiment"] == "Nötr"
+        assert res["impact_score"] == 0.0

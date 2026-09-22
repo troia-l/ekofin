@@ -1,59 +1,94 @@
 # 🌱 EkoFin — Yapay Zeka Destekli Yeşil Enerji Finansman Platformu
 
-EkoFin, karbon nötrlük hedeflerine ulaşılmasını hızlandırmak için geliştirilmiş **yapay zeka destekli sürdürülebilirlik denetimi ve yeşil finansman platformudur.** Uydu verileri, IoT sensörleri ve çapraz veri kaynakları ile projelerin **gerçek çevresel etkisini** tespit ederek greenwashing'i ortadan kaldırır.
-
-## 🏗️ Proje Yapısı
-
-```
-ekofin/
-├── frontend/          # React + Vite web uygulaması
-│   ├── src/
-│   │   ├── components/    # Yeniden kullanılabilir UI bileşenleri
-│   │   ├── pages/         # Sayfa bileşenleri (Ana Sayfa, Dashboard, ESG Raporu vb.)
-│   │   └── assets/        # Statik dosyalar
-│   ├── public/            # Herkese açık dosyalar ve dokümanlar
-│   ├── package.json       # Node.js bağımlılıkları
-│   └── vite.config.js     # Vite yapılandırması
-│
-├── model_c/           # FastAPI backend — Yapay Zeka analiz motoru
-│   ├── app.py             # API giriş noktası
-│   ├── model.py           # Veri modelleri (Pydantic)
-│   ├── calculator.py      # Yeşil ROI hesaplayıcı
-│   ├── roi.py             # ROI analiz motoru
-│   ├── factors.json       # Emisyon faktörleri verisi
-│   ├── requirements.txt   # Python bağımlılıkları
-│   └── .env.example       # Ortam değişkenleri şablonu
-│
-├── BelgeTarama/       # Belge tarama talimatları (OCR rehberleri)
-├── TSRS_Rapor/        # TSRS uyumlu sürdürülebilirlik rapor şablonları ve verileri
-├── kaynaklar/         # Referans materyalleri ve kaynaklar
-└── .gitignore
-```
-
-## ✨ Temel Özellikler
-
-- **🏢 Kurumsal Yeşil Panel** — Bankalar ve holdingler için B2B uyumlu dashboard
-- **🤖 YZ Destekli ESG Analizi** — Gemini AI ile gerçek sürdürülebilirlik doğrulaması
-- **📊 Yeşil ROI Simülatörü** — Yeşil enerji projeleri için yatırım getirisi hesaplama
-- **📋 TSRS Raporlama** — Türkiye Sürdürülebilirlik Raporlama Standartlarına uyumlu rapor üretimi
-- **🌍 Kitle Fonlaması** — Bireysel yatırımcıların yeşil dönüşüme katılımı
-- **🔍 Halka Açık Denetim Paneli** — Çevresel iddialarda şeffaflık öncelikli yaklaşım
-- **📄 Belge Tarama** — OCR tabanlı belge doğrulama (enerji kimlik belgeleri, faturalar vb.)
-
-## 🚀 Kurulum
-
-### Gereksinimler
-
-- **Node.js** ≥ 18.x ve **npm** ≥ 9.x
-- **Python** ≥ 3.10
-- **Gemini API Anahtarı** (isteğe bağlı — test için mock algoritma otomatik çalışır)
+EkoFin, karbon nötrlük hedeflerine ulaşılmasını hızlandırmak için geliştirilmiş **yapay zeka destekli sürdürülebilirlik denetimi ve yeşil finansman platformudur.** Faturalar, mizanlar, faaliyet raporları, haberler ve toplumsal bildirimler ile projelerin **gerçek çevresel etkisini** tespit ederek greenwashing'i ortadan kaldırır.
 
 ---
 
-### Frontend Kurulumu
+## 🏗️ Proje Mimarisi ve Klasör Yapısı
+
+```text
+ekofin/
+├── backend/                   # Merkezi FastAPI Backend Gateway ve Servisler
+│   ├── api.py                 # Ana API giriş noktası (Tüm REST rotaları)
+│   ├── config.py              # Merkezi yapılandırma ve şirket bazlı yol yönetimi
+│   ├── database.py            # SQLite veri katmanı (Geri bildirim, ihbar, skor geçmişi)
+│   ├── requirements.txt       # Python bağımlılıkları (FastAPI, LangChain, XGBoost, Pytest vb.)
+│   ├── data/                  # Faktörler, şablonlar, şirket yükleme dizinleri (sources/)
+│   ├── models/                # Eğitilmiş makine öğrenmesi modelleri (XGBoost pkl)
+│   ├── modules/               # İş mantığı (Domain Modülleri)
+│   │   ├── carbon/            # Karbon hesaplama, aktivite çıkarma, g-ROI ve yeşil kredi
+│   │   ├── tsrs/              # 10 bölümlük TSRS sürdürülebilirlik rapor pipeline'ı
+│   │   └── esg_prediction/    # XGBoost tahmin, NLP duygu analizörü, Google News RSS
+│   ├── output/                # Üretilen resmi TSRS rapor çıktıları
+│   └── tests/                 # Kapsamlı birim test paketi (Pytest)
+│
+├── frontend/                  # React 19 + Vite Web Uygulaması
+│   ├── src/
+│   │   ├── pages/             # Sayfalar (KOBİ Portalı, Banka Portalı, Kamu Ekranları)
+│   │   │   ├── kobi/          # Dashboard, Integration, Simulator, TsrsReport
+│   │   │   └── bank/          # BankDashboard (Yeşil Kredi Onay / İzleme)
+│   │   ├── components/        # Yeniden kullanılabilir UI bileşenleri
+│   │   └── App.jsx            # Rota, portal ve oturum yönetimi
+│   └── package.json           # Frontend bağımlılıkları
+│
+├── mobile/                    # React Native / Expo mobil uygulaması
+├── esg_pred/                  # XGBoost model eğitimi, veri hazırlığı ve MLflow scriptleri
+├── TSRS_Rapor/                # TSRS mevzuat referansları ve örnek rapor şablonları
+├── BelgeTarama/               # Belge OCR ve tarama talimatları
+└── README.md                  # Proje dokümantasyonu
+```
+
+---
+
+## ✨ Temel Özellikler
+
+- **🏢 Kurumsal Yeşil Panel (KOBİ & Banka):** KOBİ'ler için entegrasyon ve raporlama; bankalar için yeşil kredi risk değerlendirme paneli.
+- **📋 Otomatik TSRS Raporlama:** LangChain ve GPT tabanlı motor ile fatura, SGK ve mizanları analiz ederek Türkiye Sürdürülebilirlik Raporlama Standartlarına (TSRS 1 & TSRS 2) tam uyumlu, SHA-256 imzalı resmi rapor üretimi.
+- **📊 g-ROI ve Yeşil Kredi Simülatörü:** GES, elektrikli filo ve enerji verimliliği projeleri için 5 bileşenli (karbon vergisi, enerji tasarrufu, faiz avantajı, karbon kredisi, ESG primi) yatırım getirisi hesabı.
+- **🤖 XGBoost & Dinamik ESG Skoru:** Finansal rasyolar ve operasyonel verilerden makine öğrenmesi ile ESG skoru tahmini; güvenilir haberler, kullanıcı yorumları ve doğrulanmış ihbarlarla gerçek zamanlı skor modülasyonu.
+- **🔍 Halka Açık Denetim (Public Audit):** Vatandaşların ve paydaşların çevre ihlallerini bildirebildiği ve moderasyon sürecinden geçirildiği şeffaflık paneli.
+
+---
+
+## 🚀 Kurulum ve Çalıştırma
+
+### Sistem Gereksinimleri
+
+- **Node.js** ≥ 18.x ve **npm** ≥ 9.x
+- **Python** ≥ 3.10
+- *(İsteğe Bağlı)* OpenAI ve Google Gemini API anahtarları. (Anahtarlar tanımlanmadığında sistem otomatik olarak yerel mock/kural tabanlı algoritmalarla çalışır).
+
+---
+
+### 1. Backend Kurulumu ve Başlatılması
 
 ```bash
-# Frontend dizinine gidin
+# Backend dizinine gidin
+cd backend
+
+# Sanal ortam oluşturun ve aktif edin
+python -m venv venv
+source venv/bin/activate       # Linux/macOS
+# Windows için: venv\Scripts\activate
+
+# Bağımlılıkları yükleyin
+pip install -r requirements.txt
+
+# Ortam değişkenlerini yapılandırın (İsteğe bağlı)
+cp .env.example .env
+
+# Backend API sunucusunu başlatın
+uvicorn api:app --reload --port 8000
+```
+
+API `http://localhost:8000` adresinde çalışacaktır. Swagger dokümantasyonuna `http://localhost:8000/docs` adresinden erişebilirsiniz.
+
+---
+
+### 2. Frontend Kurulumu ve Başlatılması
+
+```bash
+# Ayrı bir terminalde frontend dizinine gidin
 cd frontend
 
 # Bağımlılıkları yükleyin
@@ -63,77 +98,46 @@ npm install
 npm run dev
 ```
 
-Uygulama `http://localhost:5173` adresinde erişilebilir olacaktır.
-
-#### Kullanılabilir Komutlar
-
-| Komut | Açıklama |
-|---|---|
-| `npm run dev` | Geliştirme sunucusunu başlatır (hot reload) |
-| `npm run build` | Üretim için derler |
-| `npm run preview` | Üretim derlemesini yerel olarak önizler |
-| `npm run lint` | ESLint kontrollerini çalıştırır |
+Web arayüzü `http://localhost:5173` adresinde açılacaktır.
 
 ---
 
-### Backend Kurulumu (Model C — YZ Motoru)
+### 3. Birim Testlerinin Çalıştırılması
+
+Projede karbon motoru, yeşil kredi hesabı, XGBoost tahmin hattı, NLP duygu analizörü ve SQLite veritabanı işlemlerini kapsayan birim testleri yer almaktadır:
 
 ```bash
-# Backend dizinine gidin
-cd model_c
+cd backend
 
-# Sanal ortam oluşturun ve aktif edin
-python -m venv venv
-source venv/bin/activate   # Windows için: venv\Scripts\activate
+# Tüm testleri çalıştırma
+pytest tests/
 
-# Bağımlılıkları yükleyin
-pip install -r requirements.txt
-
-# Ortam değişkenlerini yapılandırın
-cp .env.example .env
-# .env dosyasını açıp GEMINI_API_KEY ekleyin (isteğe bağlı)
-
-# API sunucusunu başlatın
-uvicorn app:app --reload --port 8000
+# Ayrıntılı test çıktısı alma
+pytest tests/ -v
 ```
-
-API `http://localhost:8000` adresinde erişilebilir olacaktır.
-
-> **Not:** `GEMINI_API_KEY` boş bırakılırsa, sistem otonom mock eşleştirme algoritmasını (regex tabanlı) kullanır. API anahtarı olmadan da test yapabilirsiniz.
 
 ---
-
-### Tam Çalıştırma (Frontend + Backend)
-
-İki ayrı terminal penceresi açın:
-
-```bash
-# Terminal 1 — Backend
-cd model_c
-source venv/bin/activate
-uvicorn app:app --reload --port 8000
-
-# Terminal 2 — Frontend
-cd frontend
-npm run dev
-```
 
 ## 🛠️ Teknoloji Yığını
 
 | Katman | Teknolojiler |
 |---|---|
-| **Frontend** | React 19, Vite 7, React Router 7, Framer Motion, Recharts, Lucide Icons |
-| **Backend** | FastAPI, Uvicorn, Pydantic, Pandas |
-| **YZ/ML** | Google Gemini API (gemini-2.5-flash), Instructor, OpenAI SDK |
-| **Veri** | JSON tabanlı emisyon faktörleri, TSRS şablonları |
+| **Frontend** | React 19, Vite, React Router 7, Framer Motion, Recharts, Lucide Icons |
+| **Backend** | FastAPI, Uvicorn, Pydantic, SQLite, Python-Multipart |
+| **Yapay Zeka & ML** | LangChain (OpenAI & Google GenAI), XGBoost, Scikit-Learn, Pandas, NumPy |
+| **Mobil** | React Native, Expo SDK |
+| **Test** | Pytest |
 
-## 📄 Ortam Değişkenleri
+---
 
-### Backend (`model_c/.env`)
+## 📄 Ortam Değişkenleri (`backend/.env`)
 
-| Değişken | Zorunlu | Açıklama |
+| Değişken | Zorunlu mu? | Açıklama |
 |---|---|---|
-| `GEMINI_API_KEY` | İsteğe bağlı | Google Gemini API anahtarı. Boş bırakılırsa mock algoritma kullanılır. |
+| `OPENAI_API_KEY` | İsteğe Bağlı | TSRS rapor üretimi ve gelişmiş NLP analizleri için kullanılır. Tanımlı değilse mock moduna geçer. |
+| `GEMINI_API_KEY` | İsteğe Bağlı | Karbon aktivite çıkarımı ve g-ROI kod üretim zinciri için kullanılır. Tanımlı değilse yerel regex/kural motoruna geçer. |
+
+---
 
 ## 🤝 Katkıda Bulunma
 
@@ -143,6 +147,8 @@ npm run dev
 4. Dalınıza push edin (`git push origin feature/harika-ozellik`)
 5. Pull Request açın
 
-## 📝 Lisans
+---
 
-Bu proje akademik ve demonstrasyon amaçlı geliştirilmiştir.
+## 📝 Lisans ve Notlar
+
+Bu proje sürdürülebilir finans ve yapay zeka denetimi amacıyla geliştirilmiştir.
