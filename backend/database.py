@@ -163,6 +163,56 @@ def init_db():
             )
         """)
 
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS credibility_snapshots (
+                id TEXT PRIMARY KEY,
+                ticker TEXT NOT NULL,
+                company_name TEXT NOT NULL,
+                methodology_version TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_credibility_snapshot_ticker ON credibility_snapshots(ticker, created_at DESC)"
+        )
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS external_evidence (
+                id TEXT PRIMARY KEY,
+                ticker TEXT NOT NULL,
+                title TEXT NOT NULL,
+                source TEXT NOT NULL,
+                url TEXT NOT NULL,
+                published_date TEXT,
+                body_hash TEXT NOT NULL,
+                source_kind TEXT NOT NULL,
+                source_weight REAL NOT NULL,
+                event_key TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(ticker, url)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS claim_evidence_links (
+                id TEXT PRIMARY KEY,
+                snapshot_id TEXT NOT NULL,
+                claim_id TEXT NOT NULL,
+                evidence_id TEXT NOT NULL,
+                pillar TEXT NOT NULL,
+                relation TEXT NOT NULL,
+                entity_confidence REAL NOT NULL,
+                relevance_confidence REAL NOT NULL,
+                total_weight REAL NOT NULL,
+                model_name TEXT,
+                prompt_version TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(snapshot_id) REFERENCES credibility_snapshots(id),
+                FOREIGN KEY(evidence_id) REFERENCES external_evidence(id)
+            )
+        """)
+
 
 # ── Feedback (kullanıcı yorumları) ──────────────────────────────────────────
 

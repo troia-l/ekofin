@@ -14,15 +14,50 @@ from .common import (
     COMPANY_DETAILS,
     FeedbackSubmit,
     _get_esg_predictor,
-    _ensure_fresh_news,
-    _fetch_and_store_news,
     _run_nlp,
-    _company_name,
     get_cover_image,
     generate_ai_insights,
 )
 
 router = APIRouter(tags=["ESG Prediction & Analytics"])
+
+
+@router.get("/api/esg/credibility/demo")
+def get_credibility_demo():
+    """Ağ çağrısı yapmayan, açıkça etiketlenmiş gerçek şirket fixture demonstrasyonu."""
+    from modules.esg_credibility.demo_data import build_demo_snapshot
+    return build_demo_snapshot().model_dump(mode="json")
+
+
+@router.get("/api/esg/credibility/{ticker}")
+def get_credibility(ticker: str):
+    """Pilot aşamada otomatik şirket/haber analizi kapalıdır."""
+    raise HTTPException(
+        status_code=404,
+        detail={
+            "code": "credibility_not_calculated",
+            "message": f"{ticker.upper()} için yayımlanmış güvenilirlik analizi bulunmuyor.",
+        },
+    )
+
+
+@router.get("/api/esg/credibility/{ticker}/evidence")
+def get_credibility_evidence(ticker: str):
+    raise HTTPException(
+        status_code=404,
+        detail={"code": "credibility_not_calculated", "message": f"{ticker.upper()} için kanıt kaydı bulunmuyor."},
+    )
+
+
+@router.post("/api/esg/credibility/{ticker}/refresh", status_code=501)
+def refresh_credibility(ticker: str):
+    raise HTTPException(
+        status_code=501,
+        detail={
+            "code": "automatic_discovery_disabled",
+            "message": "Pilot aşamada otomatik haber taraması kapalıdır; yalnız kontrollü test fixture'ı çalıştırılır.",
+        },
+    )
 
 
 @router.get("/api/esg/model-card")
@@ -72,7 +107,8 @@ def get_esg_companies():
                 # Toplumsal (yorum + doğrulanmış ihbar + haber) modülasyonu decay ağırlıklı hesapla
                 feedback_mod = db.compute_feedback_modulation(ticker)
                 audit_mod = db.compute_audit_modulation(ticker)
-                news_mod = db.compute_news_modulation(ticker)
+                # Haber doğrulaması ayrı ve deneysel bir sinyaldir; ESG/kredi skorunu değiştirmez.
+                news_mod = 0.0
 
                 # Bugünün snapshot'ı yoksa yaz (günlük skor geçmişi için idempotent)
                 snapshot = db.upsert_score_snapshot(ticker, today_str, score_out_of_10, feedback_mod, audit_mod, news_mod)
@@ -197,18 +233,14 @@ def get_company_score_history(ticker: str):
 
 @router.get("/api/esg/news/{ticker}")
 def get_company_news(ticker: str):
-    """Şirketle ilgili güvenilir kaynaklardan (Google News RSS, whitelist filtreli) çekilen
-    haberleri, her birinin NLP analizi ve ESG skor etkisiyle birlikte döner."""
-    _ensure_fresh_news(ticker, _company_name(ticker))
+    """Yalnız daha önce kaydedilmiş haberleri döndürür; otomatik ağ çağrısı yapmaz."""
     return db.list_news(ticker)
 
 
 @router.post("/api/esg/news/{ticker}/refresh")
 def refresh_company_news(ticker: str):
-    """Haber önbelleğini yaş sınırını yok sayarak zorla yeniler (manuel tetikleme).
-    Sadece yeni (henüz kayıtlı olmayan) haberler analiz edilir."""
-    try:
-        added, fetched = _fetch_and_store_news(ticker, _company_name(ticker))
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Haber servisi şu anda ulaşılamıyor: {e}")
-    return {"status": "success", "fetched": fetched, "added": added, "news": db.list_news(ticker)}
+    """Pilot kalibrasyonu tamamlanana kadar otomatik keşif kapalıdır."""
+    raise HTTPException(
+        status_code=501,
+        detail={"code": "automatic_discovery_disabled", "message": "Otomatik haber taraması pilot aşamada kapalıdır."},
+    )

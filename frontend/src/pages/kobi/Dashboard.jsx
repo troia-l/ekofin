@@ -34,6 +34,48 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+const PILLAR_LABELS = { E: 'ÇEVRESEL (E)', S: 'SOSYAL (S)', G: 'YÖNETİŞİM (G)' };
+
+const CredibilityCard = ({ pillar, result }) => {
+  const [expanded, setExpanded] = useState(false);
+  const score = result ? Math.round(result.reliability * 100) : null;
+  const adequacy = result ? Math.round(result.evidence_adequacy * 100) : 0;
+  return (
+    <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '16px 20px', minHeight: '145px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: '13.5px', fontWeight: 800, color: '#64748B' }}>{PILLAR_LABELS[pillar]}</span>
+        <span style={{ fontSize: '22px', fontWeight: 800, color: score !== null && score < 50 ? '#B45309' : '#059669' }}>
+          {score === null ? '--' : `%${score}`}
+        </span>
+      </div>
+      <div style={{ height: '6px', background: '#F1F5F9', borderRadius: '3px', overflow: 'hidden', margin: '8px 0' }}>
+        <div style={{ width: `${score || 0}%`, height: '100%', background: score !== null && score < 50 ? '#F59E0B' : '#059669' }} />
+      </div>
+      <div style={{ fontSize: '11.5px', color: '#64748B', lineHeight: 1.45 }}>
+        {result?.reason || 'Analiz sonucu bulunmuyor.'} Kanıt yeterliliği: %{adequacy}.
+      </div>
+      <button
+        type="button"
+        onClick={() => setExpanded(value => !value)}
+        disabled={!result?.evidence?.length}
+        style={{ marginTop: '10px', padding: 0, border: 'none', background: 'transparent', color: '#047857', fontSize: '12px', fontWeight: 700, cursor: result?.evidence?.length ? 'pointer' : 'default' }}
+      >
+        {expanded ? 'Kaynakları gizle' : `Kaynaklar (${result?.evidence?.length || 0})`}
+      </button>
+      {expanded && (
+        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {result.evidence.map(item => (
+            <a key={item.id} href={item.url} target="_blank" rel="noreferrer" style={{ color: '#334155', fontSize: '11.5px', lineHeight: 1.4, textDecoration: 'none', paddingTop: '8px', borderTop: '1px solid #E2E8F0' }}>
+              <strong>{item.source}</strong>: {item.title}<br />
+              <span style={{ color: '#B45309' }}>{item.explanation}</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const { currentUser } = useOutletContext() || {};
   const navigate = useNavigate();
@@ -42,6 +84,8 @@ const Dashboard = () => {
   const [docStatuses, setDocStatuses] = useState({});
   const [companies, setCompanies] = useState([]);
   const [modelCardData, setModelCardData] = useState(null);
+  const [reportReadiness, setReportReadiness] = useState(null);
+  const [credibility, setCredibility] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Modals state
@@ -58,7 +102,7 @@ const Dashboard = () => {
   // Passport & Verification state
   const [copied, setCopied] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationSuccess, setVerificationSuccess] = useState(true);
+  const [verificationSuccess, setVerificationSuccess] = useState(false);
 
   const ticker = currentUser?.companyTicker;
 
@@ -67,11 +111,15 @@ const Dashboard = () => {
     try {
       const tickerParam = ticker ? `?ticker=${encodeURIComponent(ticker)}` : '';
       
-      const [sumRes, docsRes, compRes, modelRes] = await Promise.allSettled([
+      const year = new Date().getFullYear() - 1;
+      const readinessUrl = ticker ? `${API_URL}/api/report/readiness?ticker=${encodeURIComponent(ticker)}&reporting_year=${year}` : null;
+      const [sumRes, docsRes, compRes, modelRes, readinessRes, credibilityRes] = await Promise.allSettled([
         fetch(`${API_URL}/api/dashboard/summary${tickerParam}`),
         fetch(`${API_URL}/api/documents/status${tickerParam}`),
         fetch(`${API_URL}/api/esg/companies`),
-        fetch(`${API_URL}/api/esg/model-card`)
+        fetch(`${API_URL}/api/esg/model-card`),
+        readinessUrl ? fetch(readinessUrl) : Promise.resolve(null),
+        fetch(`${API_URL}/api/esg/credibility/demo`)
       ]);
 
       if (sumRes.status === 'fulfilled' && sumRes.value.ok) {
@@ -87,6 +135,12 @@ const Dashboard = () => {
       if (modelRes.status === 'fulfilled' && modelRes.value.ok) {
         setModelCardData(await modelRes.value.json());
       }
+      if (readinessRes.status === 'fulfilled' && readinessRes.value?.ok) {
+        setReportReadiness(await readinessRes.value.json());
+      }
+      if (credibilityRes.status === 'fulfilled' && credibilityRes.value.ok) {
+        setCredibility(await credibilityRes.value.json());
+      }
     } catch (e) {
       console.error("Dashboard veri çekme hatası:", e);
     } finally {
@@ -100,19 +154,15 @@ const Dashboard = () => {
 
   // Şirket profil tespiti
   const myCompany = companies.find(c => c.ticker === ticker);
-  const isPredefined = ticker === 'TOASO' || ticker === 'ASELS';
-
-  const totalDocs = myCompany ? 11 : (summary?.total_verified_documents ?? 0);
-  const declarationOk = myCompany ? true : (summary?.declaration_submitted ?? false);
-  const reportReady = myCompany ? true : (summary?.report_generated ?? false);
+  const totalDocs = summary?.total_verified_documents ?? 0;
+  const declarationOk = summary?.declaration_submitted ?? false;
+  const reportReady = reportReadiness?.report_state === 'current';
   
   // Aktif Blockchain İmzası (Kullanıcı düzenlediyse customHash geçerli olur)
-  const defaultHash = myCompany 
-    ? "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" 
-    : (summary?.report_hash ?? '');
+  const defaultHash = reportReadiness?.last_report?.sha256 ?? '';
   const reportHash = customHash || defaultHash;
 
-  const isDataVerified = isPredefined || totalDocs > 0 || declarationOk || reportReady;
+  const isDataVerified = reportReadiness?.data_state === 'ready';
 
   const esgScore = myCompany ? myCompany.score : (isDataVerified ? 6.4 : '--');
   const riskLevel = myCompany ? myCompany.riskLevel : (isDataVerified ? 'Düşük Risk' : 'Doğrulama Bekliyor');
@@ -123,14 +173,6 @@ const Dashboard = () => {
     navigator.clipboard.writeText(reportHash);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleVerify = () => {
-    setIsVerifying(true);
-    setTimeout(() => {
-      setIsVerifying(false);
-      setVerificationSuccess(true);
-    }, 800);
   };
 
   // Rastgele 64-karakter SHA-256 Hash üretici
@@ -537,7 +579,7 @@ const Dashboard = () => {
                   {declarationOk ? 'TSRS 1 & 2 Anketi Tamam' : 'Anket formu doldurulmalı'}
                 </span>
                 <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>
-                  {declarationOk ? 'KGK Uyumlu' : 'Gerekli'}
+                  {declarationOk ? 'Form tamamlandı' : 'Gerekli'}
                 </span>
               </div>
             </div>
@@ -558,17 +600,14 @@ const Dashboard = () => {
               {/* Başlık ve Düzenleme Kalem Butonu */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                  BLOCKCHAIN İMZASI & PASAPORT
+                  RAPOR DOSYA BÜTÜNLÜĞÜ
                 </span>
                 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {/* KALEM DÜZENLEME BUTONU: BLOCKCHAIN KODUNU DEĞİŞTİRİR */}
                   <button
-                    onClick={() => {
-                      setEditHashInput(reportHash);
-                      setShowHashModal(true);
-                    }}
-                    title="Blockchain Mühür Kodunu Düzenle"
+                    disabled
+                    title="Dosya özeti sunucu tarafından hesaplanır"
                     style={{
                       background: '#F8FAFC',
                       border: '1px solid #CBD5E1',
@@ -577,7 +616,7 @@ const Dashboard = () => {
                       color: '#0F172A',
                       fontSize: '11.5px',
                       fontWeight: 700,
-                      cursor: 'pointer',
+                      cursor: 'not-allowed',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '4px',
@@ -585,7 +624,7 @@ const Dashboard = () => {
                     }}
                   >
                     <Pencil size={12} color="#D97706" />
-                    <span>Düzenle</span>
+                    <span>Salt okunur</span>
                   </button>
                   <Zap size={20} color="#D97706" />
                 </div>
@@ -595,7 +634,7 @@ const Dashboard = () => {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', fontFamily: 'monospace' }}>
-                    {reportHash ? `${reportHash.slice(0, 8)}...${reportHash.slice(-4)}` : 'Mühür Bekliyor'}
+                    {reportHash ? `${reportHash.slice(0, 8)}...${reportHash.slice(-4)}` : 'Rapor bekleniyor'}
                   </span>
                   {reportHash && (
                     <button 
@@ -609,8 +648,7 @@ const Dashboard = () => {
                 </div>
 
                 <button
-                  onClick={handleVerify}
-                  disabled={isVerifying || !reportHash}
+                  disabled
                   style={{
                     background: isVerifying ? '#F8FAFC' : verificationSuccess ? '#ECFDF5' : '#F8FAFC',
                     color: isVerifying ? '#64748B' : verificationSuccess ? '#059669' : '#0F172A',
@@ -627,17 +665,17 @@ const Dashboard = () => {
                   }}
                 >
                   <ShieldCheck size={14} color={verificationSuccess ? "#059669" : "#64748B"} />
-                  <span>{isVerifying ? 'Doğrulanıyor...' : verificationSuccess ? 'İmza Doğrulandı ✓' : 'İmza Doğrula'}</span>
+                  <span>{reportHash ? 'Dosya özeti mevcut' : 'Özet yok'}</span>
                 </button>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', fontWeight: 700, color: reportHash ? '#059669' : '#64748B' }}>
                   <CheckCircle2 size={15} color="#059669" />
-                  <span>SHA-256 Dijital Mühürlü</span>
+                  <span>SHA-256 özeti</span>
                 </div>
                 <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>
-                  Banka & KGK Onaylı
+                  Bağımsız güvence değildir
                 </span>
               </div>
             </div>
@@ -647,10 +685,20 @@ const Dashboard = () => {
           {/* 2. ORTA KISIM: VERİ DOĞRULUK DURUMU (E % - S % - G %) - EŞİT HİZALI */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
-              <ShieldCheck size={20} color="#059669" /> Veri Doğruluk Durumu
+              <ShieldCheck size={20} color="#059669" /> ESG Beyan Güvenilirliği
+            </div>
+            <div style={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.5 }}>
+              Şirket beyanları bağımsız dış kanıtlarla karşılaştırılır. Haber sayısı değil; kaynak kalitesi, şirket eşleşmesi, ilişki ve güncellik ağırlıklandırılır.
+              {credibility?.demo && <strong style={{ color: '#B45309' }}> Örnek analiz: {credibility.company_name} — mevcut şirket skorunu etkilemez.</strong>}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '16px' }}>
+              {['E', 'S', 'G'].map(pillar => (
+                <CredibilityCard key={pillar} pillar={pillar} result={credibility?.pillars?.[pillar]} />
+              ))}
+            </div>
+
+            <div aria-hidden="true" style={{ display: 'none' }}>
               
               {/* E % (Çevresel) */}
               <div style={{
@@ -800,7 +848,9 @@ const Dashboard = () => {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', background: '#F8FAFC', padding: '10px 14px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
               <span style={{ color: '#64748B', fontWeight: 500 }}>Analiz Durumu:</span>
-              <strong style={{ color: '#059669', fontWeight: 700 }}>Aktif & Hazır</strong>
+              <strong style={{ color: reportReady ? '#059669' : '#B45309', fontWeight: 700 }}>
+                {reportReadiness?.active_job_id ? 'Rapor üretiliyor' : reportReady ? 'Güncel rapor hazır' : isDataVerified ? 'Üretime hazır' : 'Veri bekleniyor'}
+              </strong>
             </div>
 
             <button 
@@ -922,15 +972,15 @@ const Dashboard = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', background: '#F8FAFC', padding: '10px 12px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: '#334155' }}>TSRS-1 Genel Hükümler:</span>
-                <strong style={{ color: '#059669', fontWeight: 700 }}>KGK Uyumlu</strong>
+                <strong style={{ color: '#64748B', fontWeight: 700 }}>{reportReady ? 'Raporlandı' : 'Değerlendirilmedi'}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: '#334155' }}>TSRS-2 İklim Riskleri:</span>
-                <strong style={{ color: '#059669', fontWeight: 700 }}>Doğrulandı</strong>
+                <strong style={{ color: '#64748B', fontWeight: 700 }}>{reportReady ? 'Raporlandı' : 'Değerlendirilmedi'}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: '#334155' }}>Sektörel Limit Uyumu:</span>
-                <strong style={{ color: '#059669', fontWeight: 700 }}>%100 Uyum</strong>
+                <strong style={{ color: '#64748B', fontWeight: 700 }}>Bağımsız güvence yok</strong>
               </div>
             </div>
 
@@ -1003,10 +1053,10 @@ const Dashboard = () => {
                   <Zap size={22} color="#D97706" />
                   <div>
                     <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
-                      Blockchain İmzası Düzenleme
+                      Dosya Özeti
                     </h3>
                     <div style={{ fontSize: '12.5px', color: '#64748B', marginTop: '2px' }}>
-                      Kriptografik SHA-256 dijital mühür kodunu güncelleyin
+                      SHA-256 değeri sunucu tarafından rapor dosyasından hesaplanır
                     </div>
                   </div>
                 </div>
@@ -1022,7 +1072,7 @@ const Dashboard = () => {
               <form onSubmit={handleSaveHash} style={{ padding: '24px 26px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    SHA-256 Mühür Kodu (Blockchain Hash):
+                    SHA-256 dosya özeti:
                   </label>
                   <textarea
                     rows={3}
@@ -1062,7 +1112,7 @@ const Dashboard = () => {
                     }}
                   >
                     <RotateCcw size={13} />
-                    <span>Yeni Rastgele Mühür Üret</span>
+                    <span>Rastgele değer kullanılamaz</span>
                   </button>
 
                   <span style={{ fontSize: '12px', color: '#64748B' }}>
@@ -1071,7 +1121,7 @@ const Dashboard = () => {
                 </div>
 
                 <div style={{ background: '#F8FAFC', padding: '12px 16px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '12.5px', color: '#64748B', lineHeight: '1.4' }}>
-                  💡 <strong>Bilgi:</strong> Bu kod, şirketinize ait TSRS sürdürülebilirlik raporunun ve yeşil kredi pasaportunun uluslararası bankalar ve KGK denetçileri nezdinde değiştirilemezliğini kanıtlar.
+                  <strong>Bilgi:</strong> Bu değer yalnızca indirilen rapor dosyasının bütünlük kontrolünde kullanılır; düzenleyici onayı veya bağımsız güvence anlamına gelmez.
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>

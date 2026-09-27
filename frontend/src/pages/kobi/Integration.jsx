@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, Link2, ShieldAlert, FileText, Leaf, AlertTriangle, Sparkles, Trash2, X } from 'lucide-react';
 import ManagerDeclarationDashboard from '../../components/ManagerDeclarationDashboard';
+import { normalizeDeclarationData } from '../../utils/declaration';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -131,7 +132,9 @@ const Integration = () => {
       const res = await fetch(withTicker(`${API_URL}/api/declaration`));
       if (res.ok) {
         const data = await res.json();
-        if (data.status === 'found') setDeclarationData(data.data);
+        if (data.status === 'found' && data.data) {
+          setDeclarationData(normalizeDeclarationData(data.data));
+        }
         else setDeclarationData(null);
       }
     } catch (e) { console.error('Anket verisi alınamadı:', e); }
@@ -142,7 +145,7 @@ const Integration = () => {
       const res = await fetch(withTicker(`${API_URL}/api/documents/list`));
       if (res.ok) {
         const data = await res.json();
-        setRecentUploads(data.uploads || []);
+        setRecentUploads(Array.isArray(data.uploads) ? data.uploads : []);
       }
     } catch (e) { console.error('Yükleme listesi alınamadı:', e); }
   };
@@ -216,7 +219,7 @@ const Integration = () => {
         body: JSON.stringify(data),
       });
       if (res.ok) {
-        setDeclarationData(data);
+        setDeclarationData(normalizeDeclarationData(data));
         setShowDeclarationDashboard(false);
         await fetchDocStatuses();
       }
@@ -592,7 +595,7 @@ const Integration = () => {
             
             <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(59, 130, 246, 0.05)', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
               <p style={{ fontSize: '12px', color: '#1E40AF', lineHeight: '1.6', fontWeight: 500 }}>
-                <strong>TSRS Uyarı:</strong> Yüklenen belgeler, bağımsız denetim sürecinde doğrudan "Yeşil Kredi Pasaportu"na kriptografik olarak (Hash) mühürlenecektir. 
+                <strong>TSRS Uyarı:</strong> Yüklenen belgeler rapor üretiminde kaynak olarak kullanılacak ve çıktı kalite kontrolünden geçirilecektir.
               </p>
             </div>
           </motion.div>
@@ -662,7 +665,7 @@ const Integration = () => {
               {reportStatus.status === 'generating'
                 ? (reportStatus.message || 'Verileriniz işleniyor ve standartlara göre sınıflandırılıyor...')
                 : (reportStatus.status === 'completed' || (reportStatus.status === 'idle' && isLatestReportFound))
-                  ? 'Verileriniz işlendi, TSRS Sürdürülebilirlik Raporu hazır ve kriptografik olarak mühürlendi.'
+                  ? 'Verileriniz işlendi ve TSRS sürdürülebilirlik raporu kalite kontrolünden geçti.'
                   : reportStatus.status === 'error'
                     ? (reportStatus.message || 'Rapor oluşturulurken bir hata oluştu.')
                     : 'Yüklenen belgeler ve API verileri analiz edilerek bağımsız denetime hazır TSRS beyanı oluşturulur.'

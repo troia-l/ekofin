@@ -1,0 +1,73 @@
+{
+  "ticker": "TSLA",
+  "company_name": "Tesla, Inc.",
+  "aliases": ["Tesla", "TSLA"],
+  "as_of": "2024-12-31",
+  "claims": [
+    {
+      "id": "claim_e_1",
+      "text": "Şirket çevre mevzuatına uyumlu operasyon yürüttüğünü beyan etmektedir.",
+      "pillar": "E",
+      "topic": "environmental_compliance",
+      "materiality": 1.0,
+      "source_kind": "self_declared"
+    },
+    {
+      "id": "claim_s_1",
+      "text": "Şirket ayrımcılık ve tacizden uzak, eşitlikçi bir çalışma ortamı sunduğunu beyan etmektedir.",
+      "pillar": "S",
+      "topic": "workplace_equality",
+      "materiality": 1.0,
+      "source_kind": "self_declared"
+    },
+    {
+      "id": "claim_g_1",
+      "text": "Şirket kamuya yapılan açıklamalarda etkin yönetişim ve kontrol mekanizmaları bulunduğunu beyan etmektedir.",
+      "pillar": "G",
+      "topic": "disclosure_controls",
+      "materiality": 1.0,
+      "source_kind": "self_declared"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev_reuters_2024",
+      "title": "Tesla to pay $1.5 million to settle California hazardous waste lawsuit",
+      "source": "Reuters",
+      "url": "https://www.reuters.com/legal/tesla-pay-15-million-settle-california-hazardous-waste-lawsuit-2024-02-02/",
+      "published_date": "2024-02-02",
+      "body": "Reuters reported that Tesla agreed to pay $1.5 million to settle a California lawsuit alleging hazardous-waste handling violations.",
+      "pillar": "E",
+      "topic": "environmental_compliance",
+      "source_kind": "official_final",
+      "provenance": 1.0,
+      "maturity": 1.0
+    },
+    {
+      "id": "ev_eeoc_2023",
+      "title": "EEOC Sues Tesla for Racial Harassment and Retaliation",
+      "source": "U.S. Equal Employment Opportunity Commission",
+      "url": "https://www.eeoc.gov/newsroom/eeoc-sues-tesla-racial-harassment-and-retaliation",
+      "published_date": "2023-09-28",
+      "body": "The EEOC sued Tesla alleging widespread racial harassment and retaliation. The lawsuit is an allegation and is not presented as a final judgment.",
+      "pillar": "S",
+      "topic": "workplace_equality",
+      "source_kind": "official_allegation",
+      "provenance": 1.0,
+      "maturity": 0.55
+    },
+    {
+      "id": "ev_sec_2018",
+      "title": "Elon Musk and Tesla Settle SEC Fraud Charges",
+      "source": "U.S. Securities and Exchange Commission",
+      "url": "https://www.sec.gov/newsroom/press-releases/2018-226",
+      "published_date": "2018-09-29",
+      "body": "The SEC announced settlements concerning fraud charges and governance changes at Tesla, including oversight of communications.",
+      "pillar": "G",
+      "topic": "disclosure_controls",
+      "source_kind": "official_final",
+      "provenance": 1.0,
+      "maturity": 1.0
+    }
+  ]
+}

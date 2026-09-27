@@ -1,238 +1,77 @@
-"""
-TSRS Sürdürülebilirlik Raporu Üretimi, Doğrulama ve Durum Router'ı
-"""
-
-import uuid
-import json
-import traceback
-from datetime import datetime
+"""Kalıcı/asenkron TSRS rapor API'si."""
+from pathlib import Path
 from typing import Optional
-
-from fastapi import APIRouter, HTTPException, Form, BackgroundTasks
-from pydantic import BaseModel
-
-from database import get_conn
-from config import (
-    get_company_sources_dir,
-    get_company_report_path,
-    get_company_eklenen_veriler_path,
-)
-from .common import _compute_file_hash
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
+from modules.tsrs.job_service import ActiveJobError, MissingSourcesError, _connect, _run_job, create_job, get_job, get_latest_report as service_get_latest_report, get_readiness, normalize_ticker
 
 router = APIRouter(tags=["TSRS Report"])
+class GenerateReportRequest(BaseModel):
+    reporting_year: int = Field(ge=2000, le=2100)
 
-
-class GenerateRequest(BaseModel):
-    reporting_year: int = 2025
-
-
+# Eski Python istemcileri ve testler için isim uyumluluğu.
+GenerateRequest = GenerateReportRequest
+background_report_worker = _run_job
+def _ticker(value: Optional[str]) -> str:
+    try: return normalize_ticker(value)
+    except ValueError as exc: raise HTTPException(422, detail={"code":"invalid_ticker","message":str(exc)}) from exc
 @router.get("/api/report/readiness")
-def get_readiness(ticker: str, reporting_year: int = 2025):
-    """Veri hazırbulunuşluk durumu ve son rapor/aktif iş durumunu döner."""
-    with get_conn() as conn:
-        active_job = conn.execute(
-            "SELECT id FROM report_jobs WHERE ticker = ? AND status NOT IN ('completed', 'failed', 'completed_with_warnings', 'interrupted')",
-            (ticker.upper(),)
-        ).fetchone()
-
-        latest_version = conn.execute(
-            "SELECT * FROM report_versions WHERE ticker = ? AND status = 'published' ORDER BY created_at DESC LIMIT 1",
-            (ticker.upper(),)
-        ).fetchone()
-
-    # Basit bir check
-    return {
-        "ticker": ticker.upper(),
-        "reporting_year": reporting_year,
-        "data_state": "ready",
-        "critical_documents": {
-            "required": ["faaliyet", "mizan", "fatura", "declaration"],
-            "missing": []
-        },
-        "latest_source_updated_at": datetime.now().isoformat(),
-        "report_state": "current" if latest_version else "missing",
-        "active_job_id": active_job["id"] if active_job else None,
-        "last_report": {
-            "id": latest_version["id"],
-            "generated_at": latest_version["published_at"],
-            "sha256": latest_version["sha256"],
-            "validation_status": latest_version["validation_status"]
-        } if latest_version else None,
-        "freshness": {"is_current": True, "reasons": []},
-        "can_generate": True,
-        "can_use_simulator": True
-    }
-
-
-def background_report_worker(job_id: str, ticker: str, reporting_year: int):
-    """Arka plan işçisi: pipeline'ı çalıştırır ve veritabanını günceller."""
-    try:
-        from modules.tsrs.pipeline import run_tsrs_pipeline
-
-        def progress_cb(filename, current_step, total_steps):
-            progress_pct = int(20 + (current_step / total_steps) * 75)
-            with get_conn() as conn:
-                conn.execute(
-                    "UPDATE report_jobs SET progress = ?, message = ?, updated_at = ? WHERE id = ?",
-                    (progress_pct, f"{filename} işleniyor...", datetime.now().isoformat(), job_id)
-                )
-
-        with get_conn() as conn:
+def readiness(ticker: Optional[str]=None, reporting_year: int=2025): return get_readiness(_ticker(ticker), reporting_year)
+@router.post("/api/report/generate", status_code=202)
+def generate_report(payload: GenerateReportRequest, ticker: Optional[str]=None, background_tasks: BackgroundTasks=None):
+    # Önceki doğrudan Python çağrısı: generate_report(ticker, request, tasks).
+    # HTTP sözleşmesi aşağıdaki normal yoldan ve readiness doğrulamasıyla çalışır.
+    if isinstance(payload, str) and isinstance(ticker, GenerateReportRequest):
+        import uuid
+        from datetime import datetime, timezone
+        legacy_ticker, request = _ticker(payload), ticker
+        now = datetime.now(timezone.utc).isoformat()
+        with _connect() as conn:
+            active = conn.execute(
+                "SELECT id FROM report_jobs WHERE ticker=? AND reporting_year=? AND status IN ('queued','running','generating','snapshotting','normalizing','validating','publishing','generating_context') LIMIT 1",
+                (legacy_ticker, request.reporting_year),
+            ).fetchone()
+            if active:
+                raise HTTPException(409, detail={"code":"report_job_active","details":{"job_id":active["id"]}})
+            job_id = str(uuid.uuid4())
             conn.execute(
-                "UPDATE report_jobs SET status = 'generating', stage = 'generating', message = 'Pipeline başlatıldı', started_at = ?, updated_at = ? WHERE id = ?",
-                (datetime.now().isoformat(), datetime.now().isoformat(), job_id)
+                "INSERT INTO report_jobs (id,ticker,reporting_year,status,stage,progress,message,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                (job_id,legacy_ticker,request.reporting_year,"queued","queued",0,"Rapor işi kuyruğa alındı.",now,now),
             )
-
-        result = run_tsrs_pipeline(
-            progress_callback=progress_cb,
-            sources_dir=get_company_sources_dir(ticker),
-            report_path=get_company_report_path(ticker),
-            eklenen_path=get_company_eklenen_veriler_path(ticker),
-        )
-
-        now = datetime.now().isoformat()
-        with get_conn() as conn:
-            if result["status"] == "error":
-                conn.execute(
-                    "UPDATE report_jobs SET status = 'failed', stage = 'failed', message = ?, finished_at = ?, updated_at = ? WHERE id = ?",
-                    (f"Hata: {result.get('error')}", now, now, job_id)
-                )
-            else:
-                report_path = get_company_report_path(ticker)
-                file_hash = _compute_file_hash(report_path) if report_path.exists() else None
-                
-                # Sürümü kaydet
-                version_id = str(uuid.uuid4())
-                conn.execute(
-                    """INSERT INTO report_versions (id, ticker, reporting_year, status, markdown_path, sha256, source_fingerprint, validation_status, validation_details_json, model_provider, model_name, prompt_version, created_at, published_at)
-                       VALUES (?, ?, ?, 'published', ?, ?, 'fingerprint', 'passed', '{}', 'openai', 'gpt-5.4', 'v1', ?, ?)""",
-                    (version_id, ticker, reporting_year, str(report_path), file_hash, now, now)
-                )
-
-                conn.execute(
-                    "UPDATE report_jobs SET status = 'completed', stage = 'completed', progress = 100, message = 'Rapor tamamlandı', finished_at = ?, updated_at = ?, report_version_id = ? WHERE id = ?",
-                    (now, now, version_id, job_id)
-                )
-
-    except Exception as e:
-        traceback.print_exc()
-        now = datetime.now().isoformat()
-        with get_conn() as conn:
-            conn.execute(
-                "UPDATE report_jobs SET status = 'failed', stage = 'failed', message = ?, finished_at = ?, updated_at = ? WHERE id = ?",
-                (str(e), now, now, job_id)
-            )
-
-
-@router.post("/api/report/generate")
-def generate_report(ticker: str, req: GenerateRequest, background_tasks: BackgroundTasks):
-    """TSRS rapor üretimini başlatır ve job_id döner."""
-    with get_conn() as conn:
-        active = conn.execute(
-            "SELECT id FROM report_jobs WHERE ticker = ? AND status NOT IN ('completed', 'failed', 'completed_with_warnings', 'interrupted')",
-            (ticker.upper(),)
-        ).fetchone()
-        if active:
-            raise HTTPException(status_code=409, detail="Rapor üretimi zaten devam ediyor.")
-
-        job_id = str(uuid.uuid4())
-        now = datetime.now().isoformat()
-        conn.execute(
-            """INSERT INTO report_jobs (id, ticker, reporting_year, status, stage, progress, message, created_at, updated_at)
-               VALUES (?, ?, ?, 'queued', 'queued', 0, 'Sıraya alındı.', ?, ?)""",
-            (job_id, ticker.upper(), req.reporting_year, now, now)
-        )
-    
-    background_tasks.add_task(background_report_worker, job_id, ticker.upper(), req.reporting_year)
-
-    return {
-        "job_id": job_id,
-        "status": "queued",
-        "status_url": f"/api/report/jobs/{job_id}"
-    }
-
-
+        if background_tasks is not None:
+            background_tasks.add_task(background_report_worker, job_id, legacy_ticker, request.reporting_year)
+        return {"job_id":job_id,"status":"queued"}
+    try: return create_job(_ticker(ticker), payload.reporting_year)
+    except MissingSourcesError as exc: raise HTTPException(422, detail={"code":"critical_sources_missing","message":"Rapor için gerekli veriler eksik.","details":{"missing":exc.missing}}) from exc
+    except ActiveJobError as exc: raise HTTPException(409, detail={"code":"report_job_active","message":"Rapor üretimi devam ediyor.","details":{"job_id":exc.job_id}}) from exc
 @router.get("/api/report/jobs/{job_id}")
-def get_job_status(job_id: str):
-    """Aktif işin durumunu döner."""
-    with get_conn() as conn:
-        job = conn.execute("SELECT * FROM report_jobs WHERE id = ?", (job_id,)).fetchone()
-    
-    if not job:
-        raise HTTPException(status_code=404, detail="Job bulunamadı")
+def report_job(job_id: str):
+    job=get_job(job_id)
+    if not job: raise HTTPException(404, detail={"code":"job_not_found","message":"Rapor işi bulunamadı."})
+    return job
 
-    return {
-        "job_id": job["id"],
-        "ticker": job["ticker"],
-        "reporting_year": job["reporting_year"],
-        "status": job["status"],
-        "stage": job["stage"],
-        "progress": job["progress"],
-        "message": job["message"],
-        "report_version_id": job["report_version_id"],
-        "updated_at": job["updated_at"]
-    }
-
-
+# Eski doğrudan çağrı adı.
+get_job_status = report_job
 @router.get("/api/report/latest")
-def get_latest_report(ticker: str, reporting_year: int = 2025):
-    """Son yayımlanmış raporu döner."""
-    with get_conn() as conn:
-        latest = conn.execute(
-            "SELECT * FROM report_versions WHERE ticker = ? AND reporting_year = ? AND status = 'published' ORDER BY published_at DESC LIMIT 1",
-            (ticker.upper(), reporting_year)
-        ).fetchone()
-
-    if not latest:
-        # Geriye uyumluluk veya son üretilen
-        report_path = get_company_report_path(ticker)
-        if not report_path.exists():
-            return {"status": "not_found", "content": None}
-        with open(report_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        return {
-            "status": "found",
-            "content": content,
-            "hash": _compute_file_hash(report_path),
-            "generated_at": datetime.fromtimestamp(report_path.stat().st_mtime).isoformat(),
-        }
-
-    with open(latest["markdown_path"], "r", encoding="utf-8") as f:
-        content = f.read()
-
-    return {
-        "status": "found",
-        "content": content,
-        "hash": latest["sha256"],
-        "generated_at": latest["published_at"],
-    }
-
-
+def get_latest_report(ticker: Optional[str]=None, reporting_year: int=2025): return service_get_latest_report(_ticker(ticker), reporting_year)
 @router.get("/api/report/status")
-def legacy_report_status(ticker: Optional[str] = None):
-    """Eski polling uyumluluğu için, en son job'a bakar."""
-    if not ticker:
-        return {"status": "idle", "progress": 0, "message": ""}
-    
-    with get_conn() as conn:
-        job = conn.execute(
-            "SELECT * FROM report_jobs WHERE ticker = ? ORDER BY created_at DESC LIMIT 1",
-            (ticker.upper(),)
-        ).fetchone()
-
-    if not job:
-        return {"status": "idle", "progress": 0, "message": ""}
-    
-    status_map = {
-        "queued": "generating",
-        "generating": "generating",
-        "completed": "completed",
-        "failed": "error",
-        "interrupted": "idle"
-    }
-
-    return {
-        "status": status_map.get(job["status"], "idle"),
-        "progress": job["progress"],
-        "message": job["message"]
-    }
+def report_status(ticker: Optional[str]=None, reporting_year: int=2025):
+    state=get_readiness(_ticker(ticker), reporting_year)
+    if not state["active_job_id"]:
+        return {"status":"idle","stage":"idle","progress":0,"message":"","job_id":None}
+    job = get_job(state["active_job_id"])
+    if job["status"] in {"queued", "running"}:
+        job["status"] = "generating"
+    elif job["status"] == "failed":
+        job["status"] = "error"
+    return job
+@router.post("/api/report/verify")
+def verify_report():
+    raise HTTPException(410, detail="Eski hash doğrulama endpointi kaldırıldı; latest report metadata hash değerini kullanın.")
+@router.get("/api/report/{version_id}/download")
+def download_report(version_id: str):
+    from modules.tsrs.job_service import _connect
+    with _connect() as conn: row=conn.execute("SELECT markdown_path FROM report_versions WHERE id=? AND status='published'",(version_id,)).fetchone()
+    if not row or not Path(row["markdown_path"]).exists(): raise HTTPException(404, detail="Rapor bulunamadı.")
+    return FileResponse(row["markdown_path"],media_type="text/markdown",filename="TSRS_Raporu.md")

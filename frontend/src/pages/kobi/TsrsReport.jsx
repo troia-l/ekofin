@@ -25,8 +25,10 @@ const itemVariants = {
 
 const TsrsReport = () => {
   const { currentUser } = useOutletContext() || {};
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const queryTicker = searchParams.get('ticker');
   const [selectedTicker, setSelectedTicker] = useState((currentUser?.companyTicker || queryTicker || 'ASELS').toUpperCase());
+  const [reportingYear, setReportingYear] = useState(new Date().getFullYear() - 1);
   
   useEffect(() => {
     if (currentUser?.companyTicker) {
@@ -46,6 +48,9 @@ const TsrsReport = () => {
   const [expandedSection, setExpandedSection] = useState(null);
   const [reportData, setReportData] = useState(null);
   const [reportHash, setReportHash] = useState('');
+  const [reportVersionId, setReportVersionId] = useState(null);
+  const [reportGeneratedAt, setReportGeneratedAt] = useState(null);
+  const [reportIsCurrent, setReportIsCurrent] = useState(false);
   const [exportError, setExportError] = useState(null);
   const [shapData, setShapData] = useState(null);
   const [modelCardData, setModelCardData] = useState(null);
@@ -66,9 +71,10 @@ const TsrsReport = () => {
   // Şirket değişiminde raporu ve SHAP verilerini yeniden çek
   useEffect(() => {
     fetchLatestReport(selectedTicker);
+    fetchReadiness(selectedTicker);
     fetchShapData(selectedTicker);
     fetchModelCard();
-  }, [selectedTicker]);
+  }, [selectedTicker, reportingYear]);
 
   useEffect(() => {
     if (location.state?.triggerGenerate) {
@@ -92,16 +98,22 @@ const TsrsReport = () => {
   const fetchLatestReport = async (targetTicker) => {
     try {
       const currentTicker = targetTicker || selectedTicker;
-      const url = currentTicker ? `${API_URL}/api/report/latest?ticker=${encodeURIComponent(currentTicker)}` : `${API_URL}/api/report/latest`;
+      const url = currentTicker ? `${API_URL}/api/report/latest?ticker=${encodeURIComponent(currentTicker)}&reporting_year=${reportingYear}` : `${API_URL}/api/report/latest?reporting_year=${reportingYear}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         if (data.status === 'found') {
           setReportData(data.content);
           setReportHash(data.hash || '');
+          setReportVersionId(data.id || null);
+          setReportGeneratedAt(data.generated_at || null);
+          setReportIsCurrent(Boolean(data.is_current));
         } else {
           setReportData(null);
           setReportHash('');
+          setReportVersionId(null);
+          setReportGeneratedAt(null);
+          setReportIsCurrent(false);
         }
       }
     } catch (e) { console.error('Rapor yüklenemedi:', e); }
@@ -129,31 +141,11 @@ const TsrsReport = () => {
   };
 
   const handleExport = async () => {
-    setIsExporting(true);
-    setExportProgress(10);
-    setExportError(null);
-    try {
-      setExportProgress(30);
-      const res = await fetch(withTicker(`${API_URL}/api/report/generate`), { method: 'POST' });
-      setExportProgress(80);
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.detail || 'Rapor üretim hatası');
-      }
-      const data = await res.json();
-      setReportHash(data.hash || '');
-      setExportProgress(100);
-      // Raporu tekrar çek
-      await fetchLatestReport();
-      setTimeout(() => {
-        setIsExporting(false);
-        setExportProgress(0);
-      }, 2000);
-    } catch (e) {
-      setExportError(e.message);
-      setIsExporting(false);
-      setExportProgress(0);
+    if (!reportVersionId) {
+      setExportError('İndirilebilecek yayımlanmış bir rapor bulunmuyor.');
+      return;
     }
+    window.open(`${API_URL}/api/report/${encodeURIComponent(reportVersionId)}/download`, '_blank', 'noopener,noreferrer');
   };
 
   const handleGenerateReport = async () => {
@@ -168,60 +160,75 @@ const TsrsReport = () => {
     ]);
 
     try {
-      // /api/report/generate, tüm bölümler bitene kadar dönmeyen bloklayıcı bir
-      // istektir (gerçek LLM çağrıları dakikalar sürebilir). Bu yüzden isteği
-      // atar atmaz status polling'i de başlatıyoruz ki kullanıcı gerçek
-      // ilerlemeyi (backend'in progress_callback'i üzerinden) canlı görsün.
-      const genPromise = fetch(withTicker(`${API_URL}/api/report/generate`), { method: 'POST' });
-      startPolling();
-
-      const res = await genPromise;
-      stopPolling();
+      const res = await fetch(withTicker(`${API_URL}/api/report/generate`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reporting_year: reportingYear })
+      });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Rapor üretim hatası');
+        const detail = errData.detail;
+        throw new Error(typeof detail === 'string' ? detail : (detail?.message || 'Rapor üretim hatası'));
       }
       const data = await res.json();
-      setReportHash(data.hash || '');
-      setReportStatus({ status: 'completed', progress: 100, message: 'Rapor başarıyla üretildi.' });
-      setTerminalLogs(prev => [
-        ...prev,
-        `[${new Date().toLocaleTimeString()}] [SİSTEM] Nihai rapor birleştirildi ve çıktı dizinine yazıldı.`,
-        `[${new Date().toLocaleTimeString()}] [GÜVENLİK] SHA-256 Hash: ${(data.hash || '').slice(0, 24)}...`,
-        `[${new Date().toLocaleTimeString()}] [BAŞARI] TSRS Sürdürülebilirlik Raporu başarıyla tamamlandı!`,
-      ]);
-      await fetchLatestReport();
+      startPolling(data.job_id);
     } catch (e) {
       stopPolling();
       setReportStatus({ status: 'error', progress: 0, message: e.message });
       setTerminalLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [HATA] ${e.message}`]);
-    } finally {
       setIsGenerating(false);
     }
   };
 
-  const startPolling = () => {
+  const fetchReadiness = async (targetTicker) => {
+    if (!targetTicker) return;
+    try {
+      const params = new URLSearchParams({ ticker: targetTicker, reporting_year: String(reportingYear) });
+      const res = await fetch(`${API_URL}/api/report/readiness?${params}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.active_job_id && !pollingRef.current) {
+        setIsGenerating(true);
+        setReportStatus({ status: 'generating', progress: 0, message: 'Devam eden rapor işi yükleniyor...' });
+        startPolling(data.active_job_id);
+      }
+    } catch (e) {
+      console.error('Rapor hazırlık durumu alınamadı:', e);
+    }
+  };
+
+  const startPolling = (jobId) => {
     if (pollingRef.current) return;
     pollingRef.current = setInterval(async () => {
       try {
-        const res = await fetch(withTicker(`${API_URL}/api/report/status`));
+        const res = await fetch(`${API_URL}/api/report/jobs/${encodeURIComponent(jobId)}`);
         if (res.ok) {
           const data = await res.json();
-          setReportStatus(data);
+          const uiData = {
+            ...data,
+            status: ['queued', 'running'].includes(data.status) ? 'generating' : (data.status === 'failed' ? 'error' : data.status)
+          };
+          setReportStatus(uiData);
 
           setTerminalLogs(prev => {
             const lastLog = prev[prev.length - 1];
-            if (data.status === 'generating' && data.message && !lastLog?.includes(data.message)) {
+            if (['queued', 'running'].includes(data.status) && data.message && !lastLog?.includes(data.message)) {
               return [...prev, `[${new Date().toLocaleTimeString()}] ${data.message}`];
             }
             return prev;
           });
 
-          if (data.status !== 'generating') {
+          if (!['queued', 'running'].includes(data.status)) {
             stopPolling();
             setIsGenerating(false);
-            if (data.status === 'completed') await fetchLatestReport();
+            if (data.status === 'completed' || data.status === 'completed_with_warnings') {
+              setReportStatus({ ...data, status: 'completed' });
+              setTerminalLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [BAŞARI] TSRS raporu yayımlandı.`]);
+              await fetchLatestReport();
+            } else {
+              setReportStatus({ ...data, status: 'error', message: data.error?.message || data.message || 'Rapor üretilemedi.' });
+            }
           }
         }
       } catch (e) {
@@ -240,18 +247,15 @@ const TsrsReport = () => {
   };
 
   const handleVerify = async () => {
-    if (!reportHash) return;
+    if (!reportHash || !reportData) return;
     setIsVerifying(true);
     setVerificationSuccess(false);
     try {
-      const formData = new FormData();
-      formData.append('hash_to_verify', reportHash);
-      if (ticker) formData.append('ticker', ticker);
-      const res = await fetch(`${API_URL}/api/report/verify`, { method: 'POST', body: formData });
-      if (res.ok) {
-        const data = await res.json();
-        setVerificationSuccess(data.is_valid);
-      }
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(reportData));
+      const calculated = '0x' + [...new Uint8Array(digest)]
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+      setVerificationSuccess(calculated.toLowerCase() === reportHash.toLowerCase());
     } catch (e) { console.error('Doğrulama hatası:', e); }
     finally { setIsVerifying(false); }
   };
@@ -267,13 +271,7 @@ const TsrsReport = () => {
     setExpandedSection(expandedSection === section ? null : section);
   };
 
-  const tabs = [
-    { id: 'summary', name: 'Yönetici Özeti' },
-    { id: 'tsrs1', name: 'TSRS-1 Genel' },
-    { id: 'tsrs2', name: 'TSRS-2 İklim' },
-    { id: 'emissions', name: 'Emisyon & Detay' },
-    { id: 'esg_shap', name: 'S7 ESG & SHAP Analizi' }
-  ];
+  const tabs = [{ id: 'summary', name: 'Yayımlanmış Rapor' }];
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -285,7 +283,7 @@ const TsrsReport = () => {
             Sürdürülebilirlik Beyanı
           </div>
           <h1 className="page-title">TSRS Raporlama ve Yeşil Kredi Pasaportu</h1>
-          <p className="page-subtitle">Bağımsız denetime hazır, blockchain tabanlı ve kriptografik onaylı kurumsal sürdürülebilirlik belgeniz.</p>
+          <p className="page-subtitle">Yüklenen kaynaklardan oluşturulan, kalite kontrolünden geçmiş sürdürülebilirlik raporu taslağı.</p>
         </div>
         
         <div className="flex items-center gap-4">
@@ -312,7 +310,7 @@ const TsrsReport = () => {
               </span>
             ) : (
               <span className="flex items-center gap-2">
-                <Download size={18} /> Resmi Dışa Aktar (PDF)
+                <Download size={18} /> Raporu İndir (Markdown)
               </span>
             )}
             
@@ -353,7 +351,7 @@ const TsrsReport = () => {
             }}
           >
             <CheckCircle size={20} color="var(--accent-emerald)" />
-            TSRS Raporu başarıyla derlendi ve imzalı resmi PDF olarak indirildi. (SHA-256 doğrulandı)
+            Yayımlanmış rapor dosyası indirildi.
           </motion.div>
         )}
       </AnimatePresence>
@@ -379,11 +377,30 @@ const TsrsReport = () => {
             <FileText size={19} color="#059669" />
           </div>
           <div>
+            <select
+              value={reportingYear}
+              onChange={(event) => setReportingYear(Number(event.target.value))}
+              disabled={isGenerating}
+              aria-label="Raporlama yılı"
+              style={{ marginBottom: '5px', border: '1px solid #CBD5E1', borderRadius: '6px', padding: '3px 7px', background: '#FFFFFF', color: '#334155', fontSize: '11px' }}
+            >
+              {[0, 1, 2].map(offset => {
+                const year = new Date().getFullYear() - 1 - offset;
+                return <option key={year} value={year}>{year}</option>;
+              })}
+            </select>
             <div style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>
-              TSRS Sürdürülebilirlik Beyanı Belgesi (KGK Uyumlu)
+              TSRS Sürdürülebilirlik Raporu
             </div>
             <div style={{ fontSize: '12px', color: '#64748B' }}>
-              SHA-256 Dijital Mühür: <span style={{ fontFamily: 'monospace', color: '#0F172A', fontWeight: 700 }}>{reportHash ? `${reportHash.slice(0, 16)}...${reportHash.slice(-8)}` : 'Rapor Henüz Mühürlenmedi'}</span>
+              SHA-256 dosya özeti: <span style={{ fontFamily: 'monospace', color: '#0F172A', fontWeight: 700 }}>{reportHash ? `${reportHash.slice(0, 16)}...${reportHash.slice(-8)}` : 'Rapor henüz oluşturulmadı'}</span>
+            </div>
+            <div style={{ fontSize: '11px', color: '#64748B', marginTop: '3px' }}>
+              Son rapor: {reportGeneratedAt ? new Date(reportGeneratedAt).toLocaleString('tr-TR') : 'Henüz oluşturulmadı'}
+              {' · '}
+              <span style={{ color: reportIsCurrent ? '#047857' : '#B45309', fontWeight: 700 }}>
+                {reportIsCurrent ? '✓ Veriler güncel' : '✕ Veriler güncellenmeli'}
+              </span>
             </div>
           </div>
         </div>
@@ -485,20 +502,14 @@ const TsrsReport = () => {
           {/* Document Header Mockup */}
           <div className="flex justify-between items-end" style={{ borderBottom: '2px solid var(--border-color)', paddingBottom: '24px', marginBottom: '32px' }}>
             <div>
-              <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--accent-emerald)', letterSpacing: '2.5px', marginBottom: '8px', textTransform: 'uppercase' }}>Resmi Uyum Belgesi</div>
+              <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--accent-emerald)', letterSpacing: '2.5px', marginBottom: '8px', textTransform: 'uppercase' }}>Rapor Önizleme</div>
               <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--primary-midnight)', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 TSRS Sürdürülebilirlik Beyanı
-                {shapData && (
-                  <span style={{ fontSize: '13px', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: 'white', padding: '6px 12px', borderRadius: '8px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)' }}>
-                    <span style={{ opacity: 0.85, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>S7 ESG Skoru:</span>
-                    <strong>{shapData.predicted_score} / 100</strong>
-                  </span>
-                )}
               </h2>
             </div>
             <div style={{ textAlign: 'right', fontSize: '13px', color: 'var(--text-muted)', fontWeight: 500 }}>
-              <div style={{ marginBottom: '4px' }}>Dönem: <strong style={{ color: 'var(--primary-midnight)' }}>2026 / Yıllık</strong></div>
-              <div>Yayın: <strong style={{ color: 'var(--primary-midnight)' }}>23 Mayıs 2026</strong></div>
+              <div style={{ marginBottom: '4px' }}>Dönem: <strong style={{ color: 'var(--primary-midnight)' }}>{reportingYear} / Yıllık</strong></div>
+              <div>Yayın: <strong style={{ color: 'var(--primary-midnight)' }}>{reportGeneratedAt ? new Date(reportGeneratedAt).toLocaleDateString('tr-TR') : 'Henüz yayımlanmadı'}</strong></div>
             </div>
           </div>
 
@@ -514,23 +525,6 @@ const TsrsReport = () => {
             >
               {activeTab === 'summary' && (
                 <div className="flex-col gap-6">
-                  {shapData && (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '12px', marginBottom: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <Award size={24} color="#059669" />
-                        <div>
-                          <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 800, color: '#059669' }}>Resmi Model Tahmini (S7 predicted_esg_overall)</div>
-                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--primary-midnight)' }}>
-                            Şirket ESG Skoru: <span style={{ color: '#047857', fontSize: '16px', fontWeight: 800 }}>{shapData.predicted_score} / 100</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'right' }}>
-                        <div>Model: <strong>XGBoost Regressor (Track B)</strong></div>
-                        <div>Açıklanabilirlik: <strong>TreeSHAP Analizi</strong></div>
-                      </div>
-                    </div>
-                  )}
                   <div>
                     <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary-midnight)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Building size={18} color="var(--accent-emerald)" /> 1. Yönetici Özeti ve Kurumsal Profil
@@ -757,7 +751,7 @@ const TsrsReport = () => {
           {/* Cryptographic Signature Box Mockup */}
           <div style={{ marginTop: '36px', paddingTop: '28px', borderTop: '1px dashed var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: '11px', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Dijital Blokzincir İmzası</div>
+              <div style={{ fontSize: '11px', color: 'var(--text-light)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Dosya Bütünlük Özeti</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-emerald-dark)', fontWeight: 700, fontSize: '13px' }}>
                 <Lock size={14} /> EcoFin AI - Akıllı Kontrat Güvenceli
               </div>
@@ -1396,13 +1390,13 @@ const TsrsReport = () => {
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary-midnight)' }}>Kriptografik Blokzincir Mührü</h4>
+                            <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary-midnight)' }}>SHA-256 Dosya Özeti</h4>
                             <span style={{ fontSize: '10px', fontWeight: 700, color: reportStatus.status === 'completed' ? '#10B981' : '#60A5FA', background: reportStatus.status === 'completed' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(96, 165, 250, 0.08)', padding: '2px 8px', borderRadius: '4px' }}>
                               {reportStatus.status === 'completed' ? 'MÜHÜRLENDİ' : 'İMZALANIYOR'}
                             </span>
                           </div>
                           <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
-                            Rapor bütünlüğünü korumak için SHA-256 imzası Green Ledger sistemine mühürlendi.
+                            Yayımlanan dosyanın değişip değişmediğini kontrol etmek için SHA-256 özeti hesaplandı.
                           </p>
                         </div>
                       </motion.div>

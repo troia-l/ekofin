@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -12,38 +12,9 @@ import {
   Lock
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
 const Sidebar = ({ activePortal, currentUser }) => {
   const location = useLocation();
   const navigate = useNavigate();
-
-  const isPredefinedCompany = currentUser?.companyTicker === 'TOASO' || currentUser?.companyTicker === 'ASELS';
-  const [isVerified, setIsVerified] = useState(isPredefinedCompany);
-
-  useEffect(() => {
-    if (isPredefinedCompany) {
-      setIsVerified(true);
-      return;
-    }
-
-    const checkStatus = async () => {
-      try {
-        const ticker = currentUser?.companyTicker;
-        const url = ticker ? `${API_URL}/api/dashboard/summary?ticker=${encodeURIComponent(ticker)}` : `${API_URL}/api/dashboard/summary`;
-        const res = await fetch(url);
-        if (res.ok) {
-          const data = await res.json();
-          const hasData = (data.total_verified_documents > 0) || data.declaration_submitted || data.report_generated;
-          setIsVerified(Boolean(hasData));
-        }
-      } catch (e) {
-        console.error("Sidebar verification check error:", e);
-      }
-    };
-
-    checkStatus();
-  }, [currentUser?.companyTicker, isPredefinedCompany]);
 
   const kobiLinks = [
     { name: 'Ana Sayfa', path: '/dashboard', icon: <LayoutDashboard size={20} />, locked: false },
@@ -52,14 +23,14 @@ const Sidebar = ({ activePortal, currentUser }) => {
       name: 'g-ROI Simülatörü', 
       path: '/simulator', 
       icon: <Activity size={20} />, 
-      locked: !isVerified,
-      lockMessage: 'g-ROI simülatörünü kullanabilmek için lütfen önce belgelerinizi ve yönetici beyanınızı yükleyin.'
+      locked: false,
+      lockMessage: 'g-ROI simülatörü için güncel ve doğrulanmış bir TSRS raporu oluşturun.'
     },
     { 
       name: 'TSRS Raporlama', 
       path: '/tsrs-report', 
       icon: <FileText size={20} />, 
-      locked: !isVerified,
+      locked: false,
       lockMessage: 'TSRS Raporu üretebilmek için lütfen önce belgelerinizi ve yönetici beyanınızı yükleyin.'
     },
   ];

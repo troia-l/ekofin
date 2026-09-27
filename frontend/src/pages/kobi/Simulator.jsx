@@ -25,7 +25,7 @@ const resultVariants = {
 
 const Simulator = () => {
   const { currentUser } = useOutletContext() || {};
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const queryTicker = searchParams.get('ticker');
   const [selectedTicker, setSelectedTicker] = useState((currentUser?.companyTicker || queryTicker || 'ASELS').toUpperCase());
   
@@ -36,6 +36,7 @@ const Simulator = () => {
   }, [currentUser?.companyTicker]);
   
   const ticker = selectedTicker;
+  const reportingYear = new Date().getFullYear() - 1;
   const withTicker = (url) => ticker ? `${url}${url.includes('?') ? '&' : '?'}ticker=${encodeURIComponent(ticker)}` : url;
 
   // Sihirbaz Adım State'i
@@ -52,34 +53,36 @@ const Simulator = () => {
   const [modelCResult, setModelCResult] = useState(null);
 
   // Yeşil Senaryo Seçimleri (5 Scenarios)
-  const [gesChecked, setGesChecked] = useState(true);
+  const [gesChecked, setGesChecked] = useState(false);
   const [evChecked, setEvChecked] = useState(false);
   const [effChecked, setEffChecked] = useState(false);
   const [wasteChecked, setWasteChecked] = useState(false);
   const [waterChecked, setWaterChecked] = useState(false);
 
   // Yatırım Senaryosu (CAPEX) State'leri
-  const [gesBudget, setGesBudget] = useState(800000);      // 0 - 5.000.000 ₺
-  const [evCount, setEvCount] = useState(3);              // 0 - 50 Adet
-  const [effBudget, setEffBudget] = useState(250000);      // 0 - 1.000.000 ₺
-  const [wasteBudget, setWasteBudget] = useState(150000);  // 0 - 1.000.000 ₺
-  const [waterBudget, setWaterBudget] = useState(75000);    // 0 - 500.000 ₺
+  const [gesBudget, setGesBudget] = useState(0);
+  const [evCount, setEvCount] = useState(0);
+  const [effBudget, setEffBudget] = useState(0);
+  const [wasteBudget, setWasteBudget] = useState(0);
+  const [waterBudget, setWaterBudget] = useState(0);
 
   // Kredi ve Finansal Parametreler
-  const [loanAmount, setLoanAmount] = useState(1000000);  // Talep edilen kredi (TL)
+  const [loanAmount, setLoanAmount] = useState(0);
   const [financialRating, setFinancialRating] = useState('BBB'); // AAA - C
   const [loanYears, setLoanYears] = useState(5);          // 1 - 20 Yıl
 
   // TSRS Raporu ve LLM Önerilerini Otomatik Çek
   useEffect(() => {
+    let refreshTimer;
     const fetchAutoContext = async () => {
       setContextLoading(true);
       try {
-        const res = await fetch(withTicker(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/simulator/auto-context`));
+        const res = await fetch(withTicker(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/simulator/auto-context?reporting_year=${reportingYear}`));
         if (res.ok) {
           const data = await res.json();
           setAutoContext(data);
-          const actText = data.activity_text || data.context || '';
+          // Eski "context" alanı bilgilendirme amaçlıdır; hesaplama girdisi değildir.
+          const actText = data.activity_text || '';
           setInputText(actText);
           if (data.suggested_investments) {
             const si = data.suggested_investments;
@@ -95,6 +98,9 @@ const Simulator = () => {
             if (si.loan_years !== undefined) setLoanYears(si.loan_years);
             if (si.financial_rating !== undefined) setFinancialRating(si.financial_rating);
           }
+          if (data.state === 'context_pending') {
+            refreshTimer = setTimeout(fetchAutoContext, 2500);
+          }
         }
       } catch (err) {
         console.error("Auto context fetch error:", err);
@@ -103,6 +109,7 @@ const Simulator = () => {
       }
     };
     fetchAutoContext();
+    return () => clearTimeout(refreshTimer);
   }, [ticker]);
 
   // Kategorik Mevcut Karbon Dağılımını Hesapla (Greeenwashing Önleme)
@@ -120,9 +127,9 @@ const Simulator = () => {
     });
   }
 
-  // Model C girilmediyse varsayılan 120 ton baseline dağılımı
-  const baselineEmission = modelCResult ? modelCResult.total_co2_tons : 120.0;
-  if (hammadde_co2 === 0.0 && lojistik_co2 === 0.0 && enerji_co2 === 0.0) {
+  // Rapor/aktivite analizi yapılmadan örnek emisyon göstermeyiz.
+  const baselineEmission = modelCResult ? modelCResult.total_co2_tons : 0;
+  if (modelCResult && hammadde_co2 === 0.0 && lojistik_co2 === 0.0 && enerji_co2 === 0.0) {
     hammadde_co2 = baselineEmission * 0.15;
     lojistik_co2 = baselineEmission * 0.25;
     enerji_co2 = baselineEmission * 0.60;
@@ -368,9 +375,22 @@ const Simulator = () => {
                     padding: '4px 10px', borderRadius: '8px', 
                     display: 'flex', alignItems: 'center', gap: '6px' 
                   }}>
-                    <CheckCircle2 size={13} /> {autoContext?.report_found ? 'TSRS Onaylı' : 'KAP Paneli'}
+                    <CheckCircle2 size={13} /> {autoContext?.state === 'ready' ? 'TSRS Hazır' : 'TSRS Bekleniyor'}
                   </span>
                 </div>
+
+                {!contextLoading && autoContext?.state !== 'ready' && (
+                  <div style={{ padding: '12px 14px', borderRadius: '10px', background: '#FFF7ED', border: '1px solid #FED7AA', color: '#9A3412', fontSize: '12.5px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <AlertCircle size={16} />
+                    {autoContext?.state === 'missing_data'
+                      ? 'Veri yüklenmedi. Önce Veri Entegrasyonu sayfasından gerekli belgeleri yükleyin.'
+                      : autoContext?.state === 'data_incomplete'
+                        ? 'Kritik belgeler eksik. TSRS raporu oluşturulmadan öneri üretilemez.'
+                        : autoContext?.state === 'report_stale'
+                          ? 'Kaynak veriler değişti. TSRS raporunu yeniden oluşturun.'
+                          : 'TSRS raporu oluşturulmadı. Önce raporu oluşturun.'}
+                  </div>
+                )}
 
                 {/* 1. Kutu: Şirketin Mevcut Durumu (TSRS Raporundan Otomatik Derlendi) */}
                 <div style={{
@@ -443,14 +463,14 @@ const Simulator = () => {
                   <motion.button 
                     whileHover={{ scale: 1.005 }} whileTap={{ scale: 0.995 }} 
                     onClick={() => handleCalculateBaseline(autoContext?.activity_text)} 
-                    disabled={loading || contextLoading}
+                    disabled={loading || contextLoading || !autoContext?.usable}
                     style={{
                       flex: 1, padding: '14px 20px', borderRadius: '12px', border: 'none',
-                      background: loading || contextLoading ? 'rgba(148,163,184,0.15)' : 'linear-gradient(135deg, #10B981, #047857)',
-                      color: loading || contextLoading ? 'var(--text-muted)' : 'white',
-                      fontSize: '13.5px', fontWeight: 800, cursor: loading || contextLoading ? 'not-allowed' : 'pointer',
+                      background: loading || contextLoading || !autoContext?.usable ? 'rgba(148,163,184,0.15)' : 'linear-gradient(135deg, #10B981, #047857)',
+                      color: loading || contextLoading || !autoContext?.usable ? 'var(--text-muted)' : 'white',
+                      fontSize: '13.5px', fontWeight: 800, cursor: loading || contextLoading || !autoContext?.usable ? 'not-allowed' : 'pointer',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                      boxShadow: loading || contextLoading ? 'none' : '0 4px 14px rgba(16,185,129,0.3)',
+                      boxShadow: loading || contextLoading || !autoContext?.usable ? 'none' : '0 4px 14px rgba(16,185,129,0.3)',
                       transition: 'all 0.25s'
                     }}>
                     {loading ? (
@@ -1117,7 +1137,7 @@ const Simulator = () => {
                   }}>
                     <Info size={11} color="rgba(255,255,255,0.3)" style={{ marginTop: '2px', flexShrink: 0 }} />
                     <div style={{ fontSize: '9.5px', color: 'rgba(255,255,255,0.4)', lineHeight: '1.4', fontWeight: 500 }}>
-                      <strong style={{ color: 'rgba(255,255,255,0.6)' }}>Teknik Not:</strong> Bu sayfa doğrudan Model C (LLM + Deterministik Motor) ile haberleşir ve arka planda resmi emisyon katsayılarını (DEFRA/EPA) baz alır.
+                      <strong style={{ color: 'rgba(255,255,255,0.6)' }}>Teknik Not:</strong> Bu sayfa Model C ve deterministik hesap motoruyla çalışır; kullanılan faktör sürümü sonuçlarla birlikte izlenmelidir.
                     </div>
                   </div>
 

@@ -9,6 +9,7 @@ Değişiklikler: Tüm hardcoded yollar config.py'ye taşındı.
 import os
 import re
 import traceback
+from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -37,9 +38,10 @@ def _get_model():
     if _model is None:
         try:
             _model = ChatOpenAI(
-                model="gpt-5.4",
+                model=os.getenv("OPENAI_TSRS_MODEL", "gpt-5.4"),
                 temperature=0,
-                openai_api_key=api_key
+                openai_api_key=api_key,
+                openai_api_base=os.getenv("OPENAI_API_BASE") or None,
             )
         except Exception as e:
             print(f"[!] ChatOpenAI başlatılamadı: {e}. Mock moduna geçiliyor.")
@@ -86,6 +88,7 @@ SECTION_SOURCE_MAP = {
         "faturalar.md",
     ],
     "bolum_05_metrikler.md": [
+        "hesaplanan_metrikler.md",
         "faturalar.md",
         "mizan.md",
         "tasit-tanima-sistemi.md",
@@ -288,13 +291,14 @@ SYSTEM_PROMPT = (
     "2. Hedef: Bu bölüm için 800-1200 kelime. Derinlemesine, zengin paragraflar.\n"
     "3. SANA VERİLEN KAYNAK BELGELERİN (MD dosyaları) İÇİNDEN VERİYİ KENDİN ÇIKARACAKSIN. Eğer sana OKUMA KURALLARI (Reading Rules) verildiyse, bu belgeleri okurken o kurallardaki hatalara (OCR kaymaları, boşluklar) DİKKAT ET.\n"
     "4. Kesin veriler (JSON dosyaları, örn: Yönetici Anketi) verildiyse bunları birincil doğru kaynak kabul et.\n"
-    "5. Tüketim verilerinden (kWh, m3, Litre) Kapsam 1 ve 2 emisyonlarını yazarken, IPCC standart faktörlerini (Elektrik: 0.50, Doğalgaz: 2.02 vb.) kullanarak arka planda hesapla ve rapor metnine dök.\n"
+    "5. Emisyon hesabı yalnızca kaynakta açıkça verilen tüketim ve emisyon faktörü varsa yapılabilir. Faktörün kaynağını, birimini ve dönemini yaz; eksikse hesap uydurma ve veri açığı olarak belirt.\n"
     "6. KGK eşik değerlerinin altındaysa (1 Milyar TL aktif, 2 Milyar TL satış, 500 çalışan) gönüllü raporlama bağlamını açıkla.\n"
     "7. Tüm sayısal veriler kaynaklarla %100 tutarlı olmalı.\n"
-    "8. Stil referansındaki ton, derinlik ve kurumsal dili örnek al.\n"
-    "9. ![][imageX] etiketlerini olduğu gibi koru.\n"
+    "8. Stil referansından yalnızca ton ve bölüm düzeni al; oradaki şirket adlarını, sayıları, sistemleri, doğrulama veya uyum iddialarını ASLA gerçek veri gibi kullanma.\n"
+    "9. Kaynaklarda bulunmayan görsel/image etiketlerini, URL'leri, hash değerlerini, sertifikaları, portal/blokzincir doğrulamalarını ve bağımsız güvence iddialarını üretme.\n"
     "10. Başlıklarda [ZORUNLU], [OPSİYONEL] gibi etiketler OLMASIN. Temiz başlıklar yaz.\n"
-    "11. Markdown code fence (```) kullanma."
+    "11. Markdown code fence (```) kullanma. Her önemli sayısal iddianın sonuna kaynak dosya adını parantez içinde ekle. Kanıt yoksa 'veri sağlanmadı' de.\n"
+    "12. Raporun TSRS ile tam uyumlu, denetlenmiş, onaylanmış veya resmi bir portala kaydedilmiş olduğunu iddia etme."
 )
 
 def get_mock_section_content(section_filename: str) -> str:
@@ -379,7 +383,7 @@ def get_mock_section_content(section_filename: str) -> str:
         "Toplam 55 çalışan ve NACE uyumu doğrultusunda ilgili veri mizanları ve yasal evraklar analiz edilmiş, herhangi bir uyumsuzluk tespit edilmemiştir."
     ))
 
-def generate_section(section_filename, template_text, section_sources_text, reading_rules_text, style_ref, previous_sections):
+def generate_section(section_filename, template_text, section_sources_text, reading_rules_text, style_ref, previous_sections, reporting_year):
     print(f"\n{'='*60}")
     print(f"[*] AŞAMA: {section_filename}")
     print(f"{'='*60}")
@@ -395,7 +399,7 @@ def generate_section(section_filename, template_text, section_sources_text, read
         system_template += "\n\nÖZEL OKUMA KURALLARI:\nAşağıdaki belgeleri okurken lütfen bu kurallara dikkat et:\n{reading_rules}"
 
     user_template = (
-        "Bölüm: {section_filename}\n\n"
+        "Raporlama dönemi: {reporting_year}\nBölüm: {section_filename}\n\n"
         "Bu bölümün gereksinimleri (talimat dosyası):\n{template_text}\n\n"
         "Bu bölüm için ham kaynak belgeler (MD ve JSON):\n{section_sources_text}\n\n"
         "Stil referansı (örnek rapordan):\n{style_ref}\n\n"
@@ -413,6 +417,7 @@ def generate_section(section_filename, template_text, section_sources_text, read
     
     invoke_args = {
         "section_filename": section_filename,
+        "reporting_year": reporting_year,
         "template_text": template_text,
         "section_sources_text": section_sources_text,
         "style_ref": style_ref,
@@ -442,7 +447,7 @@ def write_eklenen_veriler():
     print("[+] eklenen_veriler.md yazıldı.")
 
 
-def run_tsrs_pipeline(progress_callback=None, sources_dir=None, report_path=None, eklenen_path=None):
+def run_tsrs_pipeline(progress_callback=None, sources_dir=None, report_path=None, eklenen_path=None, reporting_year=None):
     """
     TSRS rapor üretim pipeline'ını çalıştırır.
     sources_dir/report_path/eklenen_path verilmezse varsayılan (global, tek şirketlik)
@@ -453,6 +458,10 @@ def run_tsrs_pipeline(progress_callback=None, sources_dir=None, report_path=None
     _active_sources_dir = sources_dir or SOURCES_DIR
     _active_report_path = report_path or REPORT_OUTPUT_PATH
     _active_eklenen_path = eklenen_path or EKLENEN_VERILER_PATH
+    reporting_year = reporting_year or datetime.now().year - 1
+
+    if _get_model() == "mock":
+        return {"status": "error", "error": "OPENAI_API_KEY yapılandırılmadı; mock rapor yayımlanamaz."}
 
     print("=" * 60)
     print("  TSRS SÜRDÜRÜLEBİLİRLİK RAPORU ÜRETİM AKIŞI")
@@ -461,6 +470,12 @@ def run_tsrs_pipeline(progress_callback=None, sources_dir=None, report_path=None
     print("=" * 60)
 
     try:
+        from modules.tsrs.metrics import write_metrics_source
+        try:
+            metrics_path = write_metrics_source(Path(_active_sources_dir), reporting_year)
+        except (OSError, ValueError) as metrics_error:
+            return {"status": "error", "error": f"Deterministik metrik üretilemedi: {metrics_error}"}
+
         # Aşama 0: Şablon bölme
         base64_blocks = split_template_into_instructions()
 
@@ -505,7 +520,7 @@ def run_tsrs_pipeline(progress_callback=None, sources_dir=None, report_path=None
             sources, rules = get_sources_for_section(filename)
             style = style_refs.get(filename, "")
 
-            text = generate_section(filename, template, sources, rules, style, prev_text)
+            text = generate_section(filename, template, sources, rules, style, prev_text, reporting_year)
 
             generated[filename] = text
             prev_text += f"\n\n--- {filename} ---\n{text}\n"
@@ -514,6 +529,10 @@ def run_tsrs_pipeline(progress_callback=None, sources_dir=None, report_path=None
         print("\n[*] Nihai rapor birleştiriliyor...")
         _active_report_path.parent.mkdir(parents=True, exist_ok=True)
         parts = [generated[fn] for fn in sorted_files if fn.endswith(".md")]
+        parts.append("\n\n" + metrics_path.read_text(encoding="utf-8"))
+        fixture_notice = Path(_active_sources_dir) / "README_TEST.md"
+        if fixture_notice.exists() and "SENTETİK TEST VERİSİ" in fixture_notice.read_text(encoding="utf-8"):
+            parts.append("\n\n> **Uyarı:** Bu rapor sentetik test verisi kullanılarak üretilmiştir; gerçek bir şirket raporu veya bağımsız güvence beyanı değildir.")
         parts.append("\n\n")
         parts.append(base64_blocks)
 
