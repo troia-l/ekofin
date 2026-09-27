@@ -513,7 +513,6 @@ Başlangıç state'i:
 ```js
 autoContext = null
 inputText = ''
-modelCResult = null
 baselineEmission = null
 gesBudget = null
 evCount = null
@@ -522,7 +521,7 @@ wasteBudget = null
 waterBudget = null
 ```
 
-Geçerli bağlam gelmeden 120 ton varsayımı, otomatik dağılım ve örnek yatırım hesabı yapılmayacak.
+Geçerli bağlam gelmeden 120 ton varsayımı, otomatik dağılım ve örnek yatırım hesabı yapılmayacak. ("Model C Sihirbaz Modu" UI'dan kaldırıldı).
 
 | State | Gösterim | Aksiyon |
 |---|---|---|
@@ -538,12 +537,14 @@ Geçerli bağlam gelmeden 120 ton varsayımı, otomatik dağılım ve örnek yat
 
 ## 13. Integration, Dashboard ve Sidebar
 
-- Veri Entegrasyonu “Rapor oluştur” butonu önce readiness çağıracak; hazırsa job oluşturup `/tsrs-report?year=YYYY&job=UUID` adresine gidecek.
+- Veri Entegrasyonu sayfasında devasa TSRS raporlama oluşturma kısmı kaldırıldı. Bunun yerine sayfanın en altında sade, kompakt bir footer kontrol barı eklendi.
+- Bu footer'daki “Rapor oluştur” butonu önce readiness çağıracak; hazırsa job oluşturup `/tsrs-report?year=YYYY&job=UUID` adresine gidecek.
 - Eksikse aynı ekranda kritik eksik listesini gösterecek.
 - “Kriptografik mühür” yerine “Kalite kontrolünden geçti” yazılacak.
 - Dashboard ve Sidebar `ASELS/TOASO` hardcoded hazır kabulünü kaldıracak.
 - “Herhangi veri var” ile “rapor üretmeye hazır” ayrılacak.
 - Sidebar sayfayı kilitlemek yerine sayfanın kendi empty state'ini göstermesine izin verecek.
+- Tüm sayfalarda typography (`.page-title`, `.page-subtitle`) ve padding/gap standartları global `index.css` üzerinden sağlanacak.
 - Bütün ekranlar tek readiness sözleşmesini kullanacak.
 
 ## 14. Hata yönetimi ve loglama
