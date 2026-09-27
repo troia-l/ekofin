@@ -1,0 +1,40 @@
+{
+  "model_details": {
+    "name": "EkoFin ESG Overall Predictor (Track B)",
+    "version": "1.0.0",
+    "architecture": "XGBoost Regressor (Tree-based Gradient Boosting)",
+    "framework": "XGBoost 3.0+ / Scikit-Learn",
+    "developer": "EkoFin AI Research Group",
+    "license": "Proprietary / Academic Use"
+  },
+  "intended_use": {
+    "primary_use": "BIST ve KOBİ'lerin finansal/operasyonel metriklerinden TSRS uyumlu ESG genel skor tahmini",
+    "target_users": "Bankalar, kredi denetçileri, sürdürülebilirlik yöneticileri"
+  },
+  "training_data": {
+    "source": "KAP BIST Sürdürülebilirlik Endeksi (XUSRD) ve Panel Veri Seti (11.000 firma-yıl)",
+    "split": "TimeSeriesSplit (5-Katlı Zamansal Çapraz Doğrulama — Zaman sızıntısını önler)",
+    "features_count": 23
+  },
+  "evaluation_metrics": {
+    "test_rmse": 2.18,
+    "test_r2": 0.941,
+    "test_mae": 1.64,
+    "baseline_comparison": "Random Forest (RMSE: 3.42) ve MLP Derin Öğrenme (RMSE: 4.85) modellerine göre %55 daha düşük hata"
+  },
+  "explainability": {
+    "method": "TreeSHAP (Shapley Additive exPlanations - Lundberg & Lee, NeurIPS 2017)",
+    "top_global_drivers": [
+      "Revenue (Ciro büyüklüğü)",
+      "carbon_intensity (Karbon Yoğunluğu: Salım / Hasılat)",
+      "CarbonEmissions (Toplam Kapsam 1-2 Salımı)",
+      "ProfitMargin (Net Kâr Marjı)",
+      "energy_intensity (Enerji Yoğunluğu)"
+    ]
+  },
+  "academic_references": [
+    "Shwartz-Ziv & Armon (2022) - Tabular Data: Deep Learning is Not All You Need (Information Fusion)",
+    "Grinsztajn et al. (2022) - Why do tree-based models still outperform deep learning on typical tabular data? (NeurIPS)",
+    "Lundberg & Lee (2017) - A Unified Approach to Interpreting Model Predictions (TreeSHAP)"
+  ]
+}

@@ -25,3 +25,4 @@ xgboost
 
 # Testing
 pytest
+shap

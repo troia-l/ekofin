@@ -22,7 +22,7 @@ ekofin/
 │   ├── output/                # Üretilen resmi TSRS rapor çıktıları
 │   └── tests/                 # Kapsamlı birim test paketi (Pytest)
 │
-├── frontend/                  # React 19 + Vite Web Uygulaması
+├── frontend/                  # React 19 + Vite Web Uygulaması (Web Portalı)
 │   ├── src/
 │   │   ├── pages/             # Sayfalar (KOBİ Portalı, Banka Portalı, Kamu Ekranları)
 │   │   │   ├── kobi/          # Dashboard, Integration, Simulator, TsrsReport
@@ -31,10 +31,10 @@ ekofin/
 │   │   └── App.jsx            # Rota, portal ve oturum yönetimi
 │   └── package.json           # Frontend bağımlılıkları
 │
-├── mobile/                    # React Native / Expo mobil uygulaması
-├── esg_pred/                  # XGBoost model eğitimi, veri hazırlığı ve MLflow scriptleri
-├── TSRS_Rapor/                # TSRS mevzuat referansları ve örnek rapor şablonları
-├── BelgeTarama/               # Belge OCR ve tarama talimatları
+├── frontend-mobile/           # React Native / Expo Mobil Uygulaması
+├── esg-model/                 # XGBoost model eğitimi, 11K veri seti, Feature Engineering & SHAP
+├── docs/                      # Resmi yarışma raporları (ÖDR, Tasarım Raporu), mimari ve kılavuzlar
+├── sunum/                     # Yarışma ve yatırımcı sunum materyalleri (TAM-SAM-SOM, pazar analizi)
 └── README.md                  # Proje dokümantasyonu
 ```
 

@@ -76,6 +76,59 @@ const PortalLayout = ({ activePortal, setActivePortal, currentUser, setCurrentUs
   );
 };
 
+// Route Guard for KOBİ features requiring verified data
+const DataVerifiedRoute = ({ currentUser, children }) => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [canAccess, setCanAccess] = useState(false);
+
+  useEffect(() => {
+    const isPredefined = currentUser?.companyTicker === 'TOASO' || currentUser?.companyTicker === 'ASELS';
+    if (isPredefined) {
+      setCanAccess(true);
+      setLoading(false);
+      return;
+    }
+
+    const check = async () => {
+      try {
+        const ticker = currentUser?.companyTicker;
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        const url = ticker ? `${API_URL}/api/dashboard/summary?ticker=${encodeURIComponent(ticker)}` : `${API_URL}/api/dashboard/summary`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          const hasData = (data.total_verified_documents > 0) || data.declaration_submitted || data.report_generated;
+          if (!hasData) {
+            navigate('/integration', { replace: true, state: { redirectReason: 'unverified' } });
+            return;
+          }
+          setCanAccess(true);
+        } else {
+          setCanAccess(true);
+        }
+      } catch (e) {
+        console.error("Data verification route check error:", e);
+        setCanAccess(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    check();
+  }, [currentUser, navigate]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: '60px', textAlign: 'center', color: '#64748B', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+        <div style={{ width: '28px', height: '28px', border: '3px solid #E2E8F0', borderTopColor: '#10B981', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <span style={{ fontSize: '14px', fontWeight: 600 }}>Şirket veri ve doğrulama durumu kontrol ediliyor...</span>
+      </div>
+    );
+  }
+
+  return canAccess ? children : null;
+};
+
 function App() {
   const [activePortal, setActivePortal] = useState('kobi'); // 'kobi' or 'bank'
   const [currentUser, setCurrentUser] = useState(() => {
@@ -104,8 +157,22 @@ function App() {
           {/* KOBİ Portal Routes */}
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/integration" element={<Integration />} />
-          <Route path="/simulator" element={<Simulator />} />
-          <Route path="/tsrs-report" element={<TsrsReport />} />
+          <Route 
+            path="/simulator" 
+            element={
+              <DataVerifiedRoute currentUser={currentUser}>
+                <Simulator />
+              </DataVerifiedRoute>
+            } 
+          />
+          <Route 
+            path="/tsrs-report" 
+            element={
+              <DataVerifiedRoute currentUser={currentUser}>
+                <TsrsReport />
+              </DataVerifiedRoute>
+            } 
+          />
 
           {/* Bank Portal Routes */}
           <Route path="/bank/dashboard" element={<BankDashboard />} />

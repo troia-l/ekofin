@@ -1,0 +1,35 @@
+{
+  "synthetic_test_data": true,
+  "company": "EkoTest Metal Teknolojileri A.Ş.",
+  "reporting_period": "2025-01-01/2025-12-31",
+  "reporting_boundary": "Ankara OSB tek üretim tesisi",
+  "governance": {
+    "board_oversight": true,
+    "board_review_frequency": "quarterly",
+    "sustainability_committee": true,
+    "responsible_role": "Operasyon Direktörü",
+    "executive_compensation_linked_to_sustainability": false,
+    "ethics_policy": true,
+    "whistleblowing_channel": true
+  },
+  "risk_management": {
+    "climate_risks_integrated": true,
+    "scenario_analysis_completed": false,
+    "physical_risks": ["aşırı sıcak nedeniyle üretim kesintisi", "su stresi"],
+    "transition_risks": ["karbon fiyatlaması", "müşteri ürün karbon ayak izi talebi"],
+    "supplier_esg_audit": true
+  },
+  "targets": {
+    "base_year": 2025,
+    "target_year": 2028,
+    "scope_1_2_intensity_reduction_percent": 15,
+    "net_zero_ambition_year": 2050,
+    "net_zero_commitment_approved": false
+  },
+  "ghg": {
+    "scope_3_inventory_completed": false,
+    "carbon_offsets_used": false,
+    "independent_assurance": false
+  },
+  "submitted_at": "2026-01-15T10:00:00+03:00"
+}

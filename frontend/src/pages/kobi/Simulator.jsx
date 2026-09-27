@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Leaf, Car, ArrowRight, TrendingUp, Sparkles, TrendingDown, Target,
-  Zap, Clock, AlertCircle, RefreshCw, Info, Shield, Wallet, FileText, CheckCircle2, ChevronRight, ChevronLeft
+  Zap, Clock, AlertCircle, RefreshCw, Info, Shield, Wallet, FileText, CheckCircle2, ChevronRight, ChevronLeft, Building
 } from 'lucide-react';
 
 // ─── Animasyon Varyantları ──────────────────────────────────────────────────────────────────────────────
@@ -22,25 +23,27 @@ const resultVariants = {
   show: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 220, damping: 20 } }
 };
 
-// ─── Şablon Verileri ─────────────────────────────────────────────────────────
-const TEMPLATES = [
-  { 
-    label: 'Tekstil Üretim Tesis', 
-    text: 'Aylık 12 ton pamuk, 4 ton plastik polimer hammadde işlenmektedir. Sevkiyatlar için 3 dizel kamyonla lojistik sağlanmakta ve aylık ortalama 2.200 km yol yapılmaktadır. Üretimde aylık 15.000 kWh elektrik şebekesinden çekilmekte, 950 m³ doğalgaz tüketilmektedir.' 
-  },
-  { 
-    label: 'Ağır Metal Sanayi', 
-    text: 'Aylık 18 ton çelik hammadde, 2 ton plastik polimer kullanılmaktadır. 4 dizel kamyonla lojistik sağlanmakta ve aylık 3.500 km yapılmaktadır. Fabrikada aylık 24.000 kWh elektrik ve 1.800 m³ doğalgaz tüketilmektedir.' 
-  },
-  { 
-    label: 'Lojistik & Dağıtım', 
-    text: 'Aylık lojistik faaliyetleri için 8 dizel kamyon kullanılmakta ve toplamda 12.000 km yol yapılmaktadır. Ana dağıtım merkezinde aylık 8.000 kWh elektrik şebekesinden tüketilmektedir.' 
-  },
-];
-
 const Simulator = () => {
+  const { currentUser } = useOutletContext() || {};
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryTicker = searchParams.get('ticker');
+  const [selectedTicker, setSelectedTicker] = useState((currentUser?.companyTicker || queryTicker || 'ASELS').toUpperCase());
+  
+  useEffect(() => {
+    if (currentUser?.companyTicker) {
+      setSelectedTicker(currentUser.companyTicker.toUpperCase());
+    }
+  }, [currentUser?.companyTicker]);
+  
+  const ticker = selectedTicker;
+  const withTicker = (url) => ticker ? `${url}${url.includes('?') ? '&' : '?'}ticker=${encodeURIComponent(ticker)}` : url;
+
   // Sihirbaz Adım State'i
   const [currentStep, setCurrentStep] = useState(1);
+
+  // TSRS Raporu & LLM Otomatik Bağlam State'leri
+  const [autoContext, setAutoContext] = useState(null);
+  const [contextLoading, setContextLoading] = useState(true);
 
   // Model C (LLM + Python) Giriş State'leri
   const [inputText, setInputText] = useState('');
@@ -66,6 +69,41 @@ const Simulator = () => {
   const [loanAmount, setLoanAmount] = useState(1000000);  // Talep edilen kredi (TL)
   const [financialRating, setFinancialRating] = useState('BBB'); // AAA - C
   const [loanYears, setLoanYears] = useState(5);          // 1 - 20 Yıl
+
+  // TSRS Raporu ve LLM Önerilerini Otomatik Çek
+  useEffect(() => {
+    const fetchAutoContext = async () => {
+      setContextLoading(true);
+      try {
+        const res = await fetch(withTicker(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/simulator/auto-context`));
+        if (res.ok) {
+          const data = await res.json();
+          setAutoContext(data);
+          const actText = data.activity_text || data.context || '';
+          setInputText(actText);
+          if (data.suggested_investments) {
+            const si = data.suggested_investments;
+            if (si.ges_budget !== undefined) setGesBudget(si.ges_budget);
+            if (si.ev_count !== undefined) setEvCount(si.ev_count);
+            if (si.eff_budget !== undefined) setEffBudget(si.eff_budget);
+            if (si.waste_budget !== undefined) setWasteBudget(si.waste_budget);
+            if (si.water_budget !== undefined) setWaterBudget(si.water_budget);
+            if (si.ges_checked !== undefined) setGesChecked(si.ges_checked);
+            if (si.ev_checked !== undefined) setEvChecked(si.ev_checked);
+            if (si.eff_checked !== undefined) setEffChecked(si.eff_checked);
+            if (si.loan_amount !== undefined) setLoanAmount(si.loan_amount);
+            if (si.loan_years !== undefined) setLoanYears(si.loan_years);
+            if (si.financial_rating !== undefined) setFinancialRating(si.financial_rating);
+          }
+        }
+      } catch (err) {
+        console.error("Auto context fetch error:", err);
+      } finally {
+        setContextLoading(false);
+      }
+    };
+    fetchAutoContext();
+  }, [ticker]);
 
   // Kategorik Mevcut Karbon Dağılımını Hesapla (Greeenwashing Önleme)
   let hammadde_co2 = 0.0;
@@ -195,9 +233,10 @@ const Simulator = () => {
 
   const discountPct = greenCreditScore >= 50 ? Math.min(1.5, (greenCreditScore / 100) * 1.5) : 0.0;
 
-  // API İstek Fonksiyonu
-  const handleCalculateBaseline = async () => {
-    if (!inputText.trim()) return;
+  // API İstek Fonksiyonu - Otomatik veya Özel Metin ile Baseline Hesabı
+  const handleCalculateBaseline = async (customText = null) => {
+    const textToUse = customText || inputText || autoContext?.activity_text || '';
+    if (!textToUse.trim()) return;
     setLoading(true);
     setError(null);
     try {
@@ -205,7 +244,7 @@ const Simulator = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          text: inputText,
+          text: textToUse,
           ges_budget: activeGesBudget,
           ev_count: activeEvCount,
           eff_budget: activeEffBudget,
@@ -234,32 +273,27 @@ const Simulator = () => {
   };
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="show" className="flex-col gap-6" style={{ padding: '8px 4px' }}>
+    <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
       
       {/* ── Üst Başlık ────────────────────────────────────────────────────────── */}
-      <motion.div variants={itemVariants} className="flex justify-between items-start mb-2">
+      <motion.div variants={itemVariants} style={{ marginBottom: '2px' }}>
         <div>
+          <div style={{ fontSize: '13px', fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '3px' }}>
+            Yeşil Finansman Simülasyonu
+          </div>
           <h1 className="page-title">Yeşil Kredi Sihirbazı & g-ROI Simülatörü</h1>
-          <p className="page-subtitle">Şirket faaliyet beyanını girin, adım adım yeşil finansman talebinizi ve senaryolarınızı kurgulayın</p>
+          <p className="page-subtitle">TSRS raporundan derlenen şirket bağlamı ve yapay zeka (LLM) yeşil yatırım önerileri ile finansman senaryolarınızı kurgulayın</p>
         </div>
-        <div style={{ 
-          display: 'flex', alignItems: 'center', gap: '8px', 
-          background: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05))', 
-          border: '1px solid rgba(16,185,129,0.3)', borderRadius: '12px', 
-          padding: '10px 18px', fontSize: '13px', fontWeight: 700, color: '#10B981', flexShrink: 0 
-        }}>
-          <Shield size={16} /> Model C Sihirbaz Modu Aktif
-        </div>
+        
       </motion.div>
-
       {/* ── SÜREÇ ÇUBUĞU (STEP TRACKER) ────────────────────────────────────────── */}
       <motion.div variants={itemVariants} style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--bg-card)', padding: '16px 28px', borderRadius: '16px',
-        border: '1px solid var(--border-color)', marginBottom: '4px', gap: '16px'
+        background: 'var(--bg-card)', padding: '12px 20px', borderRadius: '14px',
+        border: '1px solid var(--border-color)', marginBottom: '0px', gap: '14px'
       }}>
         {[
-          { step: 1, label: 'Ekolojik Beyan', desc: 'Mevcut Karbon Analizi' },
+          { step: 1, label: 'TSRS Durumu & LLM Önerisi', desc: 'Otomatik Şirket Bağlamı' },
           { step: 2, label: 'Finansman Girdileri', desc: 'Kredi ve Risk Notu' },
           { step: 3, label: 'Yeşil Senaryolar', desc: 'Genişletilmiş Yatırımlar' }
         ].map((s, idx) => {
@@ -294,91 +328,135 @@ const Simulator = () => {
       </motion.div>
 
       {/* ── İki Sütunlu Grid Düzeni ────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: '28px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: '20px' }}>
         
         {/* SOL KOLON: Sihirbaz Adım İçeriği */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           
           <AnimatePresence mode="wait">
             
-            {/* ADIM 1: Kapasite Beyanı ve Karbon Analizi */}
+            {/* ADIM 1: TSRS Şirket Durumu ve LLM Yeşil Yatırım Önerisi (Manuel Metin Girişi Kaldırıldı) */}
             {currentStep === 1 && (
               <motion.div 
                 key="step1" initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 15 }} transition={{ duration: 0.25 }}
                 style={{
                   background: 'var(--bg-card)', borderRadius: '20px', padding: '24px 28px',
-                  border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-premium-card)'
+                  border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-premium-card)',
+                  display: 'flex', flexDirection: 'column', gap: '20px'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{
-                      width: '32px', height: '32px', borderRadius: '8px',
+                      width: '34px', height: '34px', borderRadius: '10px',
                       background: 'linear-gradient(135deg, #10B981, #047857)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       boxShadow: '0 2px 8px rgba(16,185,129,0.3)'
                     }}>
-                      <Sparkles size={16} color="white" />
+                      <Sparkles size={18} color="white" />
                     </div>
                     <div>
-                      <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--primary-midnight)' }}>1. Şirket Faaliyet Beyanı</h3>
-                      <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>LangChain LCEL & Gemini ile Karbon Ayıklama</p>
+                      <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--primary-midnight)' }}>1. TSRS Şirket Durumu & LLM Yeşil Yatırım Önerisi</h3>
+                      <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 500 }}>Şirket verileri rapordan otomatik derlenir, yeşil yatırım stratejisi LLM tarafından üretilir.</p>
                     </div>
                   </div>
                   
-                  {/* Şablon Seçiciler */}
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    {TEMPLATES.map((tmpl, i) => (
-                      <button 
-                        key={i} onClick={() => setInputText(tmpl.text)}
-                        style={{
-                          padding: '5px 10px', borderRadius: '8px',
-                          border: inputText === tmpl.text ? '1.5px solid #10B981' : '1px solid var(--border-color)',
-                          background: inputText === tmpl.text ? 'rgba(16,185,129,0.06)' : 'var(--bg-main)',
-                          cursor: 'pointer', fontSize: '10.5px', fontWeight: 700,
-                          color: inputText === tmpl.text ? '#10B981' : 'var(--text-muted)',
-                          transition: 'all 0.2s'
-                        }}>
-                        {tmpl.label.split(' ')[0]}
-                      </button>
-                    ))}
-                  </div>
+                  <span style={{ 
+                    fontSize: '11px', fontWeight: 700, 
+                    background: 'rgba(16,185,129,0.1)', color: '#047857', 
+                    border: '1px solid rgba(16,185,129,0.25)', 
+                    padding: '4px 10px', borderRadius: '8px', 
+                    display: 'flex', alignItems: 'center', gap: '6px' 
+                  }}>
+                    <CheckCircle2 size={13} /> {autoContext?.report_found ? 'TSRS Onaylı' : 'KAP Paneli'}
+                  </span>
                 </div>
 
-                <textarea 
-                  value={inputText} onChange={e => setInputText(e.target.value)}
-                  placeholder="Şirketinizin kapasite raporu veya resmi beyanını girin. Örneğin: 'Aylık 10 ton pamuk işlenip, 3 dizel kamyonla lojistiği sağlanmaktadır...'"
-                  rows={6}
-                  style={{
-                    width: '100%', boxSizing: 'border-box',
-                    padding: '14px 16px', borderRadius: '12px',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-main)', resize: 'vertical',
-                    fontSize: '13.5px', lineHeight: '1.6', color: 'var(--primary-midnight)',
-                    fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s',
-                    marginBottom: '16px'
-                  }}
-                  onFocus={e => { e.target.style.borderColor = '#10B981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.08)'; }}
-                  onBlur={e => { e.target.style.borderColor = 'var(--border-color)'; e.target.style.boxShadow = 'none'; }}
-                />
+                {/* 1. Kutu: Şirketin Mevcut Durumu (TSRS Raporundan Otomatik Derlendi) */}
+                <div style={{
+                  padding: '16px 18px', borderRadius: '14px',
+                  background: 'var(--bg-main)', border: '1px solid var(--border-color)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '11.5px', fontWeight: 800, color: 'var(--primary-midnight)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Building size={14} color="#10B981" /> Şirketin Mevcut Operasyonel Durumu
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {autoContext?.company_name || 'Şirket'} • {autoContext?.industry}
+                    </span>
+                  </div>
+
+                  {contextLoading ? (
+                    <div style={{ padding: '12px 0', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                      <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> TSRS raporundan kurumsal durum derleniyor...
+                    </div>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.65', color: 'var(--primary-midnight)' }}>
+                      {autoContext?.current_status}
+                    </p>
+                  )}
+                </div>
+
+                {/* 2. Kutu: Yapay Zeka (LLM) Yeşil Yatırım Öneri Katmanı */}
+                <div style={{
+                  padding: '18px 20px', borderRadius: '14px',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(6, 78, 59, 0.02) 100%)',
+                  border: '1.5px solid rgba(16, 185, 129, 0.25)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                    <Zap size={16} color="#10B981" />
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary-midnight)' }}>
+                      LLM Yeşil Yatırım & G-ROI Tavsiyesi
+                    </div>
+                    <span style={{ fontSize: '10px', background: 'rgba(16,185,129,0.15)', color: '#047857', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, marginLeft: 'auto' }}>
+                      Gemini AI Danışmanı
+                    </span>
+                  </div>
+
+                  {contextLoading ? (
+                    <div style={{ padding: '16px 0', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                      <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> LLM yeşil yatırım önerileri üretiliyor...
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '13px', lineHeight: '1.65', color: 'var(--primary-midnight)', whiteSpace: 'pre-line' }}>
+                      {autoContext?.llm_recommendation}
+                    </div>
+                  )}
+
+                  {/* Önerilen Yatırım Kalemleri Rozetleri */}
+                  {autoContext?.suggested_investments && (
+                    <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px dashed rgba(16, 185, 129, 0.25)', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '8px', background: 'white', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#047857' }}>
+                        ☀️ Çatı GES: {(autoContext.suggested_investments.ges_budget).toLocaleString('tr-TR')} ₺
+                      </span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '8px', background: 'white', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#1D4ED8' }}>
+                        🚚 EV Ticari Filo: {autoContext.suggested_investments.ev_count} Araç
+                      </span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '8px', background: 'white', border: '1px solid rgba(212, 175, 55, 0.3)', color: '#B45309' }}>
+                        ⚡ Enerji Verimliliği: {(autoContext.suggested_investments.eff_budget).toLocaleString('tr-TR')} ₺
+                      </span>
+                    </div>
+                  )}
+                </div>
 
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <motion.button 
                     whileHover={{ scale: 1.005 }} whileTap={{ scale: 0.995 }} 
-                    onClick={handleCalculateBaseline} disabled={loading || !inputText.trim()}
+                    onClick={() => handleCalculateBaseline(autoContext?.activity_text)} 
+                    disabled={loading || contextLoading}
                     style={{
-                      flex: 1, padding: '12px 16px', borderRadius: '10px', border: 'none',
-                      background: loading || !inputText.trim() ? 'rgba(148,163,184,0.15)' : 'linear-gradient(135deg, #0B1120, #162032)',
-                      color: loading || !inputText.trim() ? 'var(--text-muted)' : 'white',
-                      fontSize: '13px', fontWeight: 700, cursor: loading || !inputText.trim() ? 'not-allowed' : 'pointer',
+                      flex: 1, padding: '14px 20px', borderRadius: '12px', border: 'none',
+                      background: loading || contextLoading ? 'rgba(148,163,184,0.15)' : 'linear-gradient(135deg, #10B981, #047857)',
+                      color: loading || contextLoading ? 'var(--text-muted)' : 'white',
+                      fontSize: '13.5px', fontWeight: 800, cursor: loading || contextLoading ? 'not-allowed' : 'pointer',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                      boxShadow: loading || !inputText.trim() ? 'none' : '0 4px 12px rgba(11,17,32,0.15)',
+                      boxShadow: loading || contextLoading ? 'none' : '0 4px 14px rgba(16,185,129,0.3)',
                       transition: 'all 0.25s'
                     }}>
                     {loading ? (
-                      <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Analiz Ediliyor...</>
+                      <><RefreshCw size={15} style={{ animation: 'spin 1s linear infinite' }} /> Model C Karbon Analizi Yapılıyor...</>
                     ) : (
-                      <><RefreshCw size={14} /> Faaliyet Analizini Başlat</>
+                      <><Sparkles size={16} /> Önerileri Onayla ve Finansman Adımına İlerle <ChevronRight size={16} /></>
                     )}
                   </motion.button>
                   
@@ -387,7 +465,7 @@ const Simulator = () => {
                       whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
                       onClick={() => setCurrentStep(2)}
                       style={{
-                        padding: '12px 20px', borderRadius: '10px', border: '1px solid var(--border-color)',
+                        padding: '14px 22px', borderRadius: '12px', border: '1px solid var(--border-color)',
                         background: 'white', color: 'var(--primary-midnight)', fontSize: '13px', fontWeight: 700,
                         display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer'
                       }}>
@@ -398,7 +476,7 @@ const Simulator = () => {
 
                 {error && (
                   <div style={{
-                    padding: '10px 16px', borderRadius: '8px', marginTop: '12px',
+                    padding: '10px 16px', borderRadius: '8px',
                     background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)',
                     color: '#DC2626', display: 'flex', alignItems: 'center', gap: '8px',
                     fontSize: '12px', fontWeight: 600
@@ -737,8 +815,8 @@ const Simulator = () => {
         {/* SAĞ KOLON: Kredi Skorlama Sonuçları (Premium Dark Panel - Adım Adım Rapor Görünümü) */}
         <motion.div variants={resultVariants} style={{
           background: 'linear-gradient(135deg, #0B1120 0%, #162032 60%, #1E293B 100%)',
-          borderRadius: '24px',
-          padding: '28px 32px',
+          borderRadius: '18px',
+          padding: '20px 24px',
           color: 'white',
           position: 'relative',
           overflow: 'hidden',
@@ -751,10 +829,10 @@ const Simulator = () => {
           {/* Ambient Glow */}
           <div style={{ position: 'absolute', top: '-100px', right: '-100px', width: '300px', height: '300px', background: `radial-gradient(circle, ${modelCResult ? decisionColor : '#10B981'}15 0%, transparent 70%)`, borderRadius: '50%' }} />
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', position: 'relative' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', position: 'relative' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Sparkles color="#D4AF37" size={18} />
-              <span style={{ fontSize: '16px', fontWeight: 800, letterSpacing: '-0.3px' }}>Yeşil Kredi Değerlendirmesi</span>
+              <span style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '-0.3px' }}>Yeşil Kredi Değerlendirmesi</span>
             </div>
             <div style={{ 
               padding: '4px 10px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', 

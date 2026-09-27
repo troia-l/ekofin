@@ -119,17 +119,19 @@ button {
 
 /* Typography */
 .page-title {
-  font-size: 32px;
+  font-size: 26px;
   font-weight: 800;
-  color: var(--primary-midnight);
-  margin-bottom: 8px;
-  letter-spacing: -1px;
+  color: #0F172A;
+  margin-bottom: 3px;
+  letter-spacing: -0.5px;
 }
 
 .page-subtitle {
-  font-size: 15px;
-  color: var(--text-muted);
-  margin-bottom: 24px;
+  font-size: 13.5px;
+  color: #64748B;
+  margin-bottom: 0px;
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 /* Premium Button */

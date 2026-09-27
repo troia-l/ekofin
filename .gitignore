@@ -9,10 +9,16 @@ model_c/venv/
 __pycache__/
 *.pyc
 venv/
+backend/.pytest_cache/
+.pytest_cache/
 
 # Node / Frontend
 frontend/node_modules/
 frontend/dist/
+frontend-web/node_modules/
+frontend-web/dist/
+frontend-mobile/node_modules/
+frontend-mobile/.expo/
 node_modules/
 
 # OS
@@ -21,3 +27,12 @@ Thumbs.db
 
 # Runtime SQLite database (regenerated via backend/scripts/migrate_json_to_sqlite.py)
 backend/data/*.db
+
+# MLflow
+mlruns/
+esg-model/mlruns/
+esg_pred/mlruns/
+*.db
+mlflow.db
+esg-model/mlflow.db
+esg_pred/mlflow.db

@@ -1,6 +1,7 @@
 [
   {
     "id": 1,
+    "ticker": "ZOREN",
     "name": "Zorlu Enerji A.Ş.",
     "sector": "Enerji Üretimi",
     "riskLevel": "Düşük",

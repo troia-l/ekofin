@@ -46,6 +46,76 @@ class TestESGPredictor:
             # Model dosyaları eksikse FileNotFound fırlatması beklenen davranıştır
             pytest.skip("esg_model_trackB.pkl yerel ortamda bulunamadı.")
 
+    def test_predictor_explain(self):
+        try:
+            predictor = ESGPredictor()
+            features = CompanyFeatures(
+                Revenue=1200.0, ProfitMargin=12.5, MarketCap=4500.0, GrowthRate=8.0,
+                CarbonEmissions=300.0, WaterUsage=150.0, EnergyConsumption=500.0,
+                Industry="Technology", Region="North America", Year=2024
+            )
+            res = predictor.explain(features)
+            assert "base_value" in res
+            assert "predicted_score" in res
+            assert "top_contributions" in res
+            assert isinstance(res["top_contributions"], list)
+        except FileNotFoundError:
+            pytest.skip("esg_model_trackB.pkl yerel ortamda bulunamadı.")
+
+
+class TestKAPLoader:
+    """KAP Veri Adaptörü (kap_loader) testleri."""
+    def test_kap_loader_fallback(self):
+        from modules.esg_prediction.kap_loader import get_kap_features_for_ticker
+        features = get_kap_features_for_ticker("UNKNOWN_TICKER")
+        assert isinstance(features, CompanyFeatures)
+        assert features.Revenue > 0
+        assert features.Industry == "Manufacturing"
+
+    def test_asels_and_zoren_produce_distinct_profiles_and_scores(self):
+        from modules.esg_prediction.kap_loader import get_kap_features_for_ticker
+        from modules.esg_prediction.predictor import ESGPredictor
+        from config import DATA_DIR
+        
+        asels_feat = get_kap_features_for_ticker("ASELS")
+        zoren_feat = get_kap_features_for_ticker("ZOREN")
+        
+        # Profiller farklı olmalı
+        assert asels_feat.Industry == "Technology"
+        assert zoren_feat.Industry == "Utilities"
+        assert asels_feat.Revenue != zoren_feat.Revenue
+        assert asels_feat.EnergyConsumption != zoren_feat.EnergyConsumption
+        
+        # Model tahminleri ve TreeSHAP farklı olmalı
+        predictor = ESGPredictor()
+        asels_res = predictor.explain(asels_feat)
+        zoren_res = predictor.explain(zoren_feat)
+        
+        assert asels_res["predicted_score"] != zoren_res["predicted_score"]
+        assert asels_res["predicted_score"] == 38.52
+        assert zoren_res["predicted_score"] == 46.34
+        
+    def test_auto_context_fallback(self):
+        # We test the fallback generation logic if no Gemini API Key is present
+        from api import get_simulator_auto_context
+        import os
+        # Temporarily unset API key to guarantee fallback logic execution
+        original_key = os.environ.get("GEMINI_API_KEY")
+        if "GEMINI_API_KEY" in os.environ:
+            del os.environ["GEMINI_API_KEY"]
+            
+        res = get_simulator_auto_context("ASELS")
+        assert "context" in res
+        assert "ASELS" in res["context"]
+        assert "sektöründe faaliyet göstermektedir" in res["context"]
+        assert "suggested_investments" in res
+        assert "current_status" in res
+        assert "llm_recommendation" in res
+        
+        # Restore API key
+        if original_key is not None:
+            os.environ["GEMINI_API_KEY"] = original_key
+
 
 class TestNLPCommentAnalyzer:
     """NLP duygu analizi ve ESG sütun (Pillar) sınıflandırıcı testleri."""

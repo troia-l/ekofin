@@ -1,0 +1,29 @@
+{
+  "fixture": "TESTCO",
+  "synthetic": true,
+  "reporting_year": 2025,
+  "company_name": "EkoTest Metal Teknolojileri A.Ş.",
+  "employees": 48,
+  "female_employees": 18,
+  "male_employees": 30,
+  "production_units": 750000,
+  "electricity_kwh": 360000,
+  "natural_gas_sm3": 48000,
+  "diesel_liters": 12000,
+  "gasoline_liters": 3000,
+  "water_withdrawal_m3": 2400,
+  "waste_total_tonnes": 20,
+  "waste_recovered_tonnes": 15,
+  "waste_recovery_rate_percent": 75,
+  "net_revenue_try": 150000000,
+  "emission_factors_kgco2e": {
+    "natural_gas_per_sm3": 2.02,
+    "diesel_per_liter": 2.68,
+    "gasoline_per_liter": 2.31,
+    "electricity_per_kwh": 0.5
+  },
+  "scope_1_tco2e": 136.05,
+  "scope_2_location_based_tco2e": 180.0,
+  "scope_1_2_total_tco2e": 316.05,
+  "scope_1_2_intensity_tco2e_per_million_try": 2.107
+}

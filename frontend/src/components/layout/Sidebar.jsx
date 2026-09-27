@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   LayoutDashboard, 
@@ -8,24 +8,80 @@ import {
   FileText,
   Building2,
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
 
-const Sidebar = ({ activePortal }) => {
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const Sidebar = ({ activePortal, currentUser }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const isPredefinedCompany = currentUser?.companyTicker === 'TOASO' || currentUser?.companyTicker === 'ASELS';
+  const [isVerified, setIsVerified] = useState(isPredefinedCompany);
+
+  useEffect(() => {
+    if (isPredefinedCompany) {
+      setIsVerified(true);
+      return;
+    }
+
+    const checkStatus = async () => {
+      try {
+        const ticker = currentUser?.companyTicker;
+        const url = ticker ? `${API_URL}/api/dashboard/summary?ticker=${encodeURIComponent(ticker)}` : `${API_URL}/api/dashboard/summary`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          const hasData = (data.total_verified_documents > 0) || data.declaration_submitted || data.report_generated;
+          setIsVerified(Boolean(hasData));
+        }
+      } catch (e) {
+        console.error("Sidebar verification check error:", e);
+      }
+    };
+
+    checkStatus();
+  }, [currentUser?.companyTicker, isPredefinedCompany]);
 
   const kobiLinks = [
-    { name: 'Yönetici Özeti', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
-    { name: 'Veri Entegrasyonu', path: '/integration', icon: <Database size={20} /> },
-    { name: 'g-ROI Simülatörü', path: '/simulator', icon: <Activity size={20} /> },
-    { name: 'TSRS Raporlama', path: '/tsrs-report', icon: <FileText size={20} /> },
+    { name: 'Ana Sayfa', path: '/dashboard', icon: <LayoutDashboard size={20} />, locked: false },
+    { name: 'Veri Entegrasyonu', path: '/integration', icon: <Database size={20} />, locked: false },
+    { 
+      name: 'g-ROI Simülatörü', 
+      path: '/simulator', 
+      icon: <Activity size={20} />, 
+      locked: !isVerified,
+      lockMessage: 'g-ROI simülatörünü kullanabilmek için lütfen önce belgelerinizi ve yönetici beyanınızı yükleyin.'
+    },
+    { 
+      name: 'TSRS Raporlama', 
+      path: '/tsrs-report', 
+      icon: <FileText size={20} />, 
+      locked: !isVerified,
+      lockMessage: 'TSRS Raporu üretebilmek için lütfen önce belgelerinizi ve yönetici beyanınızı yükleyin.'
+    },
   ];
 
   const bankLinks = [
-    { name: 'Kredi Tahsis', path: '/bank/dashboard', icon: <Building2 size={20} /> },
+    { name: 'Kredi Tahsis', path: '/bank/dashboard', icon: <Building2 size={20} />, locked: false },
   ];
 
   const links = activePortal === 'kobi' ? kobiLinks : bankLinks;
+
+  const handleLinkClick = (e, link) => {
+    if (link.locked) {
+      e.preventDefault();
+      navigate('/integration', { 
+        state: { 
+          redirectReason: 'unverified', 
+          lockedFeature: link.name,
+          message: link.lockMessage 
+        } 
+      });
+    }
+  };
 
   return (
     <div style={{
@@ -58,6 +114,7 @@ const Sidebar = ({ activePortal }) => {
             <NavLink
               key={link.path}
               to={link.path}
+              onClick={(e) => handleLinkClick(e, link)}
               style={{ textDecoration: 'none' }}
             >
               <motion.div
@@ -69,15 +126,16 @@ const Sidebar = ({ activePortal }) => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '14px',
+                  justifyContent: 'space-between',
                   padding: '14px 20px',
                   borderRadius: '12px',
                   position: 'relative',
-                  color: isActive ? 'white' : '#94A3B8',
+                  color: isActive ? 'white' : (link.locked ? '#64748B' : '#94A3B8'),
                   fontWeight: isActive ? 600 : 500,
                   transition: 'color 0.2s',
                   background: isActive ? 'linear-gradient(90deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)' : 'transparent',
-                  border: isActive ? '1px solid rgba(255,255,255,0.05)' : '1px solid transparent'
+                  border: isActive ? '1px solid rgba(255,255,255,0.05)' : '1px solid transparent',
+                  cursor: link.locked ? 'pointer' : 'pointer'
                 }}
               >
                 {isActive && (
@@ -90,14 +148,33 @@ const Sidebar = ({ activePortal }) => {
                     }}
                   />
                 )}
-                <div style={{ 
-                  color: isActive ? 'var(--accent-emerald)' : 'inherit',
-                  filter: isActive ? 'drop-shadow(0 0 8px rgba(16,185,129,0.4))' : 'none',
-                  transition: 'all 0.3s'
-                }}>
-                  {link.icon}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ 
+                    color: isActive ? 'var(--accent-emerald)' : (link.locked ? '#64748B' : 'inherit'),
+                    filter: isActive ? 'drop-shadow(0 0 8px rgba(16,185,129,0.4))' : 'none',
+                    transition: 'all 0.3s'
+                  }}>
+                    {link.icon}
+                  </div>
+                  <span>{link.name}</span>
                 </div>
-                {link.name}
+
+                {link.locked && (
+                  <span style={{ 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    gap: '4px', 
+                    fontSize: '10.5px', 
+                    fontWeight: 700, 
+                    color: '#F59E0B', 
+                    background: 'rgba(245, 158, 11, 0.12)', 
+                    padding: '3px 8px', 
+                    borderRadius: '8px', 
+                    border: '1px solid rgba(245, 158, 11, 0.25)' 
+                  }}>
+                    <Lock size={11} /> Kilitli
+                  </span>
+                )}
               </motion.div>
             </NavLink>
           );

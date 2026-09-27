@@ -1,0 +1,12 @@
+{
+  "synthetic_test_data": true,
+  "standard": "ISO 14001:2015",
+  "certificate_number": "TEST-ISO14001-2025-001",
+  "certificate_holder": "EkoTest Metal Teknolojileri A.Ş.",
+  "scope": "Hassas işlenmiş metal parça üretimi",
+  "issuer": "Sentetik Test Belgelendirme Kuruluşu",
+  "issue_date": "2024-06-01",
+  "expiry_date": "2027-05-31",
+  "status": "sentetik_gecerli",
+  "independent_verification_performed": false
+}

@@ -5,7 +5,7 @@ import Topnav from './Topnav';
 const MainLayout = ({ children, activePortal, setActivePortal, currentUser, setCurrentUser }) => {
   return (
     <div className="app-container">
-      <Sidebar activePortal={activePortal} />
+      <Sidebar activePortal={activePortal} currentUser={currentUser} />
       <div className="main-content">
         <Topnav 
           activePortal={activePortal} 

@@ -261,214 +261,19 @@ const Integration = () => {
   }
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="show" className="flex-col gap-6">
-      <motion.div variants={itemVariants} className="mb-6">
+    <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      <motion.div variants={itemVariants} style={{ marginBottom: '2px' }}>
+        <div style={{ fontSize: '13px', fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '3px' }}>
+          Veri & Entegrasyon
+        </div>
         <h1 className="page-title">Veri Entegrasyon Merkezi</h1>
         <p className="page-subtitle">ERP sistemlerinizi, faturalarınızı ve yasal belgelerinizi 256-bit uçtan uca şifrelemeyle senkronize edin.</p>
       </motion.div>
 
-      {/* AI TSRS Raporlama ve Analiz Motoru */}
-      <motion.div 
-        variants={itemVariants} 
-        className="card glass-panel"
-        style={{
-          background: 'linear-gradient(135deg, #0B1120 0%, #063C31 100%)',
-          color: '#FFFFFF',
-          padding: '28px',
-          borderRadius: '20px',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
-          border: '1px solid rgba(16, 185, 129, 0.2)',
-          marginBottom: '32px',
-          position: 'relative',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '24px'
-        }}
-      >
-        {/* Dekoratör glow */}
-        <div style={{ position: 'absolute', top: '-10%', right: '-10%', width: '300px', height: '300px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%)', pointerEvents: 'none' }} />
-
-        <div className="flex justify-between items-start" style={{ position: 'relative', zIndex: 1, width: '100%' }}>
-          <div className="flex gap-4 items-center" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <div className="icon-3d" style={{ background: 'linear-gradient(135deg, var(--accent-emerald), var(--accent-emerald-dark))', width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-3d-icon)', flexShrink: 0 }}>
-              <Sparkles color="white" size={24} className={reportStatus.status === 'generating' ? 'animate-pulse' : ''} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Yapay Zeka TSRS Raporlama ve Analiz Motoru
-              </h3>
-              <p style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.7)', fontWeight: 500, marginTop: '2px' }}>
-                Veri kaynaklarınızı birleştirerek bağımsız denetime hazır sürdürülebilirlik beyanınızı oluşturun.
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {reportStatus.status === 'generating' && (
-              <span className="animate-pulse" style={{ fontSize: '12px', color: '#F59E0B', background: 'rgba(245, 158, 11, 0.15)', padding: '6px 14px', borderRadius: '20px', fontWeight: 700, border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-                Rapor Üretiliyor (%{reportStatus.progress})
-              </span>
-            )}
-            {reportStatus.status === 'completed' && (
-              <span style={{ fontSize: '12px', color: '#10B981', background: 'rgba(16, 185, 129, 0.15)', padding: '6px 14px', borderRadius: '20px', fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                Rapor Hazır (Güncel)
-              </span>
-            )}
-            {reportStatus.status === 'idle' && isLatestReportFound && (
-              <span style={{ fontSize: '12px', color: '#10B981', background: 'rgba(16, 185, 129, 0.15)', padding: '6px 14px', borderRadius: '20px', fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                Rapor Mevcut
-              </span>
-            )}
-            {reportStatus.status === 'idle' && !isLatestReportFound && (
-              <span style={{ fontSize: '12px', color: '#94A3B8', background: 'rgba(148, 163, 184, 0.1)', padding: '6px 14px', borderRadius: '20px', fontWeight: 700, border: '1px solid rgba(148, 163, 184, 0.15)' }}>
-                Rapor Üretilmedi
-              </span>
-            )}
-            {reportStatus.status === 'error' && (
-              <span style={{ fontSize: '12px', color: '#EF4444', background: 'rgba(239, 68, 68, 0.15)', padding: '6px 14px', borderRadius: '20px', fontWeight: 700, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                Hata Oluştu
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div style={{ position: 'relative', zIndex: 1, width: '100%' }}>
-          {reportStatus.status === 'generating' ? (
-            <div className="flex-col gap-3" style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column' }}>
-              <div className="flex justify-between items-center mb-1" style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.9)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <RefreshCw size={14} className="animate-spin" style={{ color: 'var(--accent-emerald)' }} />
-                  {reportStatus.message}
-                </span>
-                <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--accent-emerald)' }}>
-                  %{reportStatus.progress}
-                </span>
-              </div>
-              
-              <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden', position: 'relative', width: '100%', marginTop: '8px' }}>
-                <motion.div 
-                  initial={{ width: '0%' }}
-                  animate={{ width: `${reportStatus.progress}%` }}
-                  transition={{ type: 'tween', ease: 'easeInOut' }}
-                  style={{ height: '100%', background: 'linear-gradient(90deg, var(--accent-emerald), #34D399)' }} 
-                />
-              </div>
-              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '8px' }}>
-                Yapay zeka verilerinizi okuyor, standartlara göre sınıflandırıyor ve TSRS-1/TSRS-2 uyumlu raporunuzu oluşturuyor. Lütfen sayfayı kapatmayın.
-              </p>
-            </div>
-          ) : reportStatus.status === 'completed' || (reportStatus.status === 'idle' && isLatestReportFound) ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(16, 185, 129, 0.05)', padding: '16px 20px', borderRadius: '14px', border: '1px solid rgba(16, 185, 129, 0.2)', width: '100%' }}>
-              <div className="flex items-center gap-3" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <CheckCircle2 size={20} style={{ color: '#10B981', flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>TSRS Raporu Hazır ve Kriptografik Olarak Mühürlendi!</div>
-                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginTop: '2px' }}>
-                    Verileriniz işlendi ve TSRS Sürdürülebilirlik Raporu başarıyla üretildi.
-                  </div>
-                </div>
-              </div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <button 
-                  onClick={handleGenerateReport} 
-                  className="btn-outline" 
-                  style={{ 
-                    padding: '10px 16px', 
-                    fontSize: '13px', 
-                    borderRadius: '10px', 
-                    border: '1px solid rgba(255,255,255,0.2)', 
-                    color: '#FFFFFF',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <RefreshCw size={14} /> Yeniden Oluştur
-                </button>
-                <button 
-                  onClick={() => navigate('/tsrs-report')} 
-                  className="btn-primary" 
-                  style={{ 
-                    padding: '10px 20px', 
-                    fontSize: '13px', 
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <FileText size={14} /> Raporu Görüntüle
-                </button>
-              </div>
-            </div>
-          ) : reportStatus.status === 'error' ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(239, 68, 68, 0.05)', padding: '16px 20px', borderRadius: '14px', border: '1px solid rgba(239, 68, 68, 0.2)', width: '100%' }}>
-              <div className="flex items-center gap-3" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <AlertTriangle size={20} style={{ color: '#EF4444', flexShrink: 0 }} />
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>Rapor Üretim Hatası</div>
-                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginTop: '2px' }}>
-                    {reportStatus.message}
-                  </div>
-                </div>
-              </div>
-              
-              <button 
-                onClick={handleGenerateReport} 
-                className="btn-primary" 
-                style={{ 
-                  padding: '10px 20px', 
-                  fontSize: '13px', 
-                  borderRadius: '10px', 
-                  background: 'linear-gradient(135deg, #EF4444, #DC2626)',
-                  boxShadow: '0 4px 14px 0 rgba(239, 68, 68, 0.39)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <RefreshCw size={14} /> Tekrar Dene
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255, 255, 255, 0.02)', padding: '16px 20px', borderRadius: '14px', border: '1px solid rgba(255, 255, 255, 0.05)', width: '100%' }}>
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>TSRS Standartlarına Göre Rapor Oluşturun</div>
-                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', marginTop: '2px' }}>
-                  Bağlantılı API verileriniz, yüklediğiniz e-Faturalar ve beyan ettiğiniz yasal evraklar analiz edilir.
-                </div>
-              </div>
-              
-              <button 
-                onClick={handleGenerateReport} 
-                className="btn-primary" 
-                style={{ 
-                  padding: '12px 24px', 
-                  fontSize: '14px', 
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                <Sparkles size={16} /> TSRS Raporu Oluştur
-              </button>
-            </div>
-          )}
-        </div>
-      </motion.div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
         
         {/* Left Column: Connections & Uploads */}
-        <div className="flex-col gap-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           
           {/* Active Connections */}
           <motion.div variants={itemVariants} className="card glass-panel flex-col gap-4">
@@ -516,15 +321,15 @@ const Integration = () => {
               style={{ 
                 border: '2px dashed', 
                 borderRadius: '16px', 
-                padding: '40px 20px', 
-                textAlign: 'center', 
-                marginBottom: '24px',
+                padding: '24px 18px',
+                textAlign: 'center',
+                marginBottom: '16px',
                 cursor: 'pointer',
                 transition: 'all 0.3s'
               }}
             >
               <motion.div animate={{ y: isHoveringDrop ? -5 : 0 }} transition={{ type: 'spring' }}>
-                <UploadCloud size={48} color={isHoveringDrop ? 'var(--accent-emerald)' : 'var(--text-light)'} style={{ margin: '0 auto 16px auto', filter: isHoveringDrop ? 'drop-shadow(0 4px 10px rgba(16,185,129,0.4))' : 'none', transition: 'all 0.3s' }} />
+                <UploadCloud size={36} color={isHoveringDrop ? 'var(--accent-emerald)' : 'var(--text-light)'} style={{ margin: '0 auto 16px auto', filter: isHoveringDrop ? 'drop-shadow(0 4px 10px rgba(16,185,129,0.4))' : 'none', transition: 'all 0.3s' }} />
               </motion.div>
               <h4 style={{ fontWeight: 700, marginBottom: '8px', color: 'var(--primary-midnight)' }}>UBL / XML Paketlerini Sürükleyin</h4>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px' }}>veya bilgisayarınızdan seçmek için tıklayın.</p>
@@ -668,9 +473,9 @@ const Integration = () => {
         </div>
 
         {/* Right Column: Legal Documents */}
-        <div className="flex-col gap-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <motion.div variants={itemVariants} className="card glass-panel" style={{ height: '100%' }}>
-            <div className="flex items-center gap-4 mb-8">
+            <div className="flex items-center gap-3" style={{ marginBottom: '16px' }}>
               <div className="icon-3d" style={{ background: 'linear-gradient(135deg, #F59E0B, #B45309)', width: '48px', height: '48px' }}>
                 <FileBadge2 color="white" size={24} />
               </div>
@@ -680,14 +485,14 @@ const Integration = () => {
               </div>
             </div>
             
-            <div className="flex flex-col gap-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {docs.map((doc, idx) => (
                 <motion.div 
                   key={idx}
                   whileHover={{ scale: 1.02 }}
                   className="flex justify-between items-center" 
                   style={{ 
-                    padding: '16px 20px', 
+                    padding: '12px 16px', 
                     background: (doc.status === 'verified' || doc.status === 'verified_decl') ? 'rgba(16, 185, 129, 0.03)' : 'var(--bg-main)', 
                     borderRadius: '12px',
                     border: (doc.status === 'verified' || doc.status === 'verified_decl') ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid var(--border-color)',
@@ -793,6 +598,193 @@ const Integration = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Sade ve Kompakt TSRS Raporlama Çubuğu (Sayfa Altı) */}
+      <motion.div
+        variants={itemVariants}
+        style={{
+          marginTop: '24px',
+          padding: '16px 22px',
+          background: '#FFFFFF',
+          borderRadius: '16px',
+          border: '1px solid #E2E8F0',
+          boxShadow: '0 2px 10px rgba(15, 23, 42, 0.04)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1 1 320px' }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
+            background: (reportStatus.status === 'completed' || (reportStatus.status === 'idle' && isLatestReportFound)) ? '#ECFDF5' : '#F1F5F9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            {reportStatus.status === 'generating' ? (
+              <RefreshCw size={18} className="animate-spin" style={{ color: '#059669' }} />
+            ) : (reportStatus.status === 'completed' || (reportStatus.status === 'idle' && isLatestReportFound)) ? (
+              <CheckCircle2 size={20} style={{ color: '#059669' }} />
+            ) : (
+              <Sparkles size={18} style={{ color: '#059669' }} />
+            )}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>
+                TSRS Raporlama ve Analiz Motoru
+              </span>
+              {reportStatus.status === 'generating' && (
+                <span className="animate-pulse" style={{ fontSize: '11px', color: '#D97706', background: '#FEF3C7', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, border: '1px solid #FDE68A' }}>
+                  Üretiliyor (%{reportStatus.progress})
+                </span>
+              )}
+              {(reportStatus.status === 'completed' || (reportStatus.status === 'idle' && isLatestReportFound)) && (
+                <span style={{ fontSize: '11px', color: '#059669', background: '#ECFDF5', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, border: '1px solid #A7F3D0' }}>
+                  Rapor Hazır
+                </span>
+              )}
+              {reportStatus.status === 'error' && (
+                <span style={{ fontSize: '11px', color: '#EF4444', background: '#FEF2F2', padding: '2px 8px', borderRadius: '12px', fontWeight: 700, border: '1px solid #FECACA' }}>
+                  Hata
+                </span>
+              )}
+            </div>
+
+            <div style={{ fontSize: '12.5px', color: '#64748B', fontWeight: 500 }}>
+              {reportStatus.status === 'generating'
+                ? (reportStatus.message || 'Verileriniz işleniyor ve standartlara göre sınıflandırılıyor...')
+                : (reportStatus.status === 'completed' || (reportStatus.status === 'idle' && isLatestReportFound))
+                  ? 'Verileriniz işlendi, TSRS Sürdürülebilirlik Raporu hazır ve kriptografik olarak mühürlendi.'
+                  : reportStatus.status === 'error'
+                    ? (reportStatus.message || 'Rapor oluşturulurken bir hata oluştu.')
+                    : 'Yüklenen belgeler ve API verileri analiz edilerek bağımsız denetime hazır TSRS beyanı oluşturulur.'
+              }
+            </div>
+
+            {reportStatus.status === 'generating' && (
+              <div style={{ width: '100%', maxWidth: '280px', height: '5px', background: '#E2E8F0', borderRadius: '3px', overflow: 'hidden', marginTop: '6px' }}>
+                <motion.div 
+                  initial={{ width: '0%' }}
+                  animate={{ width: `${reportStatus.progress}%` }}
+                  transition={{ type: 'tween', ease: 'easeInOut' }}
+                  style={{ height: '100%', background: 'linear-gradient(90deg, #059669, #10B981)' }} 
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          {reportStatus.status === 'generating' ? (
+            <button 
+              disabled
+              style={{ 
+                padding: '8px 16px', 
+                fontSize: '12px', 
+                borderRadius: '8px', 
+                background: '#F1F5F9',
+                color: '#64748B',
+                border: '1px solid #CBD5E1',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontWeight: 600,
+                cursor: 'not-allowed'
+              }}
+            >
+              <RefreshCw size={13} className="animate-spin" /> Hazırlanıyor...
+            </button>
+          ) : (reportStatus.status === 'completed' || (reportStatus.status === 'idle' && isLatestReportFound)) ? (
+            <>
+              <button 
+                onClick={handleGenerateReport} 
+                className="btn-outline" 
+                style={{ 
+                  padding: '7px 14px', 
+                  fontSize: '12px', 
+                  borderRadius: '8px', 
+                  border: '1px solid #CBD5E1', 
+                  color: '#334155',
+                  background: '#FFFFFF',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: 600
+                }}
+              >
+                <RefreshCw size={12} /> Yeniden Oluştur
+              </button>
+              <button 
+                onClick={() => navigate('/tsrs-report')} 
+                className="btn-primary" 
+                style={{ 
+                  padding: '7px 16px', 
+                  fontSize: '12px', 
+                  borderRadius: '8px', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'linear-gradient(135deg, #059669, #047857)',
+                  border: 'none',
+                  color: '#FFFFFF',
+                  fontWeight: 700
+                }}
+              >
+                <FileText size={13} /> Raporu Görüntüle
+              </button>
+            </>
+          ) : reportStatus.status === 'error' ? (
+            <button 
+              onClick={handleGenerateReport} 
+              style={{ 
+                padding: '8px 16px', 
+                fontSize: '12px', 
+                borderRadius: '8px', 
+                background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                color: '#FFFFFF',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontWeight: 700
+              }}
+            >
+              <RefreshCw size={12} /> Tekrar Dene
+            </button>
+          ) : (
+            <button 
+              onClick={handleGenerateReport} 
+              style={{ 
+                padding: '8px 18px', 
+                fontSize: '12.5px', 
+                borderRadius: '8px', 
+                background: 'linear-gradient(135deg, #059669, #047857)',
+                color: '#FFFFFF',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontWeight: 700,
+                boxShadow: '0 2px 8px rgba(5, 150, 105, 0.2)'
+              }}
+            >
+              <Sparkles size={14} /> TSRS Raporu Oluştur
+            </button>
+          )}
+        </div>
+      </motion.div>
 
       {/* Yasal Beyanlar listesindeki tüm "Yükle" butonları bu TEK gizli input'u
           paylaşır (activeDocUpload state'i hangi belge türü olduğunu taşır).
