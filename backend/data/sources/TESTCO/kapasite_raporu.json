@@ -1,0 +1,12 @@
+{
+  "synthetic_test_data": true,
+  "company": "EkoTest Metal Teknolojileri A.Ş.",
+  "reporting_year": 2025,
+  "product": "Hassas işlenmiş metal parça",
+  "unit": "adet",
+  "annual_installed_capacity": 1000000,
+  "actual_production": 750000,
+  "capacity_utilization_percent": 75,
+  "facility_count": 1,
+  "facility_area_m2": 5000
+}

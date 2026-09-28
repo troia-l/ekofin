@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useOutletContext, useNavigate } from 'react-router-dom';
+import { useOutletContext, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Leaf, Car, ArrowRight, TrendingUp, Sparkles, TrendingDown, Target,
@@ -62,7 +62,9 @@ const TEMPLATES = [
 const Simulator = () => {
   const { currentUser } = useOutletContext() || {};
   const navigate = useNavigate();
-  const ticker = currentUser?.companyTicker || null;
+  const [searchParams] = useSearchParams();
+  const ticker = currentUser?.companyTicker || searchParams.get('ticker') || null;
+  const reportingYear = new Date().getFullYear() - 1;
   const withTicker = (url) => ticker ? `${url}${url.includes('?') ? '&' : '?'}ticker=${encodeURIComponent(ticker)}` : url;
 
   // Sihirbaz Adım State'i (1: Veri Kaynağı, 2: Finansman, 3: Senaryolar, 4: Sonuç)
@@ -76,22 +78,49 @@ const Simulator = () => {
 
   // Entegrasyon Verisi (Veri Entegrasyonu sayfasından yüklenen belgeler + yönetici anketi)
   const [aggregatedContext, setAggregatedContext] = useState(null);
+  const [autoContext, setAutoContext] = useState(null);
   const [contextLoading, setContextLoading] = useState(true);
   const [manualNote, setManualNote] = useState('');
 
   useEffect(() => {
     let cancelled = false;
     setContextLoading(true);
-    fetch(withTicker(`${API_URL}/api/simulator/aggregate-context`))
-      .then(res => res.json())
-      .then(data => { if (!cancelled) setAggregatedContext(data); })
-      .catch(() => { if (!cancelled) setAggregatedContext({ has_documents: false, has_declaration: false, uploaded_docs: [], aggregated_text: '' }); })
-      .finally(() => { if (!cancelled) setContextLoading(false); });
+    const aggregateRequest = fetch(withTicker(`${API_URL}/api/simulator/aggregate-context`))
+      .then(res => res.ok ? res.json() : null)
+      .catch(() => null);
+    const reportContextRequest = fetch(withTicker(`${API_URL}/api/simulator/auto-context?reporting_year=${reportingYear}`))
+      .then(res => res.ok ? res.json() : null)
+      .catch(() => null);
+
+    Promise.all([aggregateRequest, reportContextRequest]).then(([aggregateData, reportContext]) => {
+      if (cancelled) return;
+      setAggregatedContext(aggregateData || { has_documents: false, has_declaration: false, uploaded_docs: [], aggregated_text: '' });
+      setAutoContext(reportContext);
+      const investments = reportContext?.suggested_investments;
+      if (investments) {
+        if (Number.isFinite(investments.ges_budget)) {
+          setGesBudget(investments.ges_budget);
+          setGesChecked(investments.ges_budget > 0);
+        }
+        if (Number.isFinite(investments.ev_count)) {
+          setEvCount(investments.ev_count);
+          setEvChecked(investments.ev_count > 0);
+        }
+        if (Number.isFinite(investments.eff_budget)) {
+          setEffBudget(investments.eff_budget);
+          setEffChecked(investments.eff_budget > 0);
+        }
+        if (Number.isFinite(investments.waste_budget)) setWasteBudget(investments.waste_budget);
+        if (Number.isFinite(investments.water_budget)) setWaterBudget(investments.water_budget);
+      }
+    }).finally(() => {
+      if (!cancelled) setContextLoading(false);
+    });
     return () => { cancelled = true; };
-  }, [ticker]);
+  }, [ticker, reportingYear]);
 
   const combinedText = [
-    aggregatedContext?.aggregated_text || '',
+    autoContext?.activity_text || aggregatedContext?.aggregated_text || '',
     manualNote.trim() ? `[Ek Açıklama]\n${manualNote.trim()}` : '',
   ].filter(Boolean).join('\n\n');
 
@@ -134,9 +163,9 @@ const Simulator = () => {
     });
   }
 
-  // Model C girilmediyse varsayılan 120 ton baseline dağılımı
-  const baselineEmission = modelCResult ? modelCResult.total_co2_tons : 120.0;
-  if (hammadde_co2 === 0.0 && lojistik_co2 === 0.0 && enerji_co2 === 0.0) {
+  // Veri analizi yapılmadan örnek emisyon değeri gösterme.
+  const baselineEmission = modelCResult ? modelCResult.total_co2_tons : 0;
+  if (modelCResult && hammadde_co2 === 0.0 && lojistik_co2 === 0.0 && enerji_co2 === 0.0) {
     hammadde_co2 = baselineEmission * 0.15;
     lojistik_co2 = baselineEmission * 0.25;
     enerji_co2 = baselineEmission * 0.60;

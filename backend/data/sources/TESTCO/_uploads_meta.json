@@ -1,0 +1,73 @@
+{
+  "synthetic_test_fixture": true,
+  "warning": "Bu metadata yalnızca mevcut UI entegrasyon testi içindir. verified statüsü bağımsız doğrulama anlamına gelmez.",
+  "documents": {
+    "sgk": {
+      "status": "verified",
+      "original_filename": "TESTCO_sgk_2025_sentetik.md",
+      "target_filename": "sgk_listesi.md",
+      "uploaded_at": "2026-01-15T10:00:00+03:00"
+    },
+    "ekb": {
+      "status": "verified",
+      "original_filename": "TESTCO_ekb_sentetik.md",
+      "target_filename": "ekb.md",
+      "uploaded_at": "2026-01-15T10:00:00+03:00"
+    },
+    "fatura": {
+      "status": "verified",
+      "original_filename": "TESTCO_faturalar_2025_sentetik.md",
+      "target_filename": "faturalar.md",
+      "uploaded_at": "2026-01-15T10:00:00+03:00"
+    },
+    "mizan": {
+      "status": "verified",
+      "original_filename": "TESTCO_mizan_2025_sentetik.md",
+      "target_filename": "mizan.md",
+      "uploaded_at": "2026-01-15T10:00:00+03:00"
+    },
+    "motat": {
+      "status": "verified",
+      "original_filename": "TESTCO_motat_2025_sentetik.md",
+      "target_filename": "motat-atik-ve-su-beyani.md",
+      "uploaded_at": "2026-01-15T10:00:00+03:00"
+    },
+    "osgb": {
+      "status": "verified",
+      "original_filename": "TESTCO_osgb_2025_sentetik.md",
+      "target_filename": "osgb-raporu.md",
+      "uploaded_at": "2026-01-15T10:00:00+03:00"
+    },
+    "tasit": {
+      "status": "verified",
+      "original_filename": "TESTCO_tasit_2025_sentetik.md",
+      "target_filename": "tasit-tanima-sistemi.md",
+      "uploaded_at": "2026-01-15T10:00:00+03:00"
+    },
+    "faaliyet": {
+      "status": "verified",
+      "original_filename": "TESTCO_faaliyet_2025_sentetik.md",
+      "target_filename": "şirket-faliyet-raporu.md",
+      "uploaded_at": "2026-01-15T10:00:00+03:00"
+    },
+    "sanayi_sicil": {
+      "status": "verified",
+      "original_filename": "TESTCO_sanayi_sicil_sentetik.json",
+      "target_filename": "sanayi_sicil.json",
+      "uploaded_at": "2026-01-15T10:00:00+03:00"
+    },
+    "kapasite_raporu": {
+      "status": "verified",
+      "original_filename": "TESTCO_kapasite_2025_sentetik.json",
+      "target_filename": "kapasite_raporu.json",
+      "uploaded_at": "2026-01-15T10:00:00+03:00"
+    },
+    "iso_14001": {
+      "status": "verified",
+      "original_filename": "TESTCO_iso14001_sentetik.json",
+      "target_filename": "iso_14001.json",
+      "uploaded_at": "2026-01-15T10:00:00+03:00"
+    }
+  },
+  "uploads": []
+}

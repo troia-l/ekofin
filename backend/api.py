@@ -36,6 +36,16 @@ from modules.carbon.extractor import extract_activities, _mock_parser, CarbonExt
 from modules.carbon.calculator import CarbonCalculator
 from modules.carbon.roi import calculate_groi, ROIRequest, calculate_green_credit
 
+# New modular routes add the versioned TSRS workflow and credibility analysis.
+# Existing monolithic endpoints below remain as compatibility fallbacks; route
+# registration order lets these updated handlers serve their shared paths first.
+from routers.documents import router as documents_router
+from routers.report import router as report_router
+from routers.carbon import router as carbon_router
+from routers.esg import router as esg_router
+from routers.finance import router as finance_router
+from routers.audits import router as audits_router
+
 # ESG modeli lazy-load edilecek (pkl dosyaları büyük olabilir)
 _esg_predictor = None
 _nlp_analyzer = None
@@ -122,6 +132,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(documents_router)
+app.include_router(report_router)
+app.include_router(carbon_router)
+app.include_router(esg_router)
+app.include_router(finance_router)
+app.include_router(audits_router)
 
 calculator = CarbonCalculator()
 

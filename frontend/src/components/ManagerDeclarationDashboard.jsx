@@ -5,6 +5,7 @@ import {
   Plus, Minus, Info, Zap, Droplet, ShieldCheck, Check, 
   HelpCircle, Sparkles, FileText, Download, RotateCcw, AlertTriangle
 } from 'lucide-react';
+import { NEW_DECLARATION_DATA, normalizeDeclarationData } from '../utils/declaration';
 
 const ManagerDeclarationDashboard = ({ onBack, onSubmit, initialData, initialMode = 'wizard' }) => {
   const [step, setStep] = useState(1);
@@ -12,24 +13,9 @@ const ManagerDeclarationDashboard = ({ onBack, onSubmit, initialData, initialMod
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiGeneratedPolicy, setAiGeneratedPolicy] = useState('');
   
-  const [formData, setFormData] = useState(initialData || {
-    employeeCount: 45,
-    weeklyWorkHours: 45,
-    extraExcuseLeave: 5,
-    remoteWork: 'partial', // 'yes', 'partial', 'no'
-    vehiclesCount: {
-      electric: 1,
-      hybrid: 1,
-      diesel: 2,
-      gasoline: 1
-    },
-    hasEmsPolicy: 'planning', // 'yes', 'planning', 'no'
-    zeroWasteLevel: 'basic', // 'none', 'basic', 'advanced'
-    hasRenewableEnergy: false,
-    annualElectricity: 14500, // kWh
-    annualWater: 420, // m3
-    confirmed: false
-  });
+  const [formData, setFormData] = useState(() => initialData
+    ? normalizeDeclarationData(initialData)
+    : normalizeDeclarationData(NEW_DECLARATION_DATA));
 
   const updateField = (field, value) => {
     setFormData(prev => ({

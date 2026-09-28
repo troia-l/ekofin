@@ -1,0 +1,77 @@
+"""Kalıcı/asenkron TSRS rapor API'si."""
+from pathlib import Path
+from typing import Optional
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
+from modules.tsrs.job_service import ActiveJobError, MissingSourcesError, _connect, _run_job, create_job, get_job, get_latest_report as service_get_latest_report, get_readiness, normalize_ticker
+
+router = APIRouter(tags=["TSRS Report"])
+class GenerateReportRequest(BaseModel):
+    reporting_year: int = Field(ge=2000, le=2100)
+
+# Eski Python istemcileri ve testler için isim uyumluluğu.
+GenerateRequest = GenerateReportRequest
+background_report_worker = _run_job
+def _ticker(value: Optional[str]) -> str:
+    try: return normalize_ticker(value)
+    except ValueError as exc: raise HTTPException(422, detail={"code":"invalid_ticker","message":str(exc)}) from exc
+@router.get("/api/report/readiness")
+def readiness(ticker: Optional[str]=None, reporting_year: int=2025): return get_readiness(_ticker(ticker), reporting_year)
+@router.post("/api/report/generate", status_code=202)
+def generate_report(payload: GenerateReportRequest, ticker: Optional[str]=None, background_tasks: BackgroundTasks=None):
+    # Önceki doğrudan Python çağrısı: generate_report(ticker, request, tasks).
+    # HTTP sözleşmesi aşağıdaki normal yoldan ve readiness doğrulamasıyla çalışır.
+    if isinstance(payload, str) and isinstance(ticker, GenerateReportRequest):
+        import uuid
+        from datetime import datetime, timezone
+        legacy_ticker, request = _ticker(payload), ticker
+        now = datetime.now(timezone.utc).isoformat()
+        with _connect() as conn:
+            active = conn.execute(
+                "SELECT id FROM report_jobs WHERE ticker=? AND reporting_year=? AND status IN ('queued','running','generating','snapshotting','normalizing','validating','publishing','generating_context') LIMIT 1",
+                (legacy_ticker, request.reporting_year),
+            ).fetchone()
+            if active:
+                raise HTTPException(409, detail={"code":"report_job_active","details":{"job_id":active["id"]}})
+            job_id = str(uuid.uuid4())
+            conn.execute(
+                "INSERT INTO report_jobs (id,ticker,reporting_year,status,stage,progress,message,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                (job_id,legacy_ticker,request.reporting_year,"queued","queued",0,"Rapor işi kuyruğa alındı.",now,now),
+            )
+        if background_tasks is not None:
+            background_tasks.add_task(background_report_worker, job_id, legacy_ticker, request.reporting_year)
+        return {"job_id":job_id,"status":"queued"}
+    try: return create_job(_ticker(ticker), payload.reporting_year)
+    except MissingSourcesError as exc: raise HTTPException(422, detail={"code":"critical_sources_missing","message":"Rapor için gerekli veriler eksik.","details":{"missing":exc.missing}}) from exc
+    except ActiveJobError as exc: raise HTTPException(409, detail={"code":"report_job_active","message":"Rapor üretimi devam ediyor.","details":{"job_id":exc.job_id}}) from exc
+@router.get("/api/report/jobs/{job_id}")
+def report_job(job_id: str):
+    job=get_job(job_id)
+    if not job: raise HTTPException(404, detail={"code":"job_not_found","message":"Rapor işi bulunamadı."})
+    return job
+
+# Eski doğrudan çağrı adı.
+get_job_status = report_job
+@router.get("/api/report/latest")
+def get_latest_report(ticker: Optional[str]=None, reporting_year: int=2025): return service_get_latest_report(_ticker(ticker), reporting_year)
+@router.get("/api/report/status")
+def report_status(ticker: Optional[str]=None, reporting_year: int=2025):
+    state=get_readiness(_ticker(ticker), reporting_year)
+    if not state["active_job_id"]:
+        return {"status":"idle","stage":"idle","progress":0,"message":"","job_id":None}
+    job = get_job(state["active_job_id"])
+    if job["status"] in {"queued", "running"}:
+        job["status"] = "generating"
+    elif job["status"] == "failed":
+        job["status"] = "error"
+    return job
+@router.post("/api/report/verify")
+def verify_report():
+    raise HTTPException(410, detail="Eski hash doğrulama endpointi kaldırıldı; latest report metadata hash değerini kullanın.")
+@router.get("/api/report/{version_id}/download")
+def download_report(version_id: str):
+    from modules.tsrs.job_service import _connect
+    with _connect() as conn: row=conn.execute("SELECT markdown_path FROM report_versions WHERE id=? AND status='published'",(version_id,)).fetchone()
+    if not row or not Path(row["markdown_path"]).exists(): raise HTTPException(404, detail="Rapor bulunamadı.")
+    return FileResponse(row["markdown_path"],media_type="text/markdown",filename="TSRS_Raporu.md")

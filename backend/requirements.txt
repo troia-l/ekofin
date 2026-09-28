@@ -22,3 +22,7 @@ numpy
 joblib
 scikit-learn
 xgboost
+
+# Testing
+pytest
+shap

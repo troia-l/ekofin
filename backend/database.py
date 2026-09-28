@@ -124,6 +124,117 @@ def init_db():
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_applications_ticker ON credit_applications(ticker)")
 
+        # TSRS Pipeline Tables
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS report_jobs (
+                id TEXT PRIMARY KEY,
+                ticker TEXT NOT NULL,
+                reporting_year INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                stage TEXT NOT NULL,
+                progress INTEGER NOT NULL DEFAULT 0 CHECK(progress BETWEEN 0 AND 100),
+                message TEXT NOT NULL DEFAULT '',
+                error_code TEXT,
+                error_details_json TEXT,
+                source_fingerprint TEXT,
+                report_version_id TEXT,
+                created_at TEXT NOT NULL,
+                started_at TEXT,
+                finished_at TEXT,
+                updated_at TEXT NOT NULL
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS report_versions (
+                id TEXT PRIMARY KEY,
+                ticker TEXT NOT NULL,
+                reporting_year INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                markdown_path TEXT NOT NULL,
+                sha256 TEXT,
+                source_fingerprint TEXT NOT NULL,
+                validation_status TEXT NOT NULL,
+                validation_details_json TEXT NOT NULL,
+                model_provider TEXT NOT NULL,
+                model_name TEXT NOT NULL,
+                prompt_version TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                published_at TEXT
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS simulator_contexts (
+                id TEXT PRIMARY KEY,
+                report_version_id TEXT NOT NULL UNIQUE,
+                ticker TEXT NOT NULL,
+                reporting_year INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                current_status TEXT,
+                recommendation TEXT,
+                suggested_investments_json TEXT,
+                activity_text TEXT,
+                model_provider TEXT,
+                model_name TEXT,
+                error_code TEXT,
+                error_message TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(report_version_id) REFERENCES report_versions(id)
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS credibility_snapshots (
+                id TEXT PRIMARY KEY,
+                ticker TEXT NOT NULL,
+                company_name TEXT NOT NULL,
+                methodology_version TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                status TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+        """)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_credibility_snapshot_ticker ON credibility_snapshots(ticker, created_at DESC)"
+        )
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS external_evidence (
+                id TEXT PRIMARY KEY,
+                ticker TEXT NOT NULL,
+                title TEXT NOT NULL,
+                source TEXT NOT NULL,
+                url TEXT NOT NULL,
+                published_date TEXT,
+                body_hash TEXT NOT NULL,
+                source_kind TEXT NOT NULL,
+                source_weight REAL NOT NULL,
+                event_key TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(ticker, url)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS claim_evidence_links (
+                id TEXT PRIMARY KEY,
+                snapshot_id TEXT NOT NULL,
+                claim_id TEXT NOT NULL,
+                evidence_id TEXT NOT NULL,
+                pillar TEXT NOT NULL,
+                relation TEXT NOT NULL,
+                entity_confidence REAL NOT NULL,
+                relevance_confidence REAL NOT NULL,
+                total_weight REAL NOT NULL,
+                model_name TEXT,
+                prompt_version TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(snapshot_id) REFERENCES credibility_snapshots(id),
+                FOREIGN KEY(evidence_id) REFERENCES external_evidence(id)
+            )
+        """)
+
 
 # ── Feedback (kullanıcı yorumları) ──────────────────────────────────────────
 
