@@ -8,7 +8,7 @@
 
 | Gösterge | Demo değeri |
 |---|---:|
-| 31.12.2025 itibarıyla toplam çalışan | 12.000 |
+| Toplam çalışan | 12.000 |
 | Kadın çalışan | 3.840 |
 | Erkek çalışan | 8.160 |
 | Tam zamanlı | 11.760 |
@@ -21,4 +21,3 @@
 | Toplam yönetici | 1.200 |
 
 **Mutabakat:** Kadın + erkek = 12.000; tam zamanlı + yarı zamanlı = 12.000; sözleşme türleri toplamı = 12.000. Değerler sentetik personel özeti olup SGK kayıtlarından alınmamıştır.
-

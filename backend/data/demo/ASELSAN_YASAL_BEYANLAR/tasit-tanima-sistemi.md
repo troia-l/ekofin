@@ -13,7 +13,10 @@
 | Benzinli | 40 | Benzin tüketimi aşağıdaki toplamın içindedir |
 | **Toplam** | **500** | — |
 
-Yıllık benzin tüketimi (hibritler dahil): 32.000 litre. Demo yakıt hesabında dizel ve benzin tüketiminin tamamı bu profile atanmıştır; gerçek araç kartı veya istasyon fişiyle doğrulanmamıştır.
+| Yıllık dizel tüketimi | 145.000 litre |
+| Yıllık benzin tüketimi | 32.000 litre |
+
+Demo yakıt hesabında dizel ve benzin tüketiminin tamamı bu profile atanmıştır; gerçek araç kartı veya istasyon fişiyle doğrulanmamıştır.
 
 ## Hesaplama notu
 
@@ -23,4 +26,3 @@ Yıllık benzin tüketimi (hibritler dahil): 32.000 litre. Demo yakıt hesabınd
 - Elektrikli araç şarjı tesis sayaçlarına dahil varsayıldığından ikinci kez eklenmemiştir.
 
 Bu faktörler yalnızca demo hesabına aittir; metodoloji/faktör kaynağı gerçek raporlama öncesi ayrıca doğrulanmalıdır.
-

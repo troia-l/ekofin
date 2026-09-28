@@ -2,56 +2,194 @@
   "documents": {
     "sgk": {
       "status": "verified",
-      "original_filename": "Hafta12_Ogrenci.pdf",
+      "original_filename": "sgk_listesi.md",
       "target_filename": "sgk_listesi.md",
-      "uploaded_at": "2026-06-27T12:36:29.322666",
-      "size_bytes": 314595
+      "uploaded_at": "2026-09-28T13:26:06.433542",
+      "size_bytes": 920
     },
     "sanayi_sicil": {
       "status": "verified",
-      "original_filename": "osgb-raporu.md",
+      "original_filename": "sanayi_sicil.json",
       "target_filename": "sanayi_sicil.json",
-      "uploaded_at": "2026-07-29T14:34:35.631161",
-      "size_bytes": 1454
+      "uploaded_at": "2026-09-28T13:26:20.505699",
+      "size_bytes": 875
     },
     "kapasite_raporu": {
       "status": "verified",
-      "original_filename": "TSRS_Uyumlu_Surdurulebilirlik_Raporu.md",
+      "original_filename": "kapasite_raporu.json",
       "target_filename": "kapasite_raporu.json",
-      "uploaded_at": "2026-07-29T14:35:35.620758",
-      "size_bytes": 124347
+      "uploaded_at": "2026-09-28T13:26:24.640431",
+      "size_bytes": 1106
     },
     "ekb": {
       "status": "verified",
-      "original_filename": "asels_ekb.txt",
+      "original_filename": "ekb.md",
       "target_filename": "ekb.md",
-      "uploaded_at": "2026-07-29T15:08:22.149769",
-      "size_bytes": 19
+      "uploaded_at": "2026-09-28T13:26:26.638562",
+      "size_bytes": 1064
+    },
+    "iso_14001": {
+      "status": "verified",
+      "original_filename": "iso_14001.json",
+      "target_filename": "iso_14001.json",
+      "uploaded_at": "2026-09-28T13:26:28.706455",
+      "size_bytes": 742
+    },
+    "mizan": {
+      "status": "verified",
+      "original_filename": "mizan.md",
+      "target_filename": "mizan.md",
+      "uploaded_at": "2026-09-28T13:26:30.994067",
+      "size_bytes": 2078
+    },
+    "motat": {
+      "status": "verified",
+      "original_filename": "motat-atik-ve-su-beyani.md",
+      "target_filename": "motat-atik-ve-su-beyani.md",
+      "uploaded_at": "2026-09-28T13:26:35.044699",
+      "size_bytes": 1543
+    },
+    "osgb": {
+      "status": "verified",
+      "original_filename": "osgb-raporu.md",
+      "target_filename": "osgb-raporu.md",
+      "uploaded_at": "2026-09-28T13:26:37.348350",
+      "size_bytes": 1107
+    },
+    "tasit": {
+      "status": "verified",
+      "original_filename": "tasit-tanima-sistemi.md",
+      "target_filename": "tasit-tanima-sistemi.md",
+      "uploaded_at": "2026-09-28T13:26:39.729992",
+      "size_bytes": 1320
+    },
+    "faaliyet": {
+      "status": "verified",
+      "original_filename": "şirket-faliyet-raporu.md",
+      "target_filename": "şirket-faliyet-raporu.md",
+      "uploaded_at": "2026-09-28T13:26:41.834552",
+      "size_bytes": 2167
     }
   },
   "uploads": [
     {
-      "filename": "test_ekb.txt",
-      "doc_type": "ekb",
-      "uploaded_at": "2026-07-29T14:43:05.946433",
+      "filename": "şirket-faliyet-raporu.md",
+      "doc_type": "faaliyet",
+      "uploaded_at": "2026-09-28T13:26:41.834610",
       "status": "processed"
     },
     {
-      "filename": "TSRS_Uyumlu_Surdurulebilirlik_Raporu.md",
-      "doc_type": "kapasite_raporu",
-      "uploaded_at": "2026-07-29T14:35:35.620777",
+      "filename": "tasit-tanima-sistemi.md",
+      "doc_type": "tasit",
+      "uploaded_at": "2026-09-28T13:26:39.730010",
       "status": "processed"
     },
     {
       "filename": "osgb-raporu.md",
-      "doc_type": "sanayi_sicil",
-      "uploaded_at": "2026-07-29T14:34:35.631182",
+      "doc_type": "osgb",
+      "uploaded_at": "2026-09-28T13:26:37.348376",
       "status": "processed"
     },
     {
-      "filename": "Hafta12_Ogrenci.pdf",
+      "filename": "motat-atik-ve-su-beyani.md",
+      "doc_type": "motat",
+      "uploaded_at": "2026-09-28T13:26:35.044733",
+      "status": "processed"
+    },
+    {
+      "filename": "mizan.md",
+      "doc_type": "mizan",
+      "uploaded_at": "2026-09-28T13:26:30.994086",
+      "status": "processed"
+    },
+    {
+      "filename": "iso_14001.json",
+      "doc_type": "iso_14001",
+      "uploaded_at": "2026-09-28T13:26:28.706863",
+      "status": "processed"
+    },
+    {
+      "filename": "ekb.md",
+      "doc_type": "ekb",
+      "uploaded_at": "2026-09-28T13:26:26.638588",
+      "status": "processed"
+    },
+    {
+      "filename": "kapasite_raporu.json",
+      "doc_type": "kapasite_raporu",
+      "uploaded_at": "2026-09-28T13:26:24.640491",
+      "status": "processed"
+    },
+    {
+      "filename": "sanayi_sicil.json",
+      "doc_type": "sanayi_sicil",
+      "uploaded_at": "2026-09-28T13:26:20.505745",
+      "status": "processed"
+    },
+    {
+      "filename": "sgk_listesi.md",
       "doc_type": "sgk",
-      "uploaded_at": "2026-06-27T12:36:29.322689",
+      "uploaded_at": "2026-09-28T13:26:06.433934",
+      "status": "processed"
+    },
+    {
+      "filename": "şirket-faliyet-raporu.md",
+      "doc_type": "faaliyet",
+      "uploaded_at": "2026-09-28T13:00:39.409908",
+      "status": "processed"
+    },
+    {
+      "filename": "tasit-tanima-sistemi.md",
+      "doc_type": "tasit",
+      "uploaded_at": "2026-09-28T13:00:34.649341",
+      "status": "processed"
+    },
+    {
+      "filename": "osgb-raporu.md",
+      "doc_type": "osgb",
+      "uploaded_at": "2026-09-28T13:00:31.800458",
+      "status": "processed"
+    },
+    {
+      "filename": "motat-atik-ve-su-beyani.md",
+      "doc_type": "motat",
+      "uploaded_at": "2026-09-28T13:00:28.766746",
+      "status": "processed"
+    },
+    {
+      "filename": "mizan.md",
+      "doc_type": "mizan",
+      "uploaded_at": "2026-09-28T13:00:24.506141",
+      "status": "processed"
+    },
+    {
+      "filename": "iso_14001.json",
+      "doc_type": "iso_14001",
+      "uploaded_at": "2026-09-28T13:00:22.030345",
+      "status": "processed"
+    },
+    {
+      "filename": "ekb.md",
+      "doc_type": "ekb",
+      "uploaded_at": "2026-09-28T13:00:19.554505",
+      "status": "processed"
+    },
+    {
+      "filename": "kapasite_raporu.json",
+      "doc_type": "kapasite_raporu",
+      "uploaded_at": "2026-09-28T13:00:17.047943",
+      "status": "processed"
+    },
+    {
+      "filename": "sanayi_sicil.json",
+      "doc_type": "sanayi_sicil",
+      "uploaded_at": "2026-09-28T13:00:13.935140",
+      "status": "processed"
+    },
+    {
+      "filename": "sgk_listesi.md",
+      "doc_type": "sgk",
+      "uploaded_at": "2026-09-28T12:59:56.189382",
       "status": "processed"
     }
   ]

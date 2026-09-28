@@ -1,0 +1,15 @@
+{
+  "synthetic_demo_data": true,
+  "demo_notice": "ISO kuruluşu veya belgelendirme kuruluşu tarafından verilmiş/geçerli bir sertifika değildir.",
+  "standard": "ISO 14001:2015 (demo referansı)",
+  "certificate_number": "DEMO-VOID-ISO14001-2025-001",
+  "certificate_holder_label": "ASELSAN (temsili demo profili)",
+  "scope": "DEMO: savunma elektroniği tasarımı, prototipleme, elektronik alt sistem üretimi ve test faaliyetleri",
+  "issuer": "DEMO — akredite belgelendirme kuruluşu değildir",
+  "issue_date": "2025-01-01",
+  "expiry_date": "2027-12-31",
+  "status": "SENTETİK_DEMO_GEÇERSİZ",
+  "sites_covered": ["DEMO-ANK-01"],
+  "independent_verification_performed": false,
+  "audit_status": "Gerçek denetim yapılmadı"
+}

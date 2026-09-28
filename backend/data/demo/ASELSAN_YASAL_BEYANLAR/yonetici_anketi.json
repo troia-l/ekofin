@@ -1,0 +1,38 @@
+{
+  "synthetic_demo_data": true,
+  "demo_notice": "GERÇEK ASELSAN BEYANI DEĞİLDİR. Kurgusal arayüz demosudur; hukuki veya raporlama geçerliliği yoktur.",
+  "company_label": "ASELSAN (temsili demo profili)",
+  "reporting_period": "2025-01-01/2025-12-31",
+  "facility_label": "DEMO-ANK-01",
+  "employeeCount": 12000,
+  "femaleEmployeeCount": 3840,
+  "maleEmployeeCount": 8160,
+  "weeklyWorkHours": 45,
+  "extraExcuseLeave": 5,
+  "remoteWork": "partial",
+  "vehiclesCount": {
+    "electric": 80,
+    "hybrid": 140,
+    "diesel": 240,
+    "gasoline": 40
+  },
+  "hasEmsPolicy": "yes",
+  "zeroWasteLevel": "advanced",
+  "hasRenewableEnergy": true,
+  "annualElectricity": 12500000,
+  "annualNaturalGas": 260000,
+  "annualWater": 74000,
+  "sustainabilityGoals": "Demo hedefi: 2025 baz yılına kıyasla 2028'e kadar elektrik yoğunluğunu %8 azaltmak. Gerçek şirket hedefi değildir.",
+  "climateRiskAssessment": "Demo senaryosu: su stresi, aşırı sıcak ve tedarik zinciri sürekliliği riskleri nitel olarak değerlendirilmiştir; çalışma gerçek ASELSAN değerlendirmesi değildir.",
+  "scope3Exemption": false,
+  "confirmed": true,
+  "signatory_role": "Sürdürülebilirlikten sorumlu yönetici (temsili rol; gerçek kişi/imza yok)",
+  "submitted_at": "2026-01-15T10:00:00+03:00",
+  "signature_status": "DEMO_ONLY_NOT_SIGNED",
+  "supporting_documents": [
+    "sgk_listesi.md",
+    "faturalar.md",
+    "tasit-tanima-sistemi.md",
+    "motat-atik-ve-su-beyani.md"
+  ]
+}

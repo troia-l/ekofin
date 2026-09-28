@@ -11,6 +11,7 @@ pydantic
 langchain-openai
 langchain-core
 pypdf
+reportlab
 
 # LLM — Carbon/ROI (Google Gemini)
 langchain-google-genai

@@ -21,14 +21,23 @@ def _tr_decimal(value: str) -> Decimal:
 
 
 def _table_value(text: str, label: str) -> Decimal:
-    match = re.search(
-        rf"\|\s*(?:\*\*)?{re.escape(label)}(?:\*\*)?\s*\|\s*(?:\*\*)?([\d.,]+)",
-        text,
-        re.IGNORECASE,
-    )
-    if not match:
-        raise ValueError(f"Kaynak metriği bulunamadı: {label}")
-    return _tr_decimal(match.group(1))
+    for line in text.splitlines():
+        if "|" not in line:
+            continue
+        cells = line.strip().strip("|").split("|")
+        cell_label = re.sub(r"\*", "", cells[0]).strip()
+        if cell_label.casefold() != label.casefold():
+            continue
+
+        # Mizan gibi çift taraflı tablolarda değer borç veya alacak
+        # sütununda olabilir. İlk hücredeki sayısal değeri al.
+        for cell in cells[1:]:
+            value_cell = re.sub(r"\*", "", cell).strip()
+            match = re.search(r"(?<![\w])[\d][\d.,]*", value_cell)
+            if match:
+                return _tr_decimal(match.group(0))
+
+    raise ValueError(f"Kaynak metriği bulunamadı: {label}")
 
 
 def _optional_table_value(text: str, label: str) -> Decimal:
