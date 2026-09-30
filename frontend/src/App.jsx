@@ -11,6 +11,8 @@ import ESGReport from './pages/ESGReport';
 import ApplicationForm from './pages/ApplicationForm';
 import PublicAudit from './pages/PublicAudit';
 import Login from './pages/Login';
+import JuryHome from './pages/JuryHome';
+import { getGreenTextileDemoState, isGreenTextileUser } from './demo/greenTextileDemo';
 
 // KOBİ Pages
 import Dashboard from './pages/kobi/Dashboard';
@@ -84,6 +86,12 @@ const DataVerifiedRoute = ({ currentUser, children }) => {
   const [canAccess, setCanAccess] = useState(false);
 
   useEffect(() => {
+    if (isGreenTextileUser(currentUser) && getGreenTextileDemoState().loaded) {
+      setCanAccess(true);
+      setLoading(false);
+      return;
+    }
+
     const isPredefined = currentUser?.companyTicker === 'TOASO' || currentUser?.companyTicker === 'ASELS';
     if (isPredefined) {
       setCanAccess(true);
@@ -142,7 +150,7 @@ function App() {
       <Routes>
         {/* Public Website Routes */}
         <Route element={<PublicLayout currentUser={currentUser} setCurrentUser={setCurrentUser} />}>
-          <Route path="/" element={<Corporate />} />
+          <Route path="/" element={<JuryHome />} />
           <Route path="/corporate" element={<Corporate />} />
           <Route path="/credits" element={<Home />} />
           <Route path="/crowdfunding" element={<Crowdfunding />} />

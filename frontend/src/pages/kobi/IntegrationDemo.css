@@ -1,0 +1,70 @@
+.green-textile-import-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 20px 22px;
+  border: 1px solid #cde8db;
+  border-radius: 18px;
+  background: linear-gradient(115deg, #f1fbf5, #ffffff 72%);
+  box-shadow: 0 8px 24px rgba(18, 102, 74, 0.055);
+}
+
+.green-textile-import-main { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
+.green-textile-import-icon { width: 42px; height: 42px; display: grid; place-items: center; flex: 0 0 42px; border-radius: 13px; color: #07835c; background: #dcf5e7; }
+.green-textile-import-copy { min-width: 0; }
+.green-textile-import-title { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; color: #102c25; font-size: 15px; font-weight: 800; }
+.green-textile-import-title span { padding: 4px 8px; border-radius: 99px; color: #087a56; background: #e0f5e8; font-size: 10px; font-weight: 800; }
+.green-textile-import-copy p { margin: 6px 0 4px; color: #536960; font-size: 12.5px; line-height: 1.5; }
+.green-textile-import-copy small { display: block; color: #82928b; font-size: 10.5px; line-height: 1.5; }
+.green-textile-import-progress { width: min(430px, 100%); height: 5px; overflow: hidden; margin: 11px 0 8px; border-radius: 99px; background: #dfece4; }
+.green-textile-import-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #1da978, #7cd39d); transition: width 420ms ease; }
+.green-textile-import-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 0 0 auto; min-height: 44px; padding: 0 17px; border: 0; border-radius: 11px; color: #fff; background: linear-gradient(135deg, #059669, #047857); box-shadow: 0 5px 13px rgba(5, 150, 105, 0.2); font-size: 12.5px; font-weight: 800; cursor: pointer; transition: transform 160ms ease, filter 160ms ease, opacity 160ms ease; }
+.green-textile-import-button:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.04); }
+.green-textile-import-button:disabled { cursor: default; opacity: 0.8; }
+
+.green-textile-upload-demo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 22px;
+  padding: 15px 17px;
+  border: 1px solid #cde8db;
+  border-radius: 14px;
+  background: linear-gradient(115deg, #f1fbf5, #ffffff 72%);
+  text-align: left;
+}
+.green-textile-upload-demo-copy { flex: 1; min-width: 0; }
+.green-textile-upload-demo-heading { display: flex; align-items: center; gap: 7px; color: #087a56; font-size: 12px; font-weight: 800; }
+.green-textile-upload-demo-copy p { margin: 5px 0 0; color: #536960; font-size: 11px; line-height: 1.5; }
+.green-textile-upload-demo-copy small { display: block; color: #07835c; font-size: 10px; font-weight: 700; }
+.green-textile-upload-demo-complete .green-textile-upload-demo-heading { color: #047857; }
+.green-textile-upload-demo .green-textile-import-progress { width: 100%; margin: 9px 0 5px; }
+.green-textile-upload-demo .green-textile-import-button { min-height: 40px; padding: 0 13px; white-space: nowrap; font-size: 11px; }
+.green-textile-declaration-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin: 4px 0 16px;
+  padding: 14px 15px;
+  border: 1px solid #cde8db;
+  border-radius: 13px;
+  background: linear-gradient(115deg, #f1fbf5, #ffffff 72%);
+}
+.green-textile-declaration-action-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.green-textile-declaration-action-copy strong { color: #102c25; font-size: 12px; font-weight: 800; }
+.green-textile-declaration-action-copy > span { color: #536960; font-size: 10.5px; line-height: 1.45; }
+.green-textile-declaration-action .green-textile-import-progress { width: 100%; margin: 6px 0 0; }
+.green-textile-declaration-action .green-textile-import-button { min-height: 40px; padding: 0 13px; white-space: nowrap; font-size: 11px; }
+.green-textile-declaration-continue { width: 100%; margin-top: 14px; }
+
+@media (max-width: 720px) {
+  .green-textile-import-card { align-items: stretch; flex-direction: column; padding: 17px; }
+  .green-textile-import-button { align-self: flex-start; }
+  .green-textile-upload-demo { align-items: stretch; flex-direction: column; }
+  .green-textile-upload-demo .green-textile-import-button { align-self: flex-start; }
+  .green-textile-declaration-action { align-items: stretch; flex-direction: column; }
+  .green-textile-declaration-action .green-textile-import-button { align-self: flex-start; }
+}

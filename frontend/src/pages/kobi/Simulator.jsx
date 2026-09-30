@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import JuryDemoTour from '../../components/JuryDemoTour';
+import { GREEN_TEXTILE_DEMO, getGreenTextileDemoState, isGreenTextileUser } from '../../demo/greenTextileDemo';
 import {
   Leaf, Car, ArrowRight, TrendingUp, Sparkles, TrendingDown, Target,
   Zap, Clock, AlertCircle, RefreshCw, Info, Shield, Wallet, FileText, CheckCircle2, ChevronRight, ChevronLeft,
@@ -69,6 +71,7 @@ const Simulator = () => {
 
   // Sihirbaz Adım State'i (1: Veri Kaynağı, 2: Finansman, 3: Senaryolar, 4: Sonuç)
   const [currentStep, setCurrentStep] = useState(1);
+  const [juryTourActive, setJuryTourActive] = useState(false);
 
   // Banka Teklifi Başvuru State'i
   const [applyingBankId, setApplyingBankId] = useState(null);
@@ -85,6 +88,37 @@ const Simulator = () => {
   useEffect(() => {
     let cancelled = false;
     setContextLoading(true);
+    if (isGreenTextileUser(currentUser) && getGreenTextileDemoState().loaded) {
+      const uploadedDocs = GREEN_TEXTILE_DEMO.sourceDocuments.map(document => ({
+        doc_type: document.id,
+        label: document.title,
+      }));
+      setAggregatedContext({
+        has_documents: true,
+        has_declaration: true,
+        uploaded_docs: uploadedDocs,
+        aggregated_text: GREEN_TEXTILE_DEMO.activityText,
+      });
+      setAutoContext({
+        activity_text: GREEN_TEXTILE_DEMO.activityText,
+        suggested_investments: GREEN_TEXTILE_DEMO.suggestedInvestments,
+        source: 'synthetic_demo_fixture',
+      });
+      const investments = GREEN_TEXTILE_DEMO.suggestedInvestments;
+      setGesBudget(investments.ges_budget);
+      setGesChecked(investments.ges_budget > 0);
+      setEvCount(investments.ev_count);
+      setEvChecked(investments.ev_count > 0);
+      setEffBudget(investments.eff_budget);
+      setEffChecked(investments.eff_budget > 0);
+      setWasteBudget(investments.waste_budget);
+      setWasteChecked(investments.waste_budget > 0);
+      setWaterBudget(investments.water_budget);
+      setWaterChecked(investments.water_budget > 0);
+      setContextLoading(false);
+      return () => { cancelled = true; };
+    }
+
     const aggregateRequest = fetch(withTicker(`${API_URL}/api/simulator/aggregate-context`))
       .then(res => res.ok ? res.json() : null)
       .catch(() => null);
@@ -147,6 +181,47 @@ const Simulator = () => {
   const [loanAmount, setLoanAmount] = useState(1000000);  // Talep edilen kredi (TL)
   const [financialRating, setFinancialRating] = useState('BBB'); // AAA - C
   const [loanYears, setLoanYears] = useState(5);          // 1 - 20 Yıl
+
+  useEffect(() => {
+    if (!isGreenTextileUser(currentUser) || window.sessionStorage.getItem('ecofin-jury-simulator-tour') !== '1') return;
+    window.sessionStorage.removeItem('ecofin-jury-simulator-tour');
+    if (!getGreenTextileDemoState().loaded) return;
+
+    setModelCResult({
+      total_co2_tons: 140,
+      extracted_activities: [
+        { category: 'hammadde', item_type: 'Pamuk ve elyaf girdileri', amount: 178, unit: 'ton/ay', co2_tons: 50 },
+        { category: 'lojistik', item_type: 'Yurt içi sevkiyat', amount: 2200, unit: 'km/ay', co2_tons: 15 },
+        { category: 'enerji', item_type: 'Elektrik ve doğalgaz', amount: 153500, unit: 'kWh/ay', co2_tons: 75 },
+      ],
+      demo: true,
+    });
+    setCurrentStep(4);
+    setShowScoreDetails(true);
+    setLoanAmount(2400000);
+    setFinancialRating('A');
+    setLoanYears(7);
+    setJuryTourActive(true);
+  }, [currentUser]);
+
+  const simulatorTourSteps = [
+    {
+      target: '[data-jury-simulator="credit-score"]',
+      title: 'g-ROI ve yeşil kredi sonucunu inceleyin',
+      description: 'Belge paketinden türetilen sentetik faaliyet verileriyle yatırım senaryosu, tahmini emisyon azaltımı ve finansman skoru tek sonuç ekranında hesaplandı.',
+      actionLabel: 'g-ROI geri dönüşünü göster',
+    },
+    {
+      target: '[data-jury-simulator="groi-detail"]',
+      title: 'Yatırımın geri dönüşünü görün',
+      description: 'Bu kırılımda tahmini yıllık tasarruf, emisyon farkı ve g-ROI geri dönüş süresi birlikte sunulur. Ardından hazır TSRS demo raporunun oluşturulma akışına geçeceğiz.',
+      actionLabel: 'TSRS demo raporuna geç',
+      onAction: () => {
+        setJuryTourActive(false);
+        navigate('/tsrs-report', { state: { triggerDemoGenerate: true } });
+      },
+    },
+  ];
 
   // Kategorik Mevcut Karbon Dağılımını Hesapla (Greeenwashing Önleme)
   let hammadde_co2 = 0.0;
@@ -379,6 +454,11 @@ const Simulator = () => {
         <div>
           <h1 className="page-title">Yeşil Kredi Sihirbazı & g-ROI Simülatörü</h1>
           <p className="page-subtitle">Şirket faaliyet beyanını girin, adım adım yeşil finansman talebinizi ve senaryolarınızı kurgulayın</p>
+          {isGreenTextileUser(currentUser) && getGreenTextileDemoState().loaded && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', marginTop: '7px', padding: '4px 9px', borderRadius: '99px', color: '#087a56', background: '#e5f7ec', fontSize: '10px', fontWeight: 800 }}>
+              SENTETİK JÜRİ DEMO VERİLERİ
+            </span>
+          )}
         </div>
         <div style={{ 
           display: 'flex', alignItems: 'center', gap: '8px', 
@@ -1168,7 +1248,7 @@ const Simulator = () => {
 
                   {/* KREDİ SKORU VE FAİZ İNDİRİMİ */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px' }}>
-                    <div style={{
+                    <div data-jury-simulator="credit-score" style={{
                       background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)',
                       borderRadius: '14px', padding: '14px 18px', display: 'flex', flexDirection: 'column',
                       justifyContent: 'center'
@@ -1389,7 +1469,7 @@ const Simulator = () => {
                           </div>
 
                           {/* Finansal */}
-                          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '14px', padding: '12px 14px' }}>
+                          <div data-jury-simulator="groi-detail" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '14px', padding: '12px 14px' }}>
                             <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Finansal Kazanç</span>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                               <span style={{ color: 'rgba(255,255,255,0.5)' }}>Aylık Tasarruf:</span>
@@ -1513,6 +1593,14 @@ const Simulator = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {juryTourActive && (
+        <JuryDemoTour
+          steps={simulatorTourSteps}
+          onClose={() => setJuryTourActive(false)}
+          onFinish={() => setJuryTourActive(false)}
+        />
+      )}
 
     </motion.div>
   );

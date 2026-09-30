@@ -1,0 +1,63 @@
+.jury-portal-tour-inset {
+  position: fixed;
+  z-index: 1401;
+  inset: 12px;
+  border: 1px solid rgba(222, 247, 232, 0.18);
+  border-radius: 18px;
+  box-shadow: inset 0 0 34px rgba(219, 255, 235, 0.04);
+  pointer-events: none;
+}
+
+.jury-portal-tour-frame {
+  position: fixed;
+  z-index: 1402;
+  border: 2px solid #8de8c1;
+  border-radius: 14px;
+  box-shadow: 0 0 0 5px rgba(82, 217, 165, 0.2), 0 0 32px rgba(102, 230, 183, 0.48);
+  pointer-events: none;
+  animation: jury-portal-tour-pulse 1.8s ease-in-out infinite;
+}
+
+.jury-portal-tour-card {
+  position: fixed;
+  z-index: 1403;
+  box-sizing: border-box;
+  padding: 20px 21px 16px;
+  border: 1px solid rgba(153, 228, 195, 0.34);
+  border-radius: 18px;
+  color: #eaf6f1;
+  background: linear-gradient(145deg, #132b32, #0e202a);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.38);
+  font-family: Inter, sans-serif;
+  pointer-events: auto;
+}
+
+.jury-portal-tour-kicker { display: flex; align-items: center; justify-content: space-between; margin-bottom: 17px; }
+.jury-portal-tour-kicker > span { display: inline-flex; align-items: center; gap: 7px; color: #7ed9b2; font-size: 10px; font-weight: 800; letter-spacing: 0.75px; }
+.jury-portal-tour-kicker button { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 9px; color: #a9bdbc; background: rgba(255, 255, 255, 0.08); cursor: pointer; }
+.jury-portal-tour-count { color: #8ba5a3; font-size: 9px; font-weight: 800; letter-spacing: 0.9px; }
+.jury-portal-tour-card h2 { margin: 6px 0 8px; color: #f4faf7; font-size: 18px; letter-spacing: -0.3px; }
+.jury-portal-tour-card p { margin: 0; color: #b4c5c2; font-size: 13px; line-height: 1.6; }
+.jury-portal-tour-progress { height: 4px; overflow: hidden; margin-top: 19px; border-radius: 99px; background: rgba(255, 255, 255, 0.1); }
+.jury-portal-tour-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #48bd91, #a0e3be); transition: width 300ms ease; }
+.jury-portal-tour-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 15px; }
+.jury-portal-tour-skip { padding: 8px 0; border: 0; color: #8da5a5; background: transparent; font-size: 11px; cursor: pointer; }
+.jury-portal-tour-next { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 37px; padding: 0 14px; border: 0; border-radius: 9px; color: #073927; background: linear-gradient(135deg, #8be2b5, #50c899); font-size: 12px; font-weight: 800; cursor: pointer; box-shadow: 0 5px 14px rgba(57, 196, 139, 0.18); transition: transform 160ms ease, filter 160ms ease; }
+.jury-portal-tour-next:hover { transform: translateY(-1px); filter: brightness(1.04); }
+.jury-portal-tour-kicker button:hover, .jury-portal-tour-skip:hover { color: #fff; }
+
+@keyframes jury-portal-tour-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(82, 217, 165, 0.16), 0 0 25px rgba(102, 230, 183, 0.35); }
+  50% { box-shadow: 0 0 0 7px rgba(82, 217, 165, 0.23), 0 0 35px rgba(102, 230, 183, 0.55); }
+}
+
+@media (max-width: 540px) {
+  .jury-portal-tour-card { padding: 17px 17px 14px; }
+  .jury-portal-tour-card h2 { font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jury-portal-tour-frame { animation: none; }
+  .jury-portal-tour-progress span { transition: none; }
+  .jury-portal-tour-next { transition: none; }
+}
