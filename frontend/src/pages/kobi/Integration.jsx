@@ -38,11 +38,6 @@ const DOC_DEFINITIONS = [
   { id: 'kapasite_raporu', title: 'Kapasite Raporu (TOBB)', desc: 'Üretim limitleri doğrulaması', docType: 'kapasite_raporu' },
   { id: 'ekb', title: 'Enerji Kimlik Belgesi (EKB)', desc: 'Tesis enerji verimlilik kanıtı', docType: 'ekb' },
   { id: 'iso_14001', title: 'ISO 14001 Çevre YYS', desc: 'Çevre yönetim sistemi sertifikası', docType: 'iso_14001' },
-  { id: 'mizan', title: 'Mizan (Muhasebe Bilançosu)', desc: 'Kurumsal bilanço ve hesap planı verisi', docType: 'mizan' },
-  { id: 'motat', title: 'MOTAT Atık ve Su Beyanı', desc: 'Atık yönetimi ve su tüketim beyanı', docType: 'motat' },
-  { id: 'osgb', title: 'OSGB Raporu', desc: 'İş sağlığı ve güvenliği denetim raporu', docType: 'osgb' },
-  { id: 'tasit', title: 'Taşıt Tanıma Sistemi Kaydı', desc: 'Filo/araç envanteri doğrulaması', docType: 'tasit' },
-  { id: 'faaliyet', title: 'Şirket Faaliyet Raporu', desc: 'Genel faaliyet ve finansal özet', docType: 'faaliyet' },
 ];
 
 const Integration = () => {
