@@ -97,7 +97,7 @@ class TestKAPLoader:
         
     def test_auto_context_fallback(self):
         # We test the fallback generation logic if no Gemini API Key is present
-        from api import get_simulator_auto_context
+        from routers.carbon import get_simulator_auto_context
         import os
         # Temporarily unset API key to guarantee fallback logic execution
         original_key = os.environ.get("GEMINI_API_KEY")

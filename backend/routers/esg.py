@@ -17,6 +17,9 @@ from .common import (
     _run_nlp,
     get_cover_image,
     generate_ai_insights,
+    _company_name,
+    _ensure_fresh_news,
+    _fetch_and_store_news,
 )
 
 router = APIRouter(tags=["ESG Prediction & Analytics"])
@@ -107,8 +110,7 @@ def get_esg_companies():
                 # Toplumsal (yorum + doğrulanmış ihbar + haber) modülasyonu decay ağırlıklı hesapla
                 feedback_mod = db.compute_feedback_modulation(ticker)
                 audit_mod = db.compute_audit_modulation(ticker)
-                # Haber doğrulaması ayrı ve deneysel bir sinyaldir; ESG/kredi skorunu değiştirmez.
-                news_mod = 0.0
+                news_mod = db.compute_news_modulation(ticker)
 
                 # Bugünün snapshot'ı yoksa yaz (günlük skor geçmişi için idempotent)
                 snapshot = db.upsert_score_snapshot(ticker, today_str, score_out_of_10, feedback_mod, audit_mod, news_mod)
@@ -233,14 +235,19 @@ def get_company_score_history(ticker: str):
 
 @router.get("/api/esg/news/{ticker}")
 def get_company_news(ticker: str):
-    """Yalnız daha önce kaydedilmiş haberleri döndürür; otomatik ağ çağrısı yapmaz."""
+    """Şirketle ilgili güvenilir kaynaklardan (Google News RSS, whitelist filtreli) çekilen
+    haberleri, her birinin NLP analizi ve ESG skor etkisiyle birlikte döner. Önbellek
+    NEWS_REFRESH_INTERVAL_HOURS'tan eskiyse otomatik tazelenir."""
+    _ensure_fresh_news(ticker, _company_name(ticker))
     return db.list_news(ticker)
 
 
 @router.post("/api/esg/news/{ticker}/refresh")
 def refresh_company_news(ticker: str):
-    """Pilot kalibrasyonu tamamlanana kadar otomatik keşif kapalıdır."""
-    raise HTTPException(
-        status_code=501,
-        detail={"code": "automatic_discovery_disabled", "message": "Otomatik haber taraması pilot aşamada kapalıdır."},
-    )
+    """Haber önbelleğini yaş sınırını yok sayarak zorla yeniler (manuel tetikleme).
+    Sadece yeni (henüz kayıtlı olmayan) haberler analiz edilir."""
+    try:
+        added, fetched = _fetch_and_store_news(ticker, _company_name(ticker))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Haber servisi şu anda ulaşılamıyor: {e}")
+    return {"status": "success", "fetched": fetched, "added": added, "news": db.list_news(ticker)}

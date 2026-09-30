@@ -7,3 +7,4 @@ from .carbon import router as carbon_router
 from .esg import router as esg_router
 from .finance import router as finance_router
 from .audits import router as audits_router
+from .applications import router as applications_router

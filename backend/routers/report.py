@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
 import hashlib
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Form, HTTPException
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from modules.tsrs.job_service import ActiveJobError, MissingSourcesError, _connect, _run_job, create_job, get_job, get_latest_report as service_get_latest_report, get_readiness, normalize_ticker
@@ -92,8 +92,50 @@ def report_status(ticker: Optional[str]=None, reporting_year: int=2025):
         job["status"] = "error"
     return job
 @router.post("/api/report/verify")
-def verify_report():
-    raise HTTPException(410, detail="Eski hash doğrulama endpointi kaldırıldı; latest report metadata hash değerini kullanın.")
+def verify_report(hash_to_verify: str = Form(...), ticker: Optional[str] = Form(None)):
+    """Verilen SHA-256 hash'ini yayımlanmış raporlarla karşılaştırarak doğrular.
+    ApplicationDetail.jsx FormData ile gönderiyor; bu yüzden Form parametreleri kullanılır."""
+    if not hash_to_verify:
+        raise HTTPException(400, detail="hash_to_verify parametresi gerekli.")
+
+    # Önce report_versions tablosundan eşleşme ara
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT id, ticker, reporting_year, sha256, published_at FROM report_versions WHERE sha256=? AND status='published' LIMIT 1",
+            (hash_to_verify,),
+        ).fetchone()
+
+    if row:
+        return {
+            "is_valid": True,
+            "actual_hash": row["sha256"],
+            "provided_hash": hash_to_verify,
+            "matched_report_id": row["id"],
+            "ticker": row["ticker"],
+            "reporting_year": row["reporting_year"],
+            "verified_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        }
+
+    # DB'de eşleşme yoksa dosya sistemi fallback (eski rapor formatı uyumluluğu)
+    if ticker:
+        from config import get_company_report_path
+        from .common import _compute_file_hash
+        report_path = get_company_report_path(ticker)
+        if report_path.exists():
+            actual_hash = _compute_file_hash(report_path)
+            return {
+                "is_valid": actual_hash == hash_to_verify,
+                "actual_hash": actual_hash,
+                "provided_hash": hash_to_verify,
+                "verified_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            }
+
+    return {
+        "is_valid": False,
+        "actual_hash": None,
+        "provided_hash": hash_to_verify,
+        "verified_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
 @router.get("/api/report/{version_id}/download")
 def download_report(version_id: str):
     from modules.tsrs.job_service import _connect

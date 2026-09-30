@@ -3,7 +3,6 @@ EkoFin Ortak Yardımcılar, Global Durum ve Paylaşılan Veri Modelleri
 Router modülleri tarafından paylaşılan ortak fonksiyonlar ve nesneler.
 """
 
-import os
 import json
 import hashlib
 from datetime import datetime
@@ -11,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 from pydantic import BaseModel, Field
-from dotenv import load_dotenv
+
 
 from config import (
     BASE_DIR, SOURCES_DIR, REPORT_OUTPUT_PATH, DECLARATION_PATH,
@@ -23,8 +22,8 @@ from config import (
 )
 import database as db
 
-load_dotenv(dotenv_path=BASE_DIR / ".env")
-db.init_db()
+# Not: db.init_db() ve load_dotenv() ana api.py gateway'de çağrılmaktadır.
+# Router modüllerinin import edilmesi sırasında tekrar çağrılmasına gerek yoktur.
 
 # ─── Karbon Hesaplayıcı ──────────────────────────────────────────────────────
 from modules.carbon.calculator import CarbonCalculator
