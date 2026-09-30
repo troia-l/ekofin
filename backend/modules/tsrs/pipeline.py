@@ -25,26 +25,41 @@ from config import (
 
 # .env dosyasını backend kök dizininden yükle
 load_dotenv(dotenv_path=BASE_DIR / ".env")
+import time
+from logger import logger, log_llm_request, log_llm_response, log_llm_fallback
 
 # Lazy-init: API key olmadan import hatası vermemesi için veya mock modu
 _model = None
 
 def _get_model():
     global _model
-    api_key = os.getenv("OPENAI_API_KEY")
+    # Kaynak: https://ai.google.dev/gemini-api/docs/openai?hl=tr
+    api_key = os.getenv("OPENAI_API_KEY") or os.getenv("GEMINI_API_KEY")
     if not api_key or api_key.strip() == "" or api_key.startswith("YOUR_") or api_key == "mock":
         return "mock"
     
     if _model is None:
         try:
+            is_gemini_fallback = not os.getenv("OPENAI_API_KEY") and bool(os.getenv("GEMINI_API_KEY"))
+            default_base = "https://generativelanguage.googleapis.com/v1beta/openai/" if is_gemini_fallback else None
+            default_model = "gemini-2.5-flash" if is_gemini_fallback else "gpt-5.4"
+            if is_gemini_fallback:
+                api_base = os.getenv("GEMINI_API_BASE") or default_base
+                model_name = os.getenv("GEMINI_MODEL") or default_model
+            else:
+                api_base = os.getenv("OPENAI_API_BASE") or default_base
+                model_name = os.getenv("OPENAI_TSRS_MODEL") or default_model
+
             _model = ChatOpenAI(
-                model=os.getenv("OPENAI_TSRS_MODEL", "gpt-5.4"),
+                model=model_name,
                 temperature=0,
                 openai_api_key=api_key,
-                openai_api_base=os.getenv("OPENAI_API_BASE") or None,
+                openai_api_base=api_base,
+                request_timeout=120,
+                max_retries=3,
             )
         except Exception as e:
-            print(f"[!] ChatOpenAI başlatılamadı: {e}. Mock moduna geçiliyor.")
+            logger.warning(f"⚠️ [TSRS-PIPELINE] ChatOpenAI başlatılamadı: {e}. Mock moduna geçiliyor.")
             return "mock"
     return _model
 
@@ -390,7 +405,8 @@ def generate_section(section_filename, template_text, section_sources_text, read
 
     model = _get_model()
     if model == "mock":
-        import time
+        # time is already imported at module level
+        logger.info(f"📑 [TSRS-MOCK] {section_filename} deterministik yerel şablon ile üretiliyor.")
         time.sleep(1.0)
         return get_mock_section_content(section_filename)
 
@@ -426,7 +442,13 @@ def generate_section(section_filename, template_text, section_sources_text, read
     if reading_rules_text:
         invoke_args["reading_rules"] = reading_rules_text
         
-    return chain.invoke(invoke_args)
+    start = time.perf_counter()
+    model_label = getattr(model, "model_name", "LLM")
+    log_llm_request("TSRS Rapor Üreteci", model_label, f"Bölüm: {section_filename}")
+    res = chain.invoke(invoke_args)
+    elapsed = (time.perf_counter() - start) * 1000
+    log_llm_response("TSRS Rapor Üreteci", model_label, f"Bölüm: {section_filename}", elapsed, success=True)
+    return res
 
 
 # ============================================================
@@ -461,7 +483,7 @@ def run_tsrs_pipeline(progress_callback=None, sources_dir=None, report_path=None
     reporting_year = reporting_year or datetime.now().year - 1
 
     if _get_model() == "mock":
-        return {"status": "error", "error": "OPENAI_API_KEY yapılandırılmadı; mock rapor yayımlanamaz."}
+        return {"status": "error", "error": "LLM API anahtarı (OPENAI_API_KEY veya GEMINI_API_KEY) yapılandırılmadı; mock rapor yayımlanamaz."}
 
     print("=" * 60)
     print("  TSRS SÜRDÜRÜLEBİLİRLİK RAPORU ÜRETİM AKIŞI")

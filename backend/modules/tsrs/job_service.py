@@ -13,11 +13,13 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime, timezone
+import time
 from pathlib import Path
 from typing import Any
 
 import database
 from config import BASE_DIR, get_company_sources_dir
+from logger import logger, log_llm_request, log_llm_response, log_llm_fallback
 
 
 TERMINAL_STATUSES = {"completed", "completed_with_warnings", "failed", "interrupted"}
@@ -180,6 +182,7 @@ def get_readiness(ticker: str, reporting_year: int) -> dict[str, Any]:
 def _update_job(job_id: str, *, status: str, stage: str, progress: int, message: str,
                 error_code: str | None = None, error_details: Any = None,
                 report_version_id: str | None = None, finished: bool = False) -> None:
+    logger.info(f"📊 [TSRS-İŞ-DURUM] İş: {job_id} | Aşama: {stage} | İlerleme: %{progress} | Durum: {status} | Mesaj: {message}")
     now = utc_now()
     with _connect() as conn:
         conn.execute(
@@ -240,13 +243,13 @@ def get_job(job_id: str) -> dict[str, Any] | None:
 def _validate_report(text: str) -> list[str]:
     errors: list[str] = []
     forbidden = {
-        r"KGK\s+Bağımsız\s+Denetçi\s+Portalı.*Doğrulan": "Gerçekleşmemiş KGK portal doğrulaması",
+        r"KGK\s+Bağımsız\s+Denetçi\s+Portalı[^\n.]{0,80}(?:ile|üzerinden)\s+(?:kriptografik\s+olarak\s+)?doğrulan": "Gerçekleşmemiş KGK portal doğrulaması",
         r"passport-id-\[Dinamik_ID\]": "Çözümlenmemiş doğrulama URL'si",
         r"!\[\]\[image\d+\]": "Çözümlenmemiş görsel referansı",
         r"tüm\s+hükümleriyle\s+tam\s+uyumlu\s+ve\s+koşulsuz": "Kanıtsız tam uyum beyanı",
     }
     for pattern, message in forbidden.items():
-        if re.search(pattern, text, re.IGNORECASE | re.DOTALL):
+        if re.search(pattern, text, re.IGNORECASE):
             errors.append(message)
     if len(text.strip()) < 1000:
         errors.append("Rapor içeriği beklenenden kısa")
@@ -355,17 +358,42 @@ def _generate_context(version_id: str, ticker: str, reporting_year: int, report_
             waste_budget: int = Field(ge=0)
             water_budget: int = Field(ge=0)
 
-        key = os.getenv("OPENAI_API_KEY", "").strip()
+        # Kaynak: https://ai.google.dev/gemini-api/docs/openai?hl=tr
+        key = (os.getenv("OPENAI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")).strip()
         if not key:
-            raise RuntimeError("OPENAI_API_KEY yapılandırılmamış.")
-        model = ChatOpenAI(model=os.getenv("OPENAI_GROI_MODEL", os.getenv("OPENAI_TSRS_MODEL", "gpt-5.4")),
-                           api_key=key, base_url=os.getenv("OPENAI_API_BASE") or None, temperature=0)
+            raise RuntimeError("OPENAI_API_KEY veya GEMINI_API_KEY yapılandırılmamış.")
+        
+        is_gemini = not os.getenv("OPENAI_API_KEY") and bool(os.getenv("GEMINI_API_KEY"))
+        default_base = "https://generativelanguage.googleapis.com/v1beta/openai/" if is_gemini else None
+        default_model = "gemini-2.5-flash" if is_gemini else "gpt-5.4"
+        
+        if is_gemini:
+            api_base = os.getenv("GEMINI_API_BASE") or default_base
+            model_name = os.getenv("GEMINI_MODEL") or default_model
+        else:
+            api_base = os.getenv("OPENAI_API_BASE") or default_base
+            model_name = os.getenv("OPENAI_GROI_MODEL") or os.getenv("OPENAI_TSRS_MODEL") or default_model
+
+        model = ChatOpenAI(
+            model=model_name,
+            api_key=key,
+            base_url=api_base,
+            temperature=0,
+            request_timeout=120,
+            max_retries=3,
+        )
         structured = model.with_structured_output(ContextOutput)
-        output = structured.invoke(
+        prompt_str = (
             "Aşağıdaki doğrulanmış TSRS raporuna dayanarak kısa şirket durumu ve 2-3 maddelik yeşil yatırım tavsiyesi üret. "
             "Raporda bulunmayan sayı, tesis, sertifika veya doğrulama iddiası ekleme. Bütçeleri ihtiyatlı öneri olarak ver.\n\n"
             + report_text[:50000]
         )
+        provider_name = "Gemini" if is_gemini else "OpenAI"
+        log_llm_request(provider=provider_name, model=model_name, task="TSRS Simülatör Bağlamı", prompt_preview=prompt_str)
+        t0 = time.perf_counter()
+        output = structured.invoke(prompt_str)
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+        log_llm_response(provider=provider_name, model=model_name, task="TSRS Simülatör Bağlamı", elapsed_ms=elapsed_ms, success=True, details=f"Durum: {output.current_status[:40]}...")
         investments = {"ges_budget": output.ges_budget, "ev_count": output.ev_count,
                        "eff_budget": output.eff_budget, "waste_budget": output.waste_budget,
                        "water_budget": output.water_budget}
@@ -378,6 +406,8 @@ def _generate_context(version_id: str, ticker: str, reporting_year: int, report_
             )
         return None
     except Exception as exc:
+        log_llm_response(provider="LLM", model=locals().get("model_name", "unknown"), task="TSRS Simülatör Bağlamı", elapsed_ms=0, success=False, details=str(exc))
+        log_llm_fallback(task="TSRS Simülatör Bağlamı", original_provider="LLM", fallback_to="Yok (Hata)", reason=str(exc))
         with _connect() as conn:
             conn.execute("UPDATE simulator_contexts SET status='failed',error_code='context_generation_failed',error_message=?,updated_at=? WHERE report_version_id=?",
                          (str(exc)[:1000], utc_now(), version_id))

@@ -8,8 +8,10 @@ Taşındı: model_c/model.py → modules/carbon/extractor.py
 
 import os
 import sys
-from pydantic import BaseModel, Field
+import time
 from typing import List
+from pydantic import BaseModel, Field
+from logger import logger, log_llm_request, log_llm_response, log_llm_fallback
 
 # Pydantic models for structured output from LLM
 class ExtractedActivity(BaseModel):
@@ -51,18 +53,21 @@ def extract_activities(text: str) -> CarbonExtractionModel:
     gemini_key = os.getenv("GEMINI_API_KEY")
 
     if not gemini_key:
-        print("[Sistem] GEMINI_API_KEY bulunamadı. Otonom MOCK modunda veri ayıklanıyor...", file=sys.stderr)
+        log_llm_fallback(task="Karbon Faaliyet Çıkarımı", original_provider="Gemini", fallback_to="Kural Tabanlı Mock Parser", reason="GEMINI_API_KEY yapılandırılmamış")
         return _mock_parser(text)
 
     # 2. LangChain Expression Language (LCEL) structured output
+    # Kaynak: https://ai.google.dev/gemini-api/docs/openai?hl=tr
+    base_url = os.getenv("GEMINI_API_BASE") or "https://generativelanguage.googleapis.com/v1beta/openai/"
+    model_name = os.getenv("GEMINI_MODEL") or "gemini-2.5-flash"
+    log_llm_request(provider="Gemini", model=model_name, task="Karbon Faaliyet Çıkarımı", prompt_preview=text)
+    t0 = time.perf_counter()
+    
     try:
-        from langchain_google_genai import ChatGoogleGenerativeAI
+        from langchain_openai import ChatOpenAI
         from langchain_core.prompts import ChatPromptTemplate
 
-        # timeout/max_retries olmadan Gemini API bir sorun yaşadığında (rate limit,
-        # ağ hıçkırığı, uzun belge içeriği) istek süresiz askıda kalıp tüm backend
-        # thread havuzunu tıkayabiliyordu — sınırlı süre sonra mock_parser'a düşüyoruz.
-        model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", api_key=gemini_key, timeout=20, max_retries=1)
+        model = ChatOpenAI(model=model_name, openai_api_key=gemini_key, base_url=base_url, timeout=20, max_retries=1)
         structured_model = model.with_structured_output(CarbonExtractionModel)
 
         prompt = ChatPromptTemplate.from_messages([
@@ -75,9 +80,36 @@ def extract_activities(text: str) -> CarbonExtractionModel:
         ])
 
         chain = prompt | structured_model
-        result = chain.invoke({"text": text})
-        return result
-        
-    except Exception as e:
-        print(f"[Hata] LCEL Gemini zinciri çalışırken hata oluştu: {e}", file=sys.stderr)
-        return _mock_parser(text)
+        res = chain.invoke({"text": text})
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+        log_llm_response(provider="Gemini (OpenAI Endpoint)", model=model_name, task="Karbon Faaliyet Çıkarımı", elapsed_ms=elapsed_ms, success=True, details=f"{len(res.company_activities)} faaliyet çıkarıldı")
+        return res
+
+    except Exception as e_openai:
+        log_llm_fallback(task="Karbon Faaliyet Çıkarımı", original_provider="Gemini (OpenAI Endpoint)", fallback_to="Google GenAI SDK", reason=str(e_openai))
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            from langchain_core.prompts import ChatPromptTemplate
+
+            model = ChatGoogleGenerativeAI(model=model_name, api_key=gemini_key, timeout=20, max_retries=1)
+            structured_model = model.with_structured_output(CarbonExtractionModel)
+
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", (
+                    "Sen kapasite raporlarından karbon faaliyet verilerini ve ham maddeleri ayıklayan uzman bir ESG denetçisisin. "
+                    "Metin içindeki hammaddeleri (pamuk, plastik vb.), lojistiği (kamyon km vb.) ve enerji girdilerini (elektrik, doğalgaz vb.) tam eşleşen kategorileriyle çıkar. "
+                    "Eğer metinde hiçbir emisyon faaliyeti yoksa boş bir liste döndür."
+                )),
+                ("human", "Aşağıdaki metinden karbon emisyonu üreten faaliyetleri çıkar:\n\n{text}")
+            ])
+
+            chain = prompt | structured_model
+            res = chain.invoke({"text": text})
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+            log_llm_response(provider="Gemini (GenAI SDK)", model=model_name, task="Karbon Faaliyet Çıkarımı", elapsed_ms=elapsed_ms, success=True, details=f"{len(res.company_activities)} faaliyet çıkarıldı")
+            return res
+        except Exception as e_genai:
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+            log_llm_response(provider="Gemini", model=model_name, task="Karbon Faaliyet Çıkarımı", elapsed_ms=elapsed_ms, success=False, details=f"{e_openai} / {e_genai}")
+            log_llm_fallback(task="Karbon Faaliyet Çıkarımı", original_provider="Gemini", fallback_to="Kural Tabanlı Mock Parser", reason=f"{e_openai} / {e_genai}")
+            return _mock_parser(text)

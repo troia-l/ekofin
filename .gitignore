@@ -11,6 +11,8 @@ __pycache__/
 venv/
 backend/.pytest_cache/
 .pytest_cache/
+backend/logs/
+*.log
 
 # Node / Frontend
 frontend/node_modules/
@@ -36,3 +38,6 @@ esg_pred/mlruns/
 mlflow.db
 esg-model/mlflow.db
 esg_pred/mlflow.db
+
+# Temporary pipeline runs
+backend/output/**/runs/

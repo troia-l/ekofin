@@ -1,0 +1,13 @@
+{
+  "synthetic_test_data": true,
+  "document_type": "sanayi_sicil_belgesi",
+  "company": "Tofaş Türk Otomobil Fabrikası A.Ş.",
+  "registration_number": "TEST-SAN-2025-001",
+  "nace_code": "25.62",
+  "activity": "Metallerin makinede işlenmesi ve şekil verilmesi",
+  "facility_city": "Ankara",
+  "facility_country": "Türkiye",
+  "valid_from": "2025-01-01",
+  "valid_until": "2026-12-31",
+  "status": "sentetik_test"
+}

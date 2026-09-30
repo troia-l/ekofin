@@ -7,6 +7,9 @@ from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 
+import base64
+from PIL import Image as PILImage
+
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.lib.pagesizes import A4
@@ -16,6 +19,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     HRFlowable,
+    Image as RLImage,
     PageBreak,
     Paragraph,
     SimpleDocTemplate,
@@ -34,6 +38,9 @@ LINE = colors.HexColor("#DCE5E2")
 
 def _register_fonts() -> tuple[str, str]:
     regular_candidates = (
+        "C:/Windows/Fonts/arial.ttf",
+        "C:/Windows/Fonts/calibri.ttf",
+        "C:/Windows/Fonts/segoeui.ttf",
         "/System/Library/Fonts/Supplemental/Arial.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
@@ -41,6 +48,9 @@ def _register_fonts() -> tuple[str, str]:
         "/Library/Fonts/Arial Unicode.ttf",
     )
     bold_candidates = (
+        "C:/Windows/Fonts/arialbd.ttf",
+        "C:/Windows/Fonts/calibrib.ttf",
+        "C:/Windows/Fonts/segoeuib.ttf",
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
@@ -109,6 +119,50 @@ def _parse_table(lines: list[str], body_font: str, bold_font: str, width: float)
         ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
     ]))
     return table
+
+
+def _extract_image_info(line: str) -> dict[str, str] | None:
+    """Markdown satırından görsel bilgisini çıkartır (satır içi veya referans formatı)."""
+    # 1. Satır içi markdown görseli: ![alt metni](uri/data)
+    m = re.match(r"^!\[(.*?)\]\((.*?)\)\s*$", line)
+    if m:
+        return {"alt": m.group(1).strip(), "uri": m.group(2).strip()}
+    # 2. Markdown referans görsel tanımı: [image1]: <data:image/...> veya [image1]: data:image/...
+    m = re.match(r"^\[([a-zA-Z0-9_\-]+)\]:\s*<?(data:image\/[^>]+|[^\s>]+)>?\s*$", line)
+    if m:
+        return {"alt": m.group(1).strip(), "uri": m.group(2).strip()}
+    return None
+
+
+def _make_image_flowable(uri_or_path: str, max_width: float, max_height: float = 180) -> RLImage | None:
+    """Data URI (base64) veya dosya yolundan ölçeklendirilmiş ReportLab Image üretir."""
+    try:
+        uri = uri_or_path.strip().strip("<>").strip()
+        if uri.startswith("data:image/"):
+            parts = uri.split(",", 1)
+            if len(parts) != 2:
+                return None
+            img_bytes = base64.b64decode(parts[1].strip())
+            buf = BytesIO(img_bytes)
+            pil_img = PILImage.open(buf)
+            orig_w, orig_h = pil_img.size
+            if orig_w <= 0 or orig_h <= 0:
+                return None
+            scale = min(1.0, max_width / float(orig_w), max_height / float(orig_h))
+            buf.seek(0)
+            img = RLImage(buf, width=orig_w * scale, height=orig_h * scale)
+            img.hAlign = "CENTER" if orig_w * scale > max_width * 0.5 else "LEFT"
+            return img
+        elif Path(uri).is_file():
+            pil_img = PILImage.open(uri)
+            orig_w, orig_h = pil_img.size
+            scale = min(1.0, max_width / float(orig_w), max_height / float(orig_h))
+            img = RLImage(uri, width=orig_w * scale, height=orig_h * scale)
+            img.hAlign = "CENTER" if orig_w * scale > max_width * 0.5 else "LEFT"
+            return img
+    except Exception:
+        pass
+    return None
 
 
 def _markdown_flowables(markdown: str, body_font: str, bold_font: str, width: float) -> list:
@@ -189,11 +243,72 @@ def _markdown_flowables(markdown: str, body_font: str, bold_font: str, width: fl
             blocks.append(Paragraph(_inline_markup(" ".join(quote_lines)), quote_style))
             continue
 
+        # Görsel tanımları ([image1]: <data:...>) veya satır içi görseller (![alt](...))
+        img_info = _extract_image_info(stripped)
+        if img_info:
+            img_list = []
+            while index < len(lines):
+                info = _extract_image_info(lines[index].strip())
+                if not info:
+                    break
+                flowable = _make_image_flowable(info["uri"], width)
+                if flowable:
+                    img_list.append((info, flowable))
+                index += 1
+
+            small_batch = []
+            for info, flowable in img_list:
+                # Geniş görsel (> sayfa genişliğinin %40'ı) ise tek başına merkezde bas
+                if flowable.drawWidth > width * 0.4:
+                    if small_batch:
+                        blocks.append(Spacer(1, 2 * mm))
+                        blocks.append(Table([[f for _, f in small_batch]], hAlign="CENTER", style=[
+                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                            ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                            ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                        ]))
+                        blocks.append(Spacer(1, 2 * mm))
+                        small_batch = []
+                    blocks.append(Spacer(1, 2 * mm))
+                    blocks.append(flowable)
+                    if info.get("alt") and not info["alt"].startswith("image"):
+                        caption_style = ParagraphStyle("ImageCaption", parent=p, fontName=body_font,
+                                                       fontSize=8, leading=10, textColor=MUTED,
+                                                       alignment=TA_CENTER, spaceAfter=4)
+                        blocks.append(Paragraph(_inline_markup(info["alt"]), caption_style))
+                    blocks.append(Spacer(1, 3 * mm))
+                else:
+                    small_batch.append((info, flowable))
+
+            # Arka arkaya gelen küçük mühür/rozet görsellerini yan yana tek satırda hizala
+            if small_batch:
+                blocks.append(Spacer(1, 2 * mm))
+                total_w = sum(f.drawWidth for _, f in small_batch) + len(small_batch) * 8
+                if total_w <= width:
+                    tbl = Table([[f for _, f in small_batch]], hAlign="CENTER")
+                    tbl.setStyle(TableStyle([
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                        ('TOPPADDING', (0, 0), (-1, -1), 2),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+                    ]))
+                    blocks.append(tbl)
+                else:
+                    for _, f in small_batch:
+                        blocks.append(f)
+                        blocks.append(Spacer(1, 2 * mm))
+                blocks.append(Spacer(1, 3 * mm))
+            continue
+
         paragraph_lines = [stripped]
         index += 1
         while index < len(lines):
             next_line = lines[index].strip()
             if (not next_line or next_line.startswith(("#", "|", ">", "```"))
+                    or _extract_image_info(next_line) is not None
                     or re.match(r"^\s*([-*+] |\d+[.)]\s+)", lines[index])
                     or re.fullmatch(r"[-*_]{3,}", next_line)):
                 break

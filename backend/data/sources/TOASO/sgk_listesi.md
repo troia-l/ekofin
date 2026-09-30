@@ -1,21 +1,19 @@
-# 4. BELGE: TÜKETİM FATURALARI VE E-FATURA DÖKÜMLERİ
-**Şirket:** Protein Stüdyo Gıda Sanayi ve Ticaret A.Ş.
-**Dönem:** 2025 Yılı
+# SENTETİK TEST VERİSİ — Aralık 2025 Çalışan Özeti
 
-## 1. Elektrik Tüketim Faturaları Detayı
-* **Tedarikci_Sirket_Adi:** CK Boğaziçi Elektrik Perakende Satış A.Ş.
-* **Tesis_Lokasyonu:** Küçükyalı İş Merkezi No:72 B-11 Maltepe / İstanbul (Üretim ve Yönetim Merkezi)
-* **Yıllık Toplam Elektrik Tüketimi (Tuketim_Miktari):** 280,000 kWh
-* **Tuketim_Birimi:** kWh
-* **Gunduz_Tuketimi:** 120,000 kWh
-* **Puant_Tuketimi:** 75,000 kWh
-* **Gece_Tuketimi:** 85,000 kWh
-* **Reaktif_Tuketim_Enduktif:** 0.00 kWh (Reaktif ceza ödenmemiştir)
-* **Reaktif_Tuketim_Kapasitif:** 0.00 kWh
-* **Yenilenebilir_Enerji_Tarifesi:** Hayır (Standart ticarethane tarifesi kullanılmaktadır)
+**Şirket:** Tofaş Türk Otomobil Fabrikası A.Ş.
 
-## 2. Doğalgaz Tüketim Faturaları Detayı
-* **Tedarikci_Sirket_Adi:** İGDAŞ İstanbul Gaz Dağıtım Sanayi ve Ticaret A.Ş.
-* **Tesis_Lokasyonu:** Küçükyalı İş Merkezi No:72 B-11 Maltepe / İstanbul
-* **Yıllık Toplam Doğalgaz Tüketimi (Tuketim_Miktari_Dogalgaz):** 45,000 m3
-* **Tuketim_Birimi:** m3 (sm3)
+| Gösterge | Değer |
+|---|---:|
+| Toplam çalışan | 48 |
+| Kadın çalışan | 18 |
+| Erkek çalışan | 30 |
+| Tam zamanlı | 46 |
+| Yarı zamanlı | 2 |
+| Süresiz sözleşmeli | 44 |
+| Belirli süreli sözleşmeli | 4 |
+| Yönetici | 5 |
+| Kadın yönetici | 2 |
+| Yıl içi işe giriş | 6 |
+| Yıl içi işten ayrılış | 4 |
+
+Aralık sonu toplamı `18 + 30 = 48` çalışan ve `46 + 2 = 48` çalışma biçimi toplamlarıyla mutabıktır. Kişisel veri içermez.

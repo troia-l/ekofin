@@ -6,10 +6,13 @@ Yorumların duygu durumunu ve hangi ESG sütununu (E, S, G) etkilediğini OpenAI
 import os
 import json
 import re
+import time
 from typing import Dict, Any, List, Optional
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
+
+from logger import logger, log_llm_request, log_llm_response, log_llm_fallback
 
 class ESGAnalysisResult(BaseModel):
     sentiment: str = Field(description="Yorumun genel duygu durumu: 'Pozitif', 'Nötr' veya 'Negatif'")
@@ -74,31 +77,46 @@ class ESGCommentAnalyzer:
         self.gemini_batch_chain = (self.batch_prompt | gemini_model | self.batch_parser) if gemini_model else None
 
     def _build_openai_model(self):
-        api_key = os.getenv("OPENAI_API_KEY")
+        # Öncelik özel NLP anahtarında, tanımlı değilse genel OPENAI_API_KEY'e düşer
+        api_key = os.getenv("NLP_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
         if not api_key:
             return None
         try:
             from langchain_openai import ChatOpenAI
-            # max_retries=0: geçersiz anahtar gibi kalıcı hatalarda tekrar tekrar
-            # denemeyip hızlıca Gemini'ye düşülsün diye (varsayılan retry, 401'de bile
-            # onlarca saniye harcatıyordu).
-            return ChatOpenAI(model="gpt-4o-mini", temperature=0.0, openai_api_key=api_key,
-                               max_retries=0, timeout=25)
+            api_base = os.getenv("NLP_OPENAI_API_BASE") or os.getenv("OPENAI_API_BASE") or None
+            model_name = os.getenv("NLP_OPENAI_MODEL") or "gpt-4o-mini"
+            return ChatOpenAI(model=model_name, temperature=0.0, openai_api_key=api_key,
+                               base_url=api_base, max_retries=0, timeout=25)
         except Exception as e:
             print(f"[!] NLP Analizör ChatOpenAI başlatılamadı: {e}")
             return None
 
     def _build_gemini_model(self):
-        api_key = os.getenv("GEMINI_API_KEY")
+        # Kaynak: https://ai.google.dev/gemini-api/docs/openai?hl=tr
+        # Gemini API, OpenAI uyumluluk katmanı (base_url: https://generativelanguage.googleapis.com/v1beta/openai/) sunar.
+        api_key = os.getenv("NLP_GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
         if not api_key:
             return None
+        base_url = os.getenv("GEMINI_API_BASE") or "https://generativelanguage.googleapis.com/v1beta/openai/"
+        model_name = os.getenv("NLP_GEMINI_MODEL") or os.getenv("GEMINI_MODEL") or "gemini-2.5-flash"
         try:
-            from langchain_google_genai import ChatGoogleGenerativeAI
-            return ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.0, api_key=api_key,
-                                           max_retries=0, timeout=25)
+            from langchain_openai import ChatOpenAI
+            return ChatOpenAI(
+                model=model_name,
+                temperature=0.0,
+                openai_api_key=api_key,
+                base_url=base_url,
+                max_retries=0,
+                timeout=25,
+            )
         except Exception as e:
-            print(f"[!] NLP Analizör Gemini başlatılamadı: {e}")
-            return None
+            try:
+                from langchain_google_genai import ChatGoogleGenerativeAI
+                return ChatGoogleGenerativeAI(model=model_name, temperature=0.0, api_key=api_key,
+                                               max_retries=0, timeout=25)
+            except Exception as e2:
+                print(f"[!] NLP Analizör Gemini başlatılamadı: {e} / {e2}")
+                return None
 
     def _validate(self, result: dict) -> dict:
         result["impact_score"] = max(-1.5, min(1.5, float(result.get("impact_score", 0.0))))
@@ -108,17 +126,24 @@ class ESGCommentAnalyzer:
             result["sentiment"] = "Nötr"
         return result
 
-    def _try_chain(self, chain, comment: str) -> Optional[dict]:
+    def _try_chain(self, chain, comment: str, provider_name: str = "LLM") -> Optional[dict]:
         if chain is None:
             return None
+        log_llm_request(provider_name, "ChatModel", "Yorum ESG Analizi", comment)
+        start = time.perf_counter()
         try:
             result = chain.invoke({
                 "comment": comment,
                 "format_instructions": self.parser.get_format_instructions()
             })
-            return self._validate(result)
+            validated = self._validate(result)
+            elapsed = (time.perf_counter() - start) * 1000
+            log_llm_response(provider_name, "ChatModel", "Yorum ESG Analizi", elapsed, success=True,
+                             details=f"Pillar: {validated.get('pillar')}, Skor: {validated.get('impact_score')}")
+            return validated
         except Exception as e:
-            print(f"[!] LLM analizi başarısız oldu: {e}")
+            elapsed = (time.perf_counter() - start) * 1000
+            log_llm_response(provider_name, "ChatModel", "Yorum ESG Analizi", elapsed, success=False, details=str(e))
             return None
 
     def analyze(self, comment: str) -> Dict[str, Any]:
@@ -131,24 +156,21 @@ class ESGCommentAnalyzer:
                 "explanation": "Yorum boş veya geçersiz."
             }
 
-        # Circuit breaker: bir sağlayıcı bir kez kalıcı hatayla (örn. geçersiz anahtar)
-        # başarısız olduysa süreç ömrü boyunca tekrar denenmez — her çağrıda saniyeler
-        # süren gereksiz retry/timeout maliyetine girilmez.
         if self.openai_chain is not None and not getattr(self, "_openai_broken", False):
-            result = self._try_chain(self.openai_chain, comment)
+            result = self._try_chain(self.openai_chain, comment, provider_name="OpenAI")
             if result is not None:
                 return result
             self._openai_broken = True
-            print("[!] OpenAI bu oturumda devre dışı bırakıldı (kalıcı hata).")
+            log_llm_fallback("Yorum Analizi", "OpenAI", "Gemini", "OpenAI başarısız veya devre dışı")
 
         if self.gemini_chain is not None and not getattr(self, "_gemini_broken", False):
-            result = self._try_chain(self.gemini_chain, comment)
+            result = self._try_chain(self.gemini_chain, comment, provider_name="Gemini (OpenAI Endpoint)")
             if result is not None:
                 return result
             self._gemini_broken = True
-            print("[!] Gemini de bu oturumda devre dışı bırakıldı (kalıcı hata).")
+            log_llm_fallback("Yorum Analizi", "Gemini", "Kural Tabanlı Yerel Sözlük", "Gemini başarısız veya devre dışı")
 
-        print("[!] Hiçbir LLM sağlayıcısı çalışmadı. Kural tabanlı fallback çalıştırılıyor...")
+        log_llm_fallback("Yorum Analizi", "Tüm LLM Sağlayıcıları", "Kural Tabanlı Yerel Sözlük", "Yerel fallback işletiliyor")
         return self._fallback_analyze(comment)
 
     def analyze_batch(self, comments: List[str]) -> List[Dict[str, Any]]:
@@ -166,32 +188,37 @@ class ESGCommentAnalyzer:
         }
 
         if self.openai_batch_chain is not None and not getattr(self, "_openai_broken", False):
-            result = self._try_batch_chain(self.openai_batch_chain, payload, len(comments))
+            result = self._try_batch_chain(self.openai_batch_chain, payload, len(comments), provider_name="OpenAI")
             if result is not None:
                 return result
             self._openai_broken = True
-            print("[!] OpenAI bu oturumda devre dışı bırakıldı (kalıcı hata).")
+            log_llm_fallback(f"Toplu Haber Analizi ({len(comments)} başlık)", "OpenAI", "Gemini")
 
         if self.gemini_batch_chain is not None and not getattr(self, "_gemini_broken", False):
-            result = self._try_batch_chain(self.gemini_batch_chain, payload, len(comments))
+            result = self._try_batch_chain(self.gemini_batch_chain, payload, len(comments), provider_name="Gemini (OpenAI Endpoint)")
             if result is not None:
                 return result
             self._gemini_broken = True
-            print("[!] Gemini de bu oturumda devre dışı bırakıldı (kalıcı hata).")
+            log_llm_fallback(f"Toplu Haber Analizi ({len(comments)} başlık)", "Gemini", "Kural Tabanlı Yerel Sözlük")
 
-        print(f"[!] Hiçbir LLM sağlayıcısı çalışmadı. {len(comments)} öğe kural tabanlı fallback ile analiz ediliyor...")
+        log_llm_fallback(f"Toplu Haber Analizi ({len(comments)} başlık)", "Tüm LLM Sağlayıcıları", "Kural Tabanlı Yerel Sözlük")
         return [self._fallback_analyze(c) for c in comments]
 
-    def _try_batch_chain(self, chain, payload: dict, expected_len: int) -> Optional[List[dict]]:
+    def _try_batch_chain(self, chain, payload: dict, expected_len: int, provider_name: str = "LLM") -> Optional[List[dict]]:
+        log_llm_request(provider_name, "ChatModel", f"Toplu Haber Analizi ({expected_len} başlık)")
+        start = time.perf_counter()
         try:
             raw = chain.invoke(payload)
             items = raw.get("results", []) if isinstance(raw, dict) else []
+            elapsed = (time.perf_counter() - start) * 1000
             if len(items) != expected_len:
-                print(f"[!] Batch analiz sonuç sayısı uyuşmadı (beklenen {expected_len}, gelen {len(items)}).")
+                logger.warning(f"⚠️ [NLP-UYARI] Batch sonuç sayısı uyuşmadı (beklenen {expected_len}, gelen {len(items)}).")
                 return None
+            log_llm_response(provider_name, "ChatModel", f"Toplu Haber Analizi ({expected_len} başlık)", elapsed, success=True)
             return [self._validate(dict(item)) for item in items]
         except Exception as e:
-            print(f"[!] Batch LLM analizi başarısız oldu: {e}")
+            elapsed = (time.perf_counter() - start) * 1000
+            log_llm_response(provider_name, "ChatModel", f"Toplu Haber Analizi ({expected_len} başlık)", elapsed, success=False, details=str(e))
             return None
 
     def _normalize(self, text: str) -> str:

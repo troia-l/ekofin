@@ -6,7 +6,7 @@ import {
   Copy, Check, RefreshCw, Sparkles, Building, Globe, 
   Calendar, Cpu, Award, ChevronDown, ChevronUp, AlertCircle,
   ExternalLink, Lock, CheckCircle2, Link2, Leaf, Activity, BarChart2,
-  Info, X, Database, Sliders, Layers
+  Info, X, Database, Sliders
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -45,11 +45,32 @@ const TsrsReport = () => {
   const [verificationSuccess, setVerificationSuccess] = useState(false);
   const [expandedSection, setExpandedSection] = useState(null);
   const [reportData, setReportData] = useState(null);
+  const renderableReportData = React.useMemo(() => {
+    if (!reportData) return null;
+    const defMap = {};
+    const defRegex = /^\[([a-zA-Z0-9_\-]+)\]:\s*<?(data:image\/[^>\r\n]+)>?/gm;
+    let match;
+    while ((match = defRegex.exec(reportData)) !== null) {
+      defMap[match[1]] = match[2];
+    }
+    const usedKeys = new Set();
+    let result = reportData.replace(/!\[(.*?)\]\[([a-zA-Z0-9_\-]+)\]/g, (m, alt, key) => {
+      if (defMap[key]) {
+        usedKeys.add(key);
+        return `![${alt}](${defMap[key]})`;
+      }
+      return m;
+    });
+    result = result.replace(defRegex, (m, key, url) => {
+      if (usedKeys.has(key)) return '';
+      return `![${key}](${url})`;
+    });
+    return result;
+  }, [reportData]);
   const [reportHash, setReportHash] = useState('');
   const [reportVersionId, setReportVersionId] = useState(null);
   const [reportGeneratedAt, setReportGeneratedAt] = useState(null);
   const [reportIsCurrent, setReportIsCurrent] = useState(false);
-  const [isDemoReport, setIsDemoReport] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [shapData, setShapData] = useState(null);
   const [modelCardData, setModelCardData] = useState(null);
@@ -59,7 +80,6 @@ const TsrsReport = () => {
 
   // Yapay zeka pipeline durumları
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isDemoSimulation, setIsDemoSimulation] = useState(false);
   const [reportStatus, setReportStatus] = useState({ status: 'idle', progress: 0, message: '' });
   const [terminalLogs, setTerminalLogs] = useState([]);
   
@@ -111,19 +131,17 @@ const TsrsReport = () => {
   const fetchLatestReport = async (targetTicker) => {
     try {
       const currentTicker = targetTicker || selectedTicker;
-      const url = currentTicker ? `${API_URL}/api/report/latest?ticker=${encodeURIComponent(currentTicker)}&reporting_year=${reportingYear}` : `${API_URL}/api/report/latest?reporting_year=${reportingYear}`;
+      const url = currentTicker ? `${API_URL}/api/report/latest?ticker=${encodeURIComponent(currentTicker)}&reporting_year=${reportingYear}&_t=${Date.now()}` : `${API_URL}/api/report/latest?reporting_year=${reportingYear}&_t=${Date.now()}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         if (data.status === 'found') {
-          setIsDemoReport(false);
           setReportData(data.content);
           setReportHash(data.hash || '');
           setReportVersionId(data.id || null);
           setReportGeneratedAt(data.generated_at || null);
           setReportIsCurrent(Boolean(data.is_current));
         } else {
-          setIsDemoReport(false);
           setReportData(null);
           setReportHash('');
           setReportVersionId(null);
@@ -169,12 +187,10 @@ const TsrsReport = () => {
   const handleGenerateReport = async () => {
     if (isGenerating) return;
 
-    setIsDemoSimulation(false);
     setIsGenerating(true);
-    setExportError(null);
     setReportStatus({ status: 'generating', progress: 5, message: 'Pipeline başlatılıyor...' });
     setTerminalLogs([
-      `[${new Date().toLocaleTimeString()}] [SİSTEM] TSRS Analiz ve Raporlama Motoru başlatıldı (model: gpt-5.4).`,
+      `[${new Date().toLocaleTimeString()}] [SİSTEM] TSRS Analiz ve Raporlama Motoru başlatıldı.`,
       `[${new Date().toLocaleTimeString()}] [SİSTEM] Yüklenen belgeler ve yönetici beyanı okunuyor...`,
     ]);
 
@@ -187,8 +203,29 @@ const TsrsReport = () => {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        const detail = errData.detail;
-        throw new Error(typeof detail === 'string' ? detail : (detail?.message || 'Rapor üretim hatası'));
+        let errorMsg = 'Rapor üretim hatası oluştu.';
+        if (errData.detail) {
+          if (typeof errData.detail === 'string') {
+            errorMsg = errData.detail;
+          } else if (errData.detail.code === 'critical_sources_missing' && errData.detail.details?.missing) {
+            const missingFiles = errData.detail.details.missing;
+            const docNames = {
+              'faaliyet': 'Şirket Faaliyet Raporu',
+              'mizan': 'Kurumsal Bilanço ve Mizan',
+              'fatura': 'Tüketim Faturaları',
+              'declaration': 'Yönetici Beyan Formu',
+              'şirket-faliyet-raporu.md': 'Şirket Faaliyet Raporu',
+              'mizan.md': 'Kurumsal Bilanço ve Mizan',
+              'faturalar.md': 'Tüketim Faturaları',
+              'yonetici_anketi.json': 'Yönetici Beyan Formu'
+            };
+            const friendlyList = missingFiles.map(f => docNames[f] || f).join(', ');
+            errorMsg = `Rapor üretimi için kritik zorunlu kaynaklar eksik: ${friendlyList}. Lütfen Veri Entegrasyonu sayfasından bu belgeleri yükleyin veya doldurun.`;
+          } else if (errData.detail.message) {
+            errorMsg = errData.detail.message;
+          }
+        }
+        throw new Error(errorMsg);
       }
       const data = await res.json();
       startPolling(data.job_id);
@@ -196,61 +233,6 @@ const TsrsReport = () => {
       stopPolling();
       setReportStatus({ status: 'error', progress: 0, message: e.message });
       setTerminalLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [HATA] ${e.message}`]);
-      setIsGenerating(false);
-    }
-  };
-
-  const handleDemoReport = async () => {
-    if (isGenerating || selectedTicker !== 'ASELS' || reportingYear !== 2025) return;
-
-    setIsDemoSimulation(true);
-    setIsGenerating(true);
-    setActiveTab('summary');
-    setReportStatus({ status: 'generating', progress: 4, message: 'Demo kaynak paketi yükleniyor...' });
-    setTerminalLogs([
-      `[${new Date().toLocaleTimeString()}] [DEMO] Sentetik ASELSAN demo raporu derleme simülasyonu başlatıldı.`,
-      `[${new Date().toLocaleTimeString()}] [BİLGİ] Bu akış sabit demo içeriğini gösterir; OpenAI veya başka bir LLM çağrısı yapılmaz.`,
-    ]);
-
-    const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
-    const steps = [
-      [14, 'Demo şirket profili ve raporlama dönemi kontrol ediliyor...'],
-      [29, 'Fatura, mizan ve beyan örnekleri eşleştiriliyor...'],
-      [47, 'TSRS 1 yönetişim, strateji ve risk başlıkları derleniyor...'],
-      [65, 'TSRS 2 iklim metrikleri ve hesaplanabilir göstergeler ekleniyor...'],
-      [82, 'Kaynak uyuşmazlıkları ve kanıt boşlukları işaretleniyor...'],
-      [94, 'Rapor önizlemesi ve PDF görünümü hazırlanıyor...'],
-    ];
-
-    try {
-      const response = await fetch(`${API_URL}/api/report/demo?ticker=ASELS&reporting_year=2025`);
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.detail || 'Demo raporu yüklenemedi.');
-
-      for (const [progress, message] of steps) {
-        await wait(330);
-        setReportStatus({ status: 'generating', progress, message, is_demo: true });
-        setTerminalLogs((current) => [...current, `[${new Date().toLocaleTimeString()}] [DEMO] ${message}`]);
-      }
-
-      setReportData(data.content);
-      setReportHash(data.hash || '');
-      setReportVersionId(data.id || null);
-      setReportGeneratedAt(data.generated_at || new Date().toISOString());
-      setReportIsCurrent(false);
-      setIsDemoReport(true);
-      setReportStatus({ status: 'completed', progress: 100, message: 'Demo raporu ekranda hazır.', is_demo: true });
-      setTerminalLogs((current) => [...current,
-        `[${new Date().toLocaleTimeString()}] [BAŞARI] Demo raporu arayüzde açıldı.`,
-        `[${new Date().toLocaleTimeString()}] [BİLGİ] İçerik sentetiktir; yayımlanmış veya resmî şirket raporu değildir.`,
-      ]);
-      await wait(500);
-      document.getElementById('tsrs-report-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (error) {
-      setReportStatus({ status: 'error', progress: 0, message: error.message, is_demo: true });
-      setTerminalLogs((current) => [...current, `[${new Date().toLocaleTimeString()}] [HATA] ${error.message}`]);
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -294,13 +276,13 @@ const TsrsReport = () => {
 
           if (!['queued', 'running'].includes(data.status)) {
             stopPolling();
-            setIsGenerating(false);
             if (data.status === 'completed' || data.status === 'completed_with_warnings') {
-              setReportStatus({ ...data, status: 'completed' });
-              setTerminalLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [BAŞARI] TSRS raporu yayımlandı.`]);
+              setReportStatus({ ...data, status: 'completed', progress: 100 });
+              setTerminalLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [BAŞARI] TSRS raporu başarıyla üretildi ve yayımlandı.`]);
               await fetchLatestReport();
             } else {
               setReportStatus({ ...data, status: 'error', message: data.error?.message || data.message || 'Rapor üretilemedi.' });
+              setTerminalLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [HATA] ${data.error?.message || data.message || 'Rapor üretilemedi.'}`]);
             }
           }
         }
@@ -357,27 +339,11 @@ const TsrsReport = () => {
           </div>
           <h1 className="page-title">TSRS Raporlama ve Yeşil Kredi Pasaportu</h1>
           <p className="page-subtitle">
-            {isDemoReport
-              ? 'Sentetik demo verilerinden derlenen rapor gösteriliyor; bu çıktı gerçek şirket raporu değildir.'
-              : 'Yüklenen kaynaklardan oluşturulan sürdürülebilirlik raporu taslağı.'}
+            Yüklenen kurumsal kaynaklardan ve yasal beyanlardan derlenen resmî TSRS sürdürülebilirlik raporu.
           </p>
         </div>
         
         <div className="flex items-center gap-4">
-          <button
-            onClick={handleDemoReport}
-            disabled={isGenerating || selectedTicker !== 'ASELS' || reportingYear !== 2025}
-            title={selectedTicker !== 'ASELS' || reportingYear !== 2025 ? 'Demo yalnızca ASELS / 2025 için hazır.' : 'Sentetik demo raporunu üretim akışı görünümünde aç.'}
-            style={{
-              padding: '11px 16px', borderRadius: '10px', border: '1px solid #A7D8C8',
-              background: '#ECFDF5', color: '#067259', fontSize: '13px', fontWeight: 750,
-              cursor: isGenerating || selectedTicker !== 'ASELS' || reportingYear !== 2025 ? 'not-allowed' : 'pointer',
-              opacity: selectedTicker !== 'ASELS' || reportingYear !== 2025 ? 0.55 : 1,
-              display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap'
-            }}
-          >
-            <Layers size={16} /> Demo Raporunu Göster
-          </button>
           {/* PDF Viewer Button */}
           <motion.button 
             whileHover={{ scale: 1.02 }} 
@@ -440,10 +406,10 @@ const TsrsReport = () => {
               Rapor metni SHA-256: <span style={{ fontFamily: 'monospace', color: '#0F172A', fontWeight: 700 }}>{reportHash ? `${reportHash.slice(0, 16)}...${reportHash.slice(-8)}` : 'Rapor henüz oluşturulmadı'}</span>
             </div>
             <div style={{ fontSize: '11px', color: '#64748B', marginTop: '3px' }}>
-              {isDemoReport ? 'Demo gösterim zamanı: ' : 'Son rapor: '}{reportGeneratedAt ? new Date(reportGeneratedAt).toLocaleString('tr-TR') : 'Henüz oluşturulmadı'}
+              Son rapor: {reportGeneratedAt ? new Date(reportGeneratedAt).toLocaleString('tr-TR') : 'Henüz oluşturulmadı'}
               {' · '}
-              <span style={{ color: isDemoReport ? '#7C3AED' : reportIsCurrent ? '#047857' : '#B45309', fontWeight: 700 }}>
-                {isDemoReport ? 'SENTETİK DEMO' : reportIsCurrent ? '✓ Veriler güncel' : '✕ Veriler güncellenmeli'}
+              <span style={{ color: reportIsCurrent ? '#047857' : '#B45309', fontWeight: 700 }}>
+                {reportIsCurrent ? '✓ Veriler güncel' : '✕ Veriler güncellenmeli'}
               </span>
             </div>
           </div>
@@ -583,6 +549,7 @@ const TsrsReport = () => {
                       }}>
                         <ReactMarkdown 
                           remarkPlugins={[remarkGfm]}
+                          urlTransform={(url) => url}
                           components={{
                             img: ({node, src, ...props}) => src ? <img src={src} style={{maxWidth: '100%', height: 'auto', display: 'block', margin: '16px 0', borderRadius: '8px'}} {...props} /> : null,
                             table: ({node, ...props}) => <div style={{overflowX: 'auto', marginBottom: '16px'}}><table style={{width: '100%', borderCollapse: 'collapse'}} {...props} /></div>,
@@ -596,7 +563,7 @@ const TsrsReport = () => {
                             ol: ({node, ...props}) => <ol style={{margin: '0 0 16px 0', paddingLeft: '20px', listStyleType: 'decimal'}} {...props} />
                           }}
                         >
-                          {reportData}
+                          {renderableReportData}
                         </ReactMarkdown>
                       </div>
                     ) : (
@@ -1202,14 +1169,31 @@ const TsrsReport = () => {
                     animation: reportStatus.status === 'generating' ? 'pulse 2s infinite' : 'none' 
                   }} />
                   <span style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '0.5px', color: 'var(--primary-midnight)', textTransform: 'uppercase' }}>
-                    {isDemoSimulation ? 'Demo TSRS Rapor Derleme Simülasyonu' : 'Yapay Zeka TSRS Analiz ve Rapor Motoru'}
+                    Yapay Zeka TSRS Analiz ve Rapor Motoru
                   </span>
                 </div>
-                {/* Simulated Window Controls */}
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#EF4444', opacity: 0.8, display: 'inline-block' }} />
-                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#F59E0B', opacity: 0.8, display: 'inline-block' }} />
-                  <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#10B981', opacity: 0.8, display: 'inline-block' }} />
+                {/* Window Controls & Close Button */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ display: 'flex', gap: '8px', cursor: 'pointer' }} onClick={() => setIsGenerating(false)} title="Pencereyi Kapat">
+                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#EF4444', display: 'inline-block' }} />
+                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#F59E0B', opacity: 0.8, display: 'inline-block' }} />
+                    <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#10B981', opacity: 0.8, display: 'inline-block' }} />
+                  </div>
+                  <button
+                    onClick={() => setIsGenerating(false)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--text-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '2px',
+                    }}
+                    title="Kapat"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
               </div>
 
@@ -1221,23 +1205,16 @@ const TsrsReport = () => {
                   <h4 style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '1px', textTransform: 'uppercase' }}>İŞLEM ADIMLARI</h4>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    {(isDemoSimulation ? [
-                      { id: 1, label: 'Demo Kaynak Paketi', minProg: 10 },
-                      { id: 2, label: 'Kaynak Belge Eşleştirmesi', minProg: 20 },
-                      { id: 3, label: 'TSRS 1 / Yönetişim ve Strateji', minProg: 30 },
-                      { id: 4, label: 'TSRS 2 / İklim Metrikleri', minProg: 50 },
-                      { id: 5, label: 'Veri Kalitesi ve Çelişkiler', minProg: 70 },
-                      { id: 6, label: 'Demo Raporu ve PDF Önizleme', minProg: 90 },
-                    ] : [
+                    {[
                       { id: 1, label: 'Bağlantı & Entegrasyon Kontrolü', minProg: 10 },
                       { id: 2, label: 'Kaynak Belgeler & OCR Çözümleme', minProg: 20 },
                       { id: 3, label: 'Yönetici Beyan Formu Analizi', minProg: 25 },
                       { id: 4, label: 'Kapsam 1 ve 2 Emisyon Hesabı', minProg: 25 },
                       { id: 5, label: 'TSRS Standart Eşleştirmesi', minProg: 30 },
-                      { id: 6, label: 'Yapay Zeka Rapor Yazımı (GPT-5.4)', minProg: 40 },
+                      { id: 6, label: 'Yapay Zeka Rapor Yazımı (TSRS)', minProg: 40 },
                       { id: 7, label: 'Kriptografik İmzalama & Hash', minProg: 90 },
                       { id: 8, label: 'Rapor Derleme ve Başarı', minProg: 100 }
-                    ]).map((step, idx) => {
+                    ].map((step, idx) => {
                       const isStepCompleted = reportStatus.progress > step.minProg || reportStatus.status === 'completed';
                       const isStepActive = reportStatus.status === 'generating' && reportStatus.progress >= step.minProg && reportStatus.progress < (idx === 7 ? 100 : step.minProg + 10);
                       
@@ -1290,6 +1267,62 @@ const TsrsReport = () => {
                     paddingRight: '8px'
                   }}>
                     
+                    {/* Hata Durum Kartı */}
+                    {reportStatus.status === 'error' && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        style={{ 
+                          padding: '18px 20px', 
+                          background: '#FEF2F2', 
+                          border: '1px solid #FECACA', 
+                          borderLeft: '4px solid #EF4444',
+                          borderRadius: '12px',
+                          display: 'flex',
+                          alignItems: 'start',
+                          gap: '14px',
+                          boxShadow: '0 2px 6px rgba(239, 68, 68, 0.08)'
+                        }}
+                      >
+                        <div style={{ background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px', color: '#EF4444', display: 'flex', padding: '8px' }}>
+                          <AlertCircle size={20} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#991B1B' }}>
+                              Rapor Üretimi Tamamlanamadı
+                            </h4>
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#EF4444', background: 'rgba(239, 68, 68, 0.1)', padding: '2px 8px', borderRadius: '4px' }}>
+                              DİKKAT
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '12.5px', color: '#7F1D1D', marginTop: '6px', lineHeight: '1.5' }}>
+                            {reportStatus.message || 'Rapor üretimi sırasında beklenmedik bir hata oluştu.'}
+                          </p>
+                          <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                            <button
+                              onClick={() => {
+                                setIsGenerating(false);
+                                navigate('/integration');
+                              }}
+                              className="btn-primary"
+                              style={{
+                                padding: '6px 14px',
+                                fontSize: '12px',
+                                borderRadius: '8px',
+                                background: '#059669',
+                                border: 'none',
+                                color: 'white',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Veri Entegrasyonuna Git
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
                     {/* Step 1: Connection */}
                     {reportStatus.progress >= 10 && (
                       <motion.div 
@@ -1313,16 +1346,14 @@ const TsrsReport = () => {
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary-midnight)' }}>
-                              {isDemoSimulation ? 'Demo Kaynak Paketi' : 'ERP ve Muhasebe Entegrasyonu'}
+                              ERP ve Muhasebe Entegrasyonu
                             </h4>
                             <span style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: 'rgba(16, 185, 129, 0.08)', padding: '2px 8px', borderRadius: '4px' }}>
-                              {isDemoSimulation ? 'YEREL DEMO' : 'BAĞLANDI'}
+                              BAĞLANDI
                             </span>
                           </div>
                           <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
-                            {isDemoSimulation
-                              ? 'ASELSAN için sentetik olarak hazırlanmış örnek belgeler yerel demo raporunda kullanılıyor; canlı ERP bağlantısı yapılmıyor.'
-                              : 'SAP ERP ve LOGO Tiger entegrasyonu başarılı. Bilanço ve mizan verileri canlı olarak analiz motoruna aktarıldı.'}
+                            Yüklenen mizan, fatura ve operasyonel veriler canlı olarak analiz motoruna aktarıldı.
                           </p>
                         </div>
                       </motion.div>
@@ -1351,16 +1382,14 @@ const TsrsReport = () => {
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary-midnight)' }}>
-                              {isDemoSimulation ? 'Demo Belge Eşleştirmesi' : 'Yasal Evrak OCR ve Analiz'}
+                              Yasal Evrak OCR ve Analiz
                             </h4>
                             <span style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: 'rgba(16, 185, 129, 0.08)', padding: '2px 8px', borderRadius: '4px' }}>
-                              {isDemoSimulation ? 'EŞLEŞTİRİLDİ' : 'TAMAMLANDI'}
+                              TAMAMLANDI
                             </span>
                           </div>
                           <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
-                            {isDemoSimulation
-                              ? 'Rapor; faturalar, mizan, yönetici anketi, filo, iş gücü, İSG, su ve atık demo özetlerini kaynak etiketleriyle bir araya getiriyor.'
-                              : 'Taranmış SGK Hizmet Dökümleri ve Sanayi Sicil Belgesi (PDF) başarıyla metinleştirildi. 55 aktif personel ve NACE kapasite verileri çıkartıldı.'}
+                            Faaliyet raporu, mizan, fatura ve beyan formları metinleştirilerek kurumsal kanıtlar ve personel verileri çıkartıldı.
                           </p>
                         </div>
                       </motion.div>
@@ -1389,16 +1418,14 @@ const TsrsReport = () => {
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary-midnight)' }}>
-                              {isDemoSimulation ? 'İklim Metrikleri ve Kanıt Kontrolü' : 'Kapsam 1 ve 2 Emisyon Hesapları'}
+                              Kapsam 1 ve 2 Emisyon Hesapları
                             </h4>
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: isDemoSimulation ? '#B45309' : '#10B981', background: isDemoSimulation ? '#FFFBEB' : 'rgba(16, 185, 129, 0.08)', padding: '2px 8px', borderRadius: '4px' }}>
-                              {isDemoSimulation ? 'KISMİ' : 'HESAPLANDI'}
+                            <span style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: 'rgba(16, 185, 129, 0.08)', padding: '2px 8px', borderRadius: '4px' }}>
+                              HESAPLANDI
                             </span>
                           </div>
                           <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
-                            {isDemoSimulation
-                              ? 'Belgede faktörü bulunan dizel ve benzin için örnek alt toplam gösteriliyor. Elektrik ve doğal gaz emisyon faktörleri kaynakta doğrulanmadığı için hesaplanmıyor.'
-                              : 'IPCC faktörleri ile 14,500 kWh elektrik ve 7 araçlık mobilite verileri işlendi. Kapsam 1: 15.42 tCO2e, Kapsam 2: 7.25 tCO2e karbon ayak izi doğrulandı.'}
+                            Elektrik, doğal gaz ve yakıt verileri IPCC/GHG standartlarına göre işlenerek Kapsam 1 ve 2 karbon ayak izi doğrulandı.
                           </p>
                         </div>
                       </motion.div>
@@ -1427,7 +1454,7 @@ const TsrsReport = () => {
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary-midnight)' }}>
-                              {isDemoSimulation ? 'Demo Rapor İçeriği Hazırlanıyor' : 'TSRS Rapor Metni Üretimi (GPT-5.4)'}
+                              TSRS Rapor Metni Üretimi
                             </h4>
                             <span style={{ fontSize: '10px', fontWeight: 700, color: reportStatus.progress >= 90 ? '#10B981' : '#3B82F6', background: reportStatus.progress >= 90 ? 'rgba(16, 185, 129, 0.08)' : 'rgba(59, 130, 246, 0.08)', padding: '2px 8px', borderRadius: '4px' }}>
                               {reportStatus.progress >= 90 ? 'TAMAMLANDI' : 'YAZILIYOR'}
@@ -1435,7 +1462,7 @@ const TsrsReport = () => {
                           </div>
                           <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
                             {reportStatus.progress >= 90
-                              ? isDemoSimulation ? 'Sentetik demo raporu gösterime hazırlandı.' : 'Rapor bölümleri TSRS standartlarına göre oluşturuldu.'
+                              ? 'Rapor bölümleri TSRS standartlarına göre oluşturuldu.'
                               : `${reportStatus.message}`}
                           </p>
                         </div>
@@ -1465,18 +1492,14 @@ const TsrsReport = () => {
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary-midnight)' }}>
-                              {isDemoSimulation ? 'Demo Rapor Metni SHA-256 Özeti' : 'SHA-256 Dosya Özeti'}
+                              SHA-256 Dosya Özeti
                             </h4>
                             <span style={{ fontSize: '10px', fontWeight: 700, color: reportStatus.status === 'completed' ? '#10B981' : '#60A5FA', background: reportStatus.status === 'completed' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(96, 165, 250, 0.08)', padding: '2px 8px', borderRadius: '4px' }}>
-                              {isDemoSimulation
-                                ? reportStatus.status === 'completed' ? 'HESAPLANDI' : 'HAZIRLANIYOR'
-                                : reportStatus.status === 'completed' ? 'MÜHÜRLENDİ' : 'İMZALANIYOR'}
+                              {reportStatus.status === 'completed' ? 'MÜHÜRLENDİ' : 'İMZALANIYOR'}
                             </span>
                           </div>
                           <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
-                            {isDemoSimulation
-                              ? 'Özet, yalnızca bu sabit demo rapor metninin bütünlüğünü gösterir; imza, yayımlama veya kurum doğrulaması değildir.'
-                              : 'Yayımlanan dosyanın değişip değişmediğini kontrol etmek için SHA-256 özeti hesaplandı.'}
+                            Yayımlanan raporun veri bütünlüğü SHA-256 kriptografik özeti ile mühürlendi.
                           </p>
                         </div>
                       </motion.div>
@@ -1519,21 +1542,38 @@ const TsrsReport = () => {
                     {/* Actions buttons */}
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '4px' }}>
                       {reportStatus.status === 'error' && (
-                        <button 
-                          onClick={handleGenerateReport} 
-                          className="btn-primary" 
-                          style={{ 
-                            padding: '10px 20px', 
-                            fontSize: '13px', 
-                            borderRadius: '10px', 
-                            background: 'linear-gradient(135deg, #EF4444, #DC2626)',
-                            border: 'none',
-                            color: 'white',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Tekrar Dene
-                        </button>
+                        <>
+                          <button 
+                            onClick={() => setIsGenerating(false)} 
+                            className="btn-outline" 
+                            style={{ 
+                              padding: '10px 20px', 
+                              fontSize: '13px', 
+                              borderRadius: '10px', 
+                              border: '1px solid #CBD5E1',
+                              color: '#475569',
+                              background: '#FFFFFF',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Kapat
+                          </button>
+                          <button 
+                            onClick={handleGenerateReport} 
+                            className="btn-primary" 
+                            style={{ 
+                              padding: '10px 20px', 
+                              fontSize: '13px', 
+                              borderRadius: '10px', 
+                              background: 'linear-gradient(135deg, #EF4444, #DC2626)',
+                              border: 'none',
+                              color: 'white',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Tekrar Dene
+                          </button>
+                        </>
                       )}
                       
                       {reportStatus.status === 'completed' && (

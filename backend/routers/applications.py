@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 import database as db
 from config import get_company_report_path
+from logger import logger
 from .common import _compute_file_hash
 
 
@@ -49,6 +50,7 @@ def create_credit_application(data: CreditApplicationSubmit):
     payload = data.model_dump()
     payload["report_hash"] = report_hash
     new_app = db.add_credit_application(payload)
+    logger.info(f"📝 [KREDİ-BAŞVURU] Yeni başvuru oluşturuldu: {data.company_name} ({data.ticker or 'N/A'}) -> {data.bank_name} | Tutar: {data.loan_amount:,.0f} TL | Skor: {data.green_credit_score}")
     return {"status": "success", "application": new_app}
 
 
@@ -72,4 +74,5 @@ def update_credit_application_status(app_id: int, data: ApplicationStatusUpdate)
     updated = db.set_credit_application_status(app_id, data.status.strip())
     if updated is None:
         raise HTTPException(status_code=404, detail="Başvuru bulunamadı.")
+    logger.info(f"🔄 [KREDİ-DURUM] Başvuru #{app_id} durumu güncellendi -> {data.status}")
     return {"status": "success", "application": updated}

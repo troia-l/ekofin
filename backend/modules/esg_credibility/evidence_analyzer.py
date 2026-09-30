@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import os
+import time
 from datetime import date
 from typing import Protocol
 
 from pydantic import BaseModel
 
+from logger import logger, log_llm_request, log_llm_response, log_llm_fallback
 from .entity_resolution import EntityResolver
 from .schemas import Claim, Evidence, EvidenceAssessment, Relation
 from .scoring import evidence_weight
@@ -82,13 +84,26 @@ class LLMEvidenceAnalyzer:
     def analyze(self, claim: Claim, evidence: Evidence, *, company_name: str, aliases: list[str], as_of: date) -> EvidenceAssessment:
         from langchain_openai import ChatOpenAI
 
-        key = os.getenv("OPENAI_API_KEY", "").strip()
+        # Kaynak: https://ai.google.dev/gemini-api/docs/openai?hl=tr
+        key = (os.getenv("NLP_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY", "") or os.getenv("NLP_GEMINI_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")).strip()
         if not key:
-            raise RuntimeError("OPENAI_API_KEY yapılandırılmamış.")
+            raise RuntimeError("OPENAI_API_KEY veya GEMINI_API_KEY yapılandırılmamış.")
+        
+        is_gemini = not (os.getenv("NLP_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")) and bool(os.getenv("NLP_GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY"))
+        default_base = "https://generativelanguage.googleapis.com/v1beta/openai/" if is_gemini else None
+        default_model = "gemini-2.5-flash" if is_gemini else "gpt-5.4"
+        
+        if is_gemini:
+            api_base = os.getenv("NLP_GEMINI_API_BASE") or os.getenv("GEMINI_API_BASE") or default_base
+            model_name = os.getenv("NLP_GEMINI_MODEL") or os.getenv("GEMINI_MODEL") or default_model
+        else:
+            api_base = os.getenv("NLP_OPENAI_API_BASE") or os.getenv("OPENAI_API_BASE") or default_base
+            model_name = os.getenv("OPENAI_ESG_MODEL") or os.getenv("OPENAI_MODEL") or default_model
+        
         model = ChatOpenAI(
-            model=os.getenv("OPENAI_ESG_MODEL", os.getenv("OPENAI_TSRS_MODEL", "gpt-5.4")),
+            model=model_name,
             api_key=key,
-            base_url=os.getenv("OPENAI_API_BASE") or None,
+            base_url=api_base,
             temperature=0,
         ).with_structured_output(self.Output)
         prompt = (
@@ -96,7 +111,17 @@ class LLMEvidenceAnalyzer:
             "Yalnız verilen şirket iddiasını destekliyor mu, çelişiyor mu, belirsiz mi sınıflandır. "
             f"İddia: {claim.text}\nHaber başlığı: {evidence.title}\nHaber: {evidence.body[:4000]}"
         )
-        output = model.invoke(prompt)
+        provider_name = "Gemini" if is_gemini else "OpenAI"
+        log_llm_request(provider=provider_name, model=model_name, task="ESG Kanıt Analizi (Evidence Assessment)", prompt_preview=prompt)
+        t0 = time.perf_counter()
+        try:
+            output = model.invoke(prompt)
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+            log_llm_response(provider=provider_name, model=model_name, task="ESG Kanıt Analizi", elapsed_ms=elapsed_ms, success=True, details=f"İlişki: {output.relation.value}")
+        except Exception as exc:
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+            log_llm_response(provider=provider_name, model=model_name, task="ESG Kanıt Analizi", elapsed_ms=elapsed_ms, success=False, details=str(exc))
+            raise
         entity = self.entity_resolver.confidence(company_name, aliases, f"{evidence.title} {evidence.body}")
         age_days = max(0, (as_of - evidence.published_date).days)
         item = EvidenceAssessment(

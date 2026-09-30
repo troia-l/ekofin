@@ -30,14 +30,23 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
 };
 
-// Belge türü tanımları
+// Belge türü tanımları (Zorunlu TSRS kaynakları ve destekleyici yasal evraklar)
 const DOC_DEFINITIONS = [
-  { id: 'sgk', title: 'SGK Hizmet Dökümleri', desc: 'Personel sayısı doğrulaması için', docType: 'sgk' },
-  { id: 'declaration', title: 'Yönetici Beyan Formu', desc: 'Şirket araç, çalışan ve ÇYS beyanı', docType: null },
-  { id: 'sanayi_sicil', title: 'Sanayi Sicil Belgesi', desc: 'Resmi kapasite ve NACE kod onayı', docType: 'sanayi_sicil' },
-  { id: 'kapasite_raporu', title: 'Kapasite Raporu (TOBB)', desc: 'Üretim limitleri doğrulaması', docType: 'kapasite_raporu' },
-  { id: 'ekb', title: 'Enerji Kimlik Belgesi (EKB)', desc: 'Tesis enerji verimlilik kanıtı', docType: 'ekb' },
-  { id: 'iso_14001', title: 'ISO 14001 Çevre YYS', desc: 'Çevre yönetim sistemi sertifikası', docType: 'iso_14001' },
+  // ─── Zorunlu (Kritik) TSRS Kaynakları ───
+  { id: 'faaliyet', title: 'Şirket Faaliyet Raporu', desc: 'Kurumsal yönetim ve faaliyet özeti (TSRS için zorunlu)', docType: 'faaliyet', required: true },
+  { id: 'mizan', title: 'Kurumsal Bilanço ve Mizan', desc: 'Gelir tablosu ve finansal mizan dökümü (TSRS için zorunlu)', docType: 'mizan', required: true },
+  { id: 'fatura', title: 'Tüketim Faturaları (Elektrik/Gaz/Su)', desc: 'Kapsam 1 ve 2 emisyon doğrulama faturaları (TSRS için zorunlu)', docType: 'fatura', required: true },
+  { id: 'declaration', title: 'Yönetici Beyan Formu', desc: 'Şirket araç, çalışan ve ÇYS beyanı (TSRS için zorunlu)', docType: null, required: true },
+
+  // ─── Destekleyici ve Sektörel Yasal Belgeler ───
+  { id: 'sgk', title: 'SGK Hizmet Dökümleri', desc: 'Personel sayısı ve bordro doğrulaması için', docType: 'sgk', required: false },
+  { id: 'ekb', title: 'Enerji Kimlik Belgesi (EKB)', desc: 'Tesis enerji verimlilik sınıflandırma kanıtı', docType: 'ekb', required: false },
+  { id: 'sanayi_sicil', title: 'Sanayi Sicil Belgesi', desc: 'Resmi kapasite ve NACE kod onayı', docType: 'sanayi_sicil', required: false },
+  { id: 'kapasite_raporu', title: 'Kapasite Raporu (TOBB)', desc: 'Üretim limitleri doğrulaması', docType: 'kapasite_raporu', required: false },
+  { id: 'iso_14001', title: 'ISO 14001 Çevre YYS', desc: 'Çevre yönetim sistemi sertifikası', docType: 'iso_14001', required: false },
+  { id: 'motat', title: 'MoTAT Atık ve Su Beyanı', desc: 'Atık transfer formları ve su tüketim dökümleri', docType: 'motat', required: false },
+  { id: 'osgb', title: 'OSGB / İSG Raporu', desc: 'İş sağlığı ve güvenliği denetim kayıtları', docType: 'osgb', required: false },
+  { id: 'tasit', title: 'Taşıt Tanıma Sistemi (TTS)', desc: 'Filo yakıt tüketimi ve mobil emisyon dökümü', docType: 'tasit', required: false },
 ];
 
 const Integration = () => {
@@ -511,17 +520,24 @@ const Integration = () => {
               <div className="icon-3d" style={{ background: 'linear-gradient(135deg, #F59E0B, #B45309)', width: '48px', height: '48px' }}>
                 <FileBadge2 color="white" size={24} />
               </div>
-              <div>
-                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary-midnight)' }}>Yasal Beyanlar</h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 500 }}>TSRS Denetim Dokümanları</p>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary-midnight)' }}>Yasal Beyanlar & TSRS Kaynakları</h3>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#059669', background: '#ECFDF5', padding: '3px 8px', borderRadius: '12px', border: '1px solid #A7F3D0' }}>
+                    {docs.filter(d => d.status === 'verified' || d.status === 'verified_decl').length} / {docs.length} Onaylı
+                  </span>
+                </div>
+                <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', fontWeight: 500, marginTop: '2px' }}>
+                  TSRS Denetim Dokümanları ve Sektörel Kanıtlar
+                </p>
               </div>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '680px', overflowY: 'auto', paddingRight: '4px' }}>
               {docs.map((doc, idx) => (
                 <motion.div 
                   key={idx}
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ scale: 1.01 }}
                   className="flex justify-between items-center" 
                   style={{ 
                     padding: '12px 16px', 
@@ -531,8 +547,19 @@ const Integration = () => {
                     boxShadow: '0 2px 5px rgba(0,0,0,0.01)'
                   }}
                 >
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--primary-midnight)' }}>{doc.title}</div>
+                  <div style={{ flex: 1, paddingRight: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--primary-midnight)' }}>{doc.title}</span>
+                      {doc.required ? (
+                        <span style={{ fontSize: '10px', color: '#B45309', background: '#FEF3C7', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, border: '1px solid #FDE68A' }}>
+                          ZORUNLU
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '10px', color: '#64748B', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                          DESTEKLEYİCİ
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{doc.desc}</div>
                   </div>
                   

@@ -4,12 +4,14 @@ Tüm modülleri (Carbon, TSRS, ESG) tek bir FastAPI uygulamasında birleştirir.
 Port: 8000
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+import time
 
 from config import BASE_DIR
 from dotenv import load_dotenv
 import database as db
+from logger import logger
 
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 db.init_db()
@@ -38,6 +40,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ─── HTTP İstek ve Yanıt Loglama Middleware'i ──────────────────────────────
+@app.middleware("http")
+async def log_requests_middleware(request: Request, call_next):
+    start = time.perf_counter()
+    method = request.method
+    path = request.url.path
+    client_ip = request.client.host if request.client else "unknown"
+    logger.info(f"🌐 [HTTP-GELEN] {method} {path} | İstemci: {client_ip}")
+    try:
+        response = await call_next(request)
+        elapsed = (time.perf_counter() - start) * 1000
+        logger.info(f"📤 [HTTP-YANIT] {method} {path} -> Durum: {response.status_code} ({elapsed:.1f}ms)")
+        return response
+    except Exception as e:
+        elapsed = (time.perf_counter() - start) * 1000
+        logger.error(f"💥 [HTTP-HATA] {method} {path} ({elapsed:.1f}ms) -> {e}")
+        raise
 
 # ─── Router Kayıtları ────────────────────────────────────────────────────────
 app.include_router(documents_router)

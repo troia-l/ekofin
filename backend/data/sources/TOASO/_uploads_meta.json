@@ -2,13 +2,110 @@
   "documents": {
     "sgk": {
       "status": "verified",
-      "original_filename": "faturalar.md",
+      "original_filename": "sgk_listesi.md",
       "target_filename": "sgk_listesi.md",
-      "uploaded_at": "2026-07-29T15:15:48.176810",
-      "size_bytes": 1101
+      "uploaded_at": "2026-09-30T11:31:11.004688",
+      "size_bytes": 584
+    },
+    "sanayi_sicil": {
+      "status": "verified",
+      "original_filename": "sanayi_sicil.json",
+      "target_filename": "sanayi_sicil.json",
+      "uploaded_at": "2026-09-30T11:31:34.740638",
+      "size_bytes": 418
+    },
+    "kapasite_raporu": {
+      "status": "verified",
+      "original_filename": "kapasite_raporu.json",
+      "target_filename": "kapasite_raporu.json",
+      "uploaded_at": "2026-09-30T11:31:44.835509",
+      "size_bytes": 335
+    },
+    "ekb": {
+      "status": "verified",
+      "original_filename": "ekb.md",
+      "target_filename": "ekb.md",
+      "uploaded_at": "2026-09-30T11:31:56.050793",
+      "size_bytes": 409
+    },
+    "iso_14001": {
+      "status": "verified",
+      "original_filename": "iso_14001.json",
+      "target_filename": "iso_14001.json",
+      "uploaded_at": "2026-09-30T11:32:18.028549",
+      "size_bytes": 424
+    },
+    "faaliyet": {
+      "status": "verified",
+      "original_filename": "şirket-faliyet-raporu.md",
+      "target_filename": "şirket-faliyet-raporu.md",
+      "uploaded_at": "2026-09-30T12:18:44.531469",
+      "size_bytes": 1761
+    },
+    "mizan": {
+      "status": "verified",
+      "original_filename": "mizan.md",
+      "target_filename": "mizan.md",
+      "uploaded_at": "2026-09-30T12:19:04.682607",
+      "size_bytes": 806
+    },
+    "fatura": {
+      "status": "verified",
+      "original_filename": "faturalar.md",
+      "target_filename": "faturalar.md",
+      "uploaded_at": "2026-09-30T12:19:17.274434",
+      "size_bytes": 853
     }
   },
   "uploads": [
+    {
+      "filename": "faturalar.md",
+      "doc_type": "fatura",
+      "uploaded_at": "2026-09-30T12:19:17.274434",
+      "status": "processed"
+    },
+    {
+      "filename": "mizan.md",
+      "doc_type": "mizan",
+      "uploaded_at": "2026-09-30T12:19:04.682607",
+      "status": "processed"
+    },
+    {
+      "filename": "şirket-faliyet-raporu.md",
+      "doc_type": "faaliyet",
+      "uploaded_at": "2026-09-30T12:18:44.531469",
+      "status": "processed"
+    },
+    {
+      "filename": "iso_14001.json",
+      "doc_type": "iso_14001",
+      "uploaded_at": "2026-09-30T11:32:18.028549",
+      "status": "processed"
+    },
+    {
+      "filename": "ekb.md",
+      "doc_type": "ekb",
+      "uploaded_at": "2026-09-30T11:31:56.050793",
+      "status": "processed"
+    },
+    {
+      "filename": "kapasite_raporu.json",
+      "doc_type": "kapasite_raporu",
+      "uploaded_at": "2026-09-30T11:31:44.835509",
+      "status": "processed"
+    },
+    {
+      "filename": "sanayi_sicil.json",
+      "doc_type": "sanayi_sicil",
+      "uploaded_at": "2026-09-30T11:31:34.740638",
+      "status": "processed"
+    },
+    {
+      "filename": "sgk_listesi.md",
+      "doc_type": "sgk",
+      "uploaded_at": "2026-09-30T11:31:11.004688",
+      "status": "processed"
+    },
     {
       "filename": "faturalar.md",
       "doc_type": "sgk",

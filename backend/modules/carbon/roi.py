@@ -8,9 +8,11 @@ Tüm katsayılar denetlenebilir referanslarla belgelenmiştir.
 import os
 import io
 import sys
+import time
 import json
 from pydantic import BaseModel, Field
 from typing import List, Optional
+from logger import logger, log_llm_request, log_llm_response, log_llm_fallback
 
 try:
     from langchain_google_genai import ChatGoogleGenerativeAI
@@ -24,11 +26,15 @@ class CodeGenerationStep(BaseModel):
     python_code: str = Field(description="Hesaplamayı yapacak çalıştırılabilir Python kodu. Sadece kod, backtick olmadan.")
 
 def _run_langchain_cot_pipeline(params_text: str, target_schema, system_instruction: str):
+    # Kaynak: https://ai.google.dev/gemini-api/docs/openai?hl=tr
     api_key = os.getenv("GEMINI_API_KEY")
-    # timeout/max_retries olmadan (özellikle Gemini kotası dolduğunda 429
-    # RESOURCE_EXHAUSTED sonrası önerilen 30-60s'lik bekleme süresini
-    # olduğu gibi bekleyerek) bu adım tek başına dakikalarca sürebiliyordu.
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", api_key=api_key, temperature=0.0, timeout=15, max_retries=1)
+    base_url = os.getenv("GEMINI_API_BASE") or "https://generativelanguage.googleapis.com/v1beta/openai/"
+    model_name = os.getenv("GEMINI_MODEL") or "gemini-2.5-flash"
+    try:
+        from langchain_openai import ChatOpenAI
+        llm = ChatOpenAI(model=model_name, openai_api_key=api_key, base_url=base_url, temperature=0.0, timeout=15, max_retries=1)
+    except Exception:
+        llm = ChatGoogleGenerativeAI(model=model_name, api_key=api_key, temperature=0.0, timeout=15, max_retries=1)
     
     code_chain = (
         ChatPromptTemplate.from_messages([
@@ -46,7 +52,12 @@ def _run_langchain_cot_pipeline(params_text: str, target_schema, system_instruct
         | llm.with_structured_output(target_schema)
     )
 
+    log_llm_request(provider="Gemini", model=model_name, task="G-ROI CoT Adım 1 (Kod Üretimi)", prompt_preview=params_text)
+    t0 = time.perf_counter()
     step1_res = code_chain.invoke({"params": params_text})
+    elapsed_step1 = (time.perf_counter() - t0) * 1000
+    log_llm_response(provider="Gemini", model=model_name, task="G-ROI CoT Adım 1", elapsed_ms=elapsed_step1, success=True)
+
     code = step1_res.python_code
     
     if code.strip().startswith("```"):
@@ -68,12 +79,18 @@ def _run_langchain_cot_pipeline(params_text: str, target_schema, system_instruct
     exec_output = new_stdout.getvalue()
     if exec_error:
         exec_output += f"\nError: {exec_error}"
+        logger.warning(f"⚠️ [G-ROI] Üretilen Python kodu çalışırken hata: {exec_error}")
         
-    return final_chain.invoke({
+    log_llm_request(provider="Gemini", model=model_name, task="G-ROI CoT Adım 2 (Sentez)", prompt_preview=exec_output)
+    t1 = time.perf_counter()
+    final_res = final_chain.invoke({
         "params": params_text,
         "thought": step1_res.thought_process,
         "output": exec_output
     })
+    elapsed_step2 = (time.perf_counter() - t1) * 1000
+    log_llm_response(provider="Gemini", model=model_name, task="G-ROI CoT Adım 2", elapsed_ms=elapsed_step2, success=True)
+    return final_res
 
 
 # ─── Referans Katsayıları ───────────────────────────────────────────────────

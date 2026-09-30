@@ -7,6 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Form, HTTPException
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from modules.tsrs.job_service import ActiveJobError, MissingSourcesError, _connect, _run_job, create_job, get_job, get_latest_report as service_get_latest_report, get_readiness, normalize_ticker
+from logger import logger
 
 router = APIRouter(tags=["TSRS Report"])
 class GenerateReportRequest(BaseModel):
@@ -98,6 +99,8 @@ def verify_report(hash_to_verify: str = Form(...), ticker: Optional[str] = Form(
     if not hash_to_verify:
         raise HTTPException(400, detail="hash_to_verify parametresi gerekli.")
 
+    logger.info(f"🔍 [RAPOR-DOĞRULAMA] İstek alındı | Hash: {hash_to_verify[:16]}... | Şirket: {ticker or 'Belirtilmedi'}")
+
     # Önce report_versions tablosundan eşleşme ara
     with _connect() as conn:
         row = conn.execute(
@@ -106,6 +109,7 @@ def verify_report(hash_to_verify: str = Form(...), ticker: Optional[str] = Form(
         ).fetchone()
 
     if row:
+        logger.info(f"✅ [RAPOR-DOĞRULAMA] DB Eşleşti: Rapor ID {row['id']} ({row['ticker']})")
         return {
             "is_valid": True,
             "actual_hash": row["sha256"],
@@ -123,13 +127,16 @@ def verify_report(hash_to_verify: str = Form(...), ticker: Optional[str] = Form(
         report_path = get_company_report_path(ticker)
         if report_path.exists():
             actual_hash = _compute_file_hash(report_path)
+            is_valid = actual_hash == hash_to_verify
+            logger.info(f"{'✅' if is_valid else '❌'} [RAPOR-DOĞRULAMA] Dosya fallback sonucu: {is_valid} ({ticker})")
             return {
-                "is_valid": actual_hash == hash_to_verify,
+                "is_valid": is_valid,
                 "actual_hash": actual_hash,
                 "provided_hash": hash_to_verify,
                 "verified_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             }
 
+    logger.warning(f"❌ [RAPOR-DOĞRULAMA] Doğrulanamadı: {hash_to_verify[:16]}...")
     return {
         "is_valid": False,
         "actual_hash": None,

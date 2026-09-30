@@ -297,11 +297,19 @@ PORT=8000
 DEBUG=True
 
 # Yapay Zeka Servis Sağlayıcıları (İsteğe Bağlı - Detaylar için aşağıya bakın)
+# Google Gemini API (OpenAI Uyumluluk Modu: https://ai.google.dev/gemini-api/docs/openai?hl=tr)
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+GEMINI_API_BASE=https://generativelanguage.googleapis.com/v1beta/openai/
+GEMINI_MODEL=gemini-2.5-flash
+
+# OpenAI API (TSRS Rapor Pipeline)
 OPENAI_API_KEY=YOUR_OPENAI_API_KEY
+OPENAI_API_BASE=https://api.openai.com/v1
 OPENAI_TSRS_MODEL=gpt-4o
 
-GEMINI_API_KEY=YOUR_GEMINI_API_KEY
-GEMINI_MODEL=gemini-2.5-flash
+# Özel NLP API Anahtarları (İsteğe Bağlı)
+NLP_GEMINI_API_KEY=
+NLP_OPENAI_API_KEY=
 
 # Veritabanı ve Çalışma Dizinleri (Varsayılan olarak backend/data kullanılır)
 DATA_DIR=data

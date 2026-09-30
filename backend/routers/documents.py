@@ -119,11 +119,22 @@ def documents_status(ticker: Optional[str] = None):
     declaration_status = "verified" if get_company_declaration_path(ticker).exists() else "not_uploaded"
 
     statuses = {}
+    company_sources_dir = get_company_sources_dir(ticker)
     for doc_type, target_file in DOCUMENT_TYPE_MAP.items():
         if doc_type in docs:
             statuses[doc_type] = docs[doc_type]
         else:
-            statuses[doc_type] = {"status": "not_uploaded"}
+            target_path = company_sources_dir / target_file
+            if target_path.exists():
+                statuses[doc_type] = {
+                    "status": "verified",
+                    "original_filename": target_file,
+                    "target_filename": target_file,
+                    "uploaded_at": datetime.fromtimestamp(target_path.stat().st_mtime).isoformat(),
+                    "size_bytes": target_path.stat().st_size,
+                }
+            else:
+                statuses[doc_type] = {"status": "not_uploaded"}
 
     statuses["declaration"] = {"status": declaration_status}
 
@@ -139,12 +150,13 @@ def delete_document(doc_type: str, ticker: Optional[str] = None):
 
     company_sources_dir = get_company_sources_dir(ticker)
     target_path = company_sources_dir / DOCUMENT_TYPE_MAP[doc_type]
-    if target_path.exists():
+    file_existed = target_path.exists()
+    if file_existed:
         target_path.unlink()
 
     meta = _load_uploads_meta(ticker)
     removed = meta["documents"].pop(doc_type, None)
-    if removed is None:
+    if removed is None and not file_existed:
         raise HTTPException(status_code=404, detail="Bu belge türü için yüklenmiş bir kayıt yok.")
     _save_uploads_meta(meta, ticker)
 
