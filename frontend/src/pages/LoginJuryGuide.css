@@ -1,0 +1,105 @@
+.jury-textile-preset {
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+  background: linear-gradient(100deg, rgba(240, 250, 245, 0.96), rgba(248, 250, 252, 0.9));
+  border-color: #cde8db;
+}
+
+.jury-textile-preset:hover {
+  border-color: #38a77e;
+  background: #eff9f3;
+  box-shadow: 0 5px 14px rgba(16, 125, 87, 0.1);
+}
+
+.jury-login-waiting {
+  position: fixed;
+  z-index: 999;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  width: min(360px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 13px 15px 12px;
+  border: 1px solid rgba(54, 161, 119, 0.22);
+  border-radius: 14px;
+  color: #17352f;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 38px rgba(13, 42, 34, 0.13);
+  backdrop-filter: blur(14px);
+  pointer-events: none;
+}
+
+.jury-login-waiting-copy { display: flex; align-items: center; gap: 10px; }
+.jury-login-waiting-icon { width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 32px; border-radius: 10px; color: #168660; background: #e7f7ef; }
+.jury-login-waiting-copy strong { display: block; font-size: 12px; font-weight: 750; letter-spacing: -0.1px; }
+.jury-login-waiting-copy small { display: block; margin-top: 3px; color: #64766f; font-size: 10px; line-height: 1.4; }
+.jury-login-waiting-progress { height: 3px; overflow: hidden; margin-top: 11px; border-radius: 99px; background: #e7efe9; }
+.jury-login-waiting-progress span { display: block; width: 100%; height: 100%; transform: scaleX(0); transform-origin: left; border-radius: inherit; background: linear-gradient(90deg, #36b988, #8ad9a9); animation: jury-login-wait-progress 2.5s linear forwards; }
+
+.jury-textile-mark {
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 29px;
+  border-radius: 8px;
+  color: #13825d;
+  background: #dff2e7;
+}
+
+.jury-login-tour-inset {
+  position: fixed;
+  z-index: 1001;
+  inset: 12px;
+  border: 1px solid rgba(211, 242, 228, 0.14);
+  border-radius: 18px;
+  box-shadow: inset 0 0 32px rgba(221, 255, 239, 0.035);
+  pointer-events: none;
+}
+
+.jury-login-tour-frame {
+  position: fixed;
+  z-index: 1001;
+  border: 2px solid #8de8c1;
+  border-radius: 12px;
+  box-shadow: 0 0 0 4px rgba(82, 217, 165, 0.18), 0 0 30px rgba(102, 230, 183, 0.5);
+  pointer-events: none;
+  animation: jury-login-guide-pulse 1.8s ease-in-out infinite;
+}
+
+.jury-login-tour-card {
+  position: fixed;
+  z-index: 1002;
+  padding: 15px 16px 12px;
+  border: 1px solid rgba(153, 228, 195, 0.34);
+  border-radius: 13px;
+  color: #eaf6f1;
+  background: linear-gradient(145deg, #132b32, #0e202a);
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.36);
+  font-family: Inter, sans-serif;
+}
+
+.jury-login-tour-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+.jury-login-tour-heading span { display: inline-flex; align-items: center; gap: 6px; color: #7ed9b2; font-size: 8px; font-weight: 800; letter-spacing: 0.65px; text-transform: uppercase; }
+.jury-login-tour-heading button { width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 7px; color: #9db2b2; background: rgba(255, 255, 255, 0.07); }
+.jury-login-tour-card > strong { display: block; color: #f4faf7; font-size: 13px; letter-spacing: -0.15px; }
+.jury-login-tour-card > p { margin-top: 6px; color: #aec0bf; font-size: 9px; line-height: 1.65; }
+.jury-login-tour-progress { height: 3px; overflow: hidden; margin-top: 12px; border-radius: 99px; background: rgba(255, 255, 255, 0.09); }
+.jury-login-tour-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #48bd91, #a0e3be); transition: width 350ms ease; }
+.jury-login-tour-dismiss { display: block; margin: 7px 0 0 auto; padding: 3px 0 0; border: 0; color: #8da5a5; background: none; font-size: 8px; }
+.jury-login-tour-dismiss:hover,.jury-login-tour-heading button:hover { color: #fff; }
+
+@keyframes jury-login-guide-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(82, 217, 165, 0.15), 0 0 24px rgba(102, 230, 183, 0.36); }
+  50% { box-shadow: 0 0 0 7px rgba(82, 217, 165, 0.22), 0 0 34px rgba(102, 230, 183, 0.57); }
+}
+
+@keyframes jury-login-wait-progress {
+  to { transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jury-login-tour-frame { animation: none; }
+  .jury-login-tour-progress span { transition: none; }
+  .jury-login-waiting-progress span { animation-duration: 0.01ms; }
+}

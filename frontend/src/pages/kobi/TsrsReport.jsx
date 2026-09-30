@@ -6,10 +6,11 @@ import {
   Copy, Check, RefreshCw, Sparkles, Building, Globe, 
   Calendar, Cpu, Award, ChevronDown, ChevronUp, AlertCircle,
   ExternalLink, Lock, CheckCircle2, Link2, Leaf, Activity, BarChart2,
-  Info, X, Database, Sliders
+  Info, X, Database, Sliders, Layers
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { GREEN_TEXTILE_DEMO, getGreenTextileDemoState, isGreenTextileUser } from '../../demo/greenTextileDemo';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -37,6 +38,9 @@ const TsrsReport = () => {
   }, [currentUser?.companyTicker]);
   
   const ticker = selectedTicker;
+  const canShowDemoReport = selectedTicker === GREEN_TEXTILE_DEMO.company.ticker
+    && isGreenTextileUser(currentUser)
+    && getGreenTextileDemoState().loaded;
   const withTicker = (url) => ticker ? `${url}${url.includes('?') ? '&' : '?'}ticker=${encodeURIComponent(ticker)}` : url;
 
   const [activeTab, setActiveTab] = useState('summary');
@@ -71,6 +75,7 @@ const TsrsReport = () => {
   const [reportVersionId, setReportVersionId] = useState(null);
   const [reportGeneratedAt, setReportGeneratedAt] = useState(null);
   const [reportIsCurrent, setReportIsCurrent] = useState(false);
+  const [isDemoReport, setIsDemoReport] = useState(false);
   const [showPdfViewer, setShowPdfViewer] = useState(false);
   const [shapData, setShapData] = useState(null);
   const [modelCardData, setModelCardData] = useState(null);
@@ -80,6 +85,7 @@ const TsrsReport = () => {
 
   // Yapay zeka pipeline durumları
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isDemoSimulation, setIsDemoSimulation] = useState(false);
   const [reportStatus, setReportStatus] = useState({ status: 'idle', progress: 0, message: '' });
   const [terminalLogs, setTerminalLogs] = useState([]);
   
@@ -97,10 +103,14 @@ const TsrsReport = () => {
   }, [selectedTicker, reportingYear]);
 
   useEffect(() => {
-    if (location.state?.triggerGenerate) {
+    if (location.state?.triggerDemoGenerate) {
+      navigate(location.pathname, { replace: true, state: {} });
+      handleDemoReport();
+    } else if (location.state?.triggerGenerate) {
       // Clear location state immediately so it doesn't run again on page refresh
       navigate(location.pathname, { replace: true, state: {} });
-      handleGenerateReport();
+      if (isGreenTextileUser(currentUser)) handleDemoReport();
+      else handleGenerateReport();
     }
 
     return () => {
@@ -131,17 +141,29 @@ const TsrsReport = () => {
   const fetchLatestReport = async (targetTicker) => {
     try {
       const currentTicker = targetTicker || selectedTicker;
+      if (currentTicker === GREEN_TEXTILE_DEMO.company.ticker && isGreenTextileUser(currentUser) && getGreenTextileDemoState().loaded) {
+        const demoState = getGreenTextileDemoState();
+        setIsDemoReport(true);
+        setReportData(GREEN_TEXTILE_DEMO.reportMarkdown);
+        setReportHash('');
+        setReportVersionId(null);
+        setReportGeneratedAt(demoState.completedAt || new Date().toISOString());
+        setReportIsCurrent(false);
+        return;
+      }
       const url = currentTicker ? `${API_URL}/api/report/latest?ticker=${encodeURIComponent(currentTicker)}&reporting_year=${reportingYear}&_t=${Date.now()}` : `${API_URL}/api/report/latest?reporting_year=${reportingYear}&_t=${Date.now()}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         if (data.status === 'found') {
+          setIsDemoReport(false);
           setReportData(data.content);
           setReportHash(data.hash || '');
           setReportVersionId(data.id || null);
           setReportGeneratedAt(data.generated_at || null);
           setReportIsCurrent(Boolean(data.is_current));
         } else {
+          setIsDemoReport(false);
           setReportData(null);
           setReportHash('');
           setReportVersionId(null);
@@ -187,6 +209,8 @@ const TsrsReport = () => {
   const handleGenerateReport = async () => {
     if (isGenerating) return;
 
+    setIsDemoSimulation(false);
+    setIsDemoReport(false);
     setIsGenerating(true);
     setReportStatus({ status: 'generating', progress: 5, message: 'Pipeline başlatılıyor...' });
     setTerminalLogs([
@@ -234,6 +258,43 @@ const TsrsReport = () => {
       setReportStatus({ status: 'error', progress: 0, message: e.message });
       setTerminalLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] [HATA] ${e.message}`]);
     }
+  };
+
+  const handleDemoReport = async () => {
+    const isGreenTextileDemo = selectedTicker === GREEN_TEXTILE_DEMO.company.ticker && isGreenTextileUser(currentUser);
+    if (isGreenTextileDemo) {
+      if (isGenerating || !getGreenTextileDemoState().loaded) return;
+      const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+      const steps = [
+        [18, 'Yeşil Tekstil demo kaynak paketi doğrulanıyor...'],
+        [42, 'Enerji, su ve faaliyet kaynakları sınıflandırılıyor...'],
+        [68, 'TSRS 1 ve TSRS 2 örnek açıklamaları oluşturuluyor...'],
+        [88, 'Sentetik gösterge tablosu ve rapor önizlemesi hazırlanıyor...'],
+      ];
+      setIsDemoSimulation(true);
+      setIsGenerating(true);
+      setActiveTab('summary');
+      setReportStatus({ status: 'generating', progress: 5, message: 'Yeşil Tekstil sentetik demo raporu hazırlanıyor...', is_demo: true });
+      setTerminalLogs([`[${new Date().toLocaleTimeString()}] [DEMO] Yeşil Tekstil için sentetik rapor derleme akışı başlatıldı.`]);
+      for (const [progress, message] of steps) {
+        await wait(460);
+        setReportStatus({ status: 'generating', progress, message, is_demo: true });
+        setTerminalLogs((current) => [...current, `[${new Date().toLocaleTimeString()}] [DEMO] ${message}`]);
+      }
+      setReportData(GREEN_TEXTILE_DEMO.reportMarkdown);
+      setReportHash('');
+      setReportVersionId(null);
+      setReportGeneratedAt(new Date().toISOString());
+      setReportIsCurrent(false);
+      setIsDemoReport(true);
+      setReportStatus({ status: 'completed', progress: 100, message: 'Sentetik demo raporu hazır.', is_demo: true });
+      setTerminalLogs((current) => [...current, `[${new Date().toLocaleTimeString()}] [BİLGİ] İçerik sentetik örnek veridir; gerçek şirket raporu veya güvence beyanı değildir.`]);
+      setIsGenerating(false);
+      await wait(250);
+      document.getElementById('tsrs-report-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+
   };
 
   const fetchReadiness = async (targetTicker) => {
@@ -416,6 +477,30 @@ const TsrsReport = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {isGreenTextileUser(currentUser) && (
+            <button
+              onClick={handleDemoReport}
+              disabled={isGenerating || !canShowDemoReport}
+              title={!canShowDemoReport ? 'Önce Veri Entegrasyonu sayfasında Yeşil Tekstil demo paketini yükleyin.' : 'Sentetik demo raporunu üretim akışı görünümünde aç.'}
+              style={{
+                background: '#ECFDF5',
+                color: '#047857',
+                border: '1px solid #A7F3D0',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                cursor: isGenerating || !canShowDemoReport ? 'not-allowed' : 'pointer',
+                opacity: canShowDemoReport ? 1 : 0.55,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <Layers size={15} /> Demo Raporunu Göster
+            </button>
+          )}
           <button
             onClick={() => navigate('/dashboard')}
             style={{
@@ -431,25 +516,27 @@ const TsrsReport = () => {
           >
             ← Ana Sayfa Kokpitine Dön
           </button>
-          <button
-            onClick={handleGenerateReport}
-            disabled={isGenerating}
-            style={{
-              background: 'linear-gradient(135deg, #059669, #047857)',
-              color: '#FFFFFF',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: isGenerating ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            <Sparkles size={14} /> {isGenerating ? 'Rapor Oluşturuluyor...' : reportGeneratedAt ? 'Raporu Yeniden Üret' : 'Yeni TSRS Raporu Oluştur'}
-          </button>
+          {!isGreenTextileUser(currentUser) && (
+            <button
+              onClick={handleGenerateReport}
+              disabled={isGenerating}
+              style={{
+                background: 'linear-gradient(135deg, #059669, #047857)',
+                color: '#FFFFFF',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                cursor: isGenerating ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Sparkles size={14} /> {isGenerating ? 'Rapor Oluşturuluyor...' : reportGeneratedAt ? 'Raporu Yeniden Üret' : 'Yeni TSRS Raporu Oluştur'}
+            </button>
+          )}
         </div>
       </motion.div>
 
@@ -516,6 +603,7 @@ const TsrsReport = () => {
               <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--accent-emerald)', letterSpacing: '2.5px', marginBottom: '8px', textTransform: 'uppercase' }}>Rapor Önizleme</div>
               <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--primary-midnight)', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 TSRS Sürdürülebilirlik Beyanı
+                {isDemoReport && <span style={{ fontSize: '11px', letterSpacing: '0.4px', padding: '5px 9px', borderRadius: '999px', color: '#92400E', background: '#FEF3C7', border: '1px solid #FDE68A' }}>SENTETİK DEMO</span>}
               </h2>
             </div>
             <div style={{ textAlign: 'right', fontSize: '13px', color: 'var(--text-muted)', fontWeight: 500 }}>
@@ -537,6 +625,11 @@ const TsrsReport = () => {
               {activeTab === 'summary' && (
                 <div className="flex-col gap-6">
                   <div>
+                    {isDemoReport && (
+                      <div role="note" style={{ marginBottom: '18px', padding: '12px 15px', borderRadius: '10px', color: '#78350F', background: '#FFFBEB', border: '1px solid #FDE68A', fontSize: '13px' }}>
+                        Bu içerik demo gösterimi için hazırlanmıştır; gerçek şirket verisi, yayımlanmış TSRS raporu veya bağımsız güvence beyanı değildir.
+                      </div>
+                    )}
                     <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary-midnight)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Building size={18} color="var(--accent-emerald)" /> 1. Yönetici Özeti ve Kurumsal Profil
                     </h3>
@@ -1169,7 +1262,7 @@ const TsrsReport = () => {
                     animation: reportStatus.status === 'generating' ? 'pulse 2s infinite' : 'none' 
                   }} />
                   <span style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '0.5px', color: 'var(--primary-midnight)', textTransform: 'uppercase' }}>
-                    Yapay Zeka TSRS Analiz ve Rapor Motoru
+                    {isDemoSimulation ? 'Demo TSRS Rapor Derleme Simülasyonu' : 'Yapay Zeka TSRS Analiz ve Rapor Motoru'}
                   </span>
                 </div>
                 {/* Window Controls & Close Button */}
@@ -1206,14 +1299,14 @@ const TsrsReport = () => {
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     {[
-                      { id: 1, label: 'Bağlantı & Entegrasyon Kontrolü', minProg: 10 },
-                      { id: 2, label: 'Kaynak Belgeler & OCR Çözümleme', minProg: 20 },
-                      { id: 3, label: 'Yönetici Beyan Formu Analizi', minProg: 25 },
-                      { id: 4, label: 'Kapsam 1 ve 2 Emisyon Hesabı', minProg: 25 },
+                      { id: 1, label: isDemoSimulation ? 'Demo kaynak paketi kontrolü' : 'Bağlantı & Entegrasyon Kontrolü', minProg: 10 },
+                      { id: 2, label: isDemoSimulation ? 'Kaynak belgelerin eşleştirilmesi' : 'Kaynak Belgeler & OCR Çözümleme', minProg: 20 },
+                      { id: 3, label: isDemoSimulation ? 'Örnek yönetici beyanı' : 'Yönetici Beyan Formu Analizi', minProg: 25 },
+                      { id: 4, label: isDemoSimulation ? 'İklim metriklerinin derlenmesi' : 'Kapsam 1 ve 2 Emisyon Hesabı', minProg: 25 },
                       { id: 5, label: 'TSRS Standart Eşleştirmesi', minProg: 30 },
-                      { id: 6, label: 'Yapay Zeka Rapor Yazımı (TSRS)', minProg: 40 },
-                      { id: 7, label: 'Kriptografik İmzalama & Hash', minProg: 90 },
-                      { id: 8, label: 'Rapor Derleme ve Başarı', minProg: 100 }
+                      { id: 6, label: isDemoSimulation ? 'Hazır demo raporunun yüklenmesi' : 'Yapay Zeka Rapor Yazımı (TSRS)', minProg: 40 },
+                      { id: 7, label: isDemoSimulation ? 'Demo içeriği ve kanıt notları' : 'Kriptografik İmzalama & Hash', minProg: 90 },
+                      { id: 8, label: isDemoSimulation ? 'Demo önizlemesinin açılması' : 'Rapor Derleme ve Başarı', minProg: 100 }
                     ].map((step, idx) => {
                       const isStepCompleted = reportStatus.progress > step.minProg || reportStatus.status === 'completed';
                       const isStepActive = reportStatus.status === 'generating' && reportStatus.progress >= step.minProg && reportStatus.progress < (idx === 7 ? 100 : step.minProg + 10);
@@ -1346,10 +1439,10 @@ const TsrsReport = () => {
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary-midnight)' }}>
-                              ERP ve Muhasebe Entegrasyonu
+                              {isDemoSimulation ? 'Demo Kaynak Paketi' : 'ERP ve Muhasebe Entegrasyonu'}
                             </h4>
                             <span style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: 'rgba(16, 185, 129, 0.08)', padding: '2px 8px', borderRadius: '4px' }}>
-                              BAĞLANDI
+                              {isDemoSimulation ? 'YEREL DEMO' : 'BAĞLANDI'}
                             </span>
                           </div>
                           <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
@@ -1389,7 +1482,7 @@ const TsrsReport = () => {
                             </span>
                           </div>
                           <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
-                            Faaliyet raporu, mizan, fatura ve beyan formları metinleştirilerek kurumsal kanıtlar ve personel verileri çıkartıldı.
+                            {isDemoSimulation ? 'Sentetik örnek faaliyet, enerji, su ve beyan verileri demo akışı için eşleştiriliyor.' : 'Faaliyet raporu, mizan, fatura ve beyan formları metinleştirilerek kurumsal kanıtlar ve personel verileri çıkartıldı.'}
                           </p>
                         </div>
                       </motion.div>
@@ -1425,7 +1518,7 @@ const TsrsReport = () => {
                             </span>
                           </div>
                           <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
-                            Elektrik, doğal gaz ve yakıt verileri IPCC/GHG standartlarına göre işlenerek Kapsam 1 ve 2 karbon ayak izi doğrulandı.
+                              {isDemoSimulation ? 'Örnek Kapsam 1, 2 ve 3 göstergeleri rapor önizlemesine aktarılıyor; gerçek verilerle doğrulanmış değildir.' : 'Elektrik, doğal gaz ve yakıt verileri IPCC/GHG standartlarına göre işlenerek Kapsam 1 ve 2 karbon ayak izi doğrulandı.'}
                           </p>
                         </div>
                       </motion.div>
@@ -1462,7 +1555,7 @@ const TsrsReport = () => {
                           </div>
                           <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
                             {reportStatus.progress >= 90
-                              ? 'Rapor bölümleri TSRS standartlarına göre oluşturuldu.'
+                              ? isDemoSimulation ? 'Hazır sentetik demo raporu ekranda gösterime hazır.' : 'Rapor bölümleri TSRS standartlarına göre oluşturuldu.'
                               : `${reportStatus.message}`}
                           </p>
                         </div>
@@ -1559,7 +1652,7 @@ const TsrsReport = () => {
                             Kapat
                           </button>
                           <button 
-                            onClick={handleGenerateReport} 
+                            onClick={isGreenTextileUser(currentUser) ? handleDemoReport : handleGenerateReport}
                             className="btn-primary" 
                             style={{ 
                               padding: '10px 20px', 
@@ -1571,7 +1664,7 @@ const TsrsReport = () => {
                               cursor: 'pointer'
                             }}
                           >
-                            Tekrar Dene
+                            {isGreenTextileUser(currentUser) ? 'Demo Akışını Tekrar Göster' : 'Tekrar Dene'}
                           </button>
                         </>
                       )}

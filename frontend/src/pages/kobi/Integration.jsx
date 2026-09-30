@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, Link2, ShieldAlert, FileText, Leaf, AlertTriangle, Sparkles, Trash2, X, ExternalLink, Plus } from 'lucide-react';
+import JuryDemoTour from '../../components/JuryDemoTour';
+import { GREEN_TEXTILE_DEMO, getGreenTextileDemoState, isGreenTextileUser, saveGreenTextileDemoState } from '../../demo/greenTextileDemo';
+import './IntegrationDemo.css';
+import { UploadCloud, FileSpreadsheet, CheckCircle2, FileBadge2, Check, RefreshCw, Link2, ShieldAlert, FileText, Leaf, AlertTriangle, Sparkles, Trash2, X, ExternalLink, Plus, ArrowRight } from 'lucide-react';
 
 // Bağlanılabilir ERP/muhasebe/e-fatura servisleri — tıklanınca ilgili sağlayıcının
 // gerçek giriş/tanıtım sayfasına yönlendirir (gerçek OAuth entegrasyonu yok,
@@ -64,6 +67,17 @@ const Integration = () => {
   const fileInputRef = useRef(null);
   const docFileInputRef = useRef(null);
   const [activeDocUpload, setActiveDocUpload] = useState(null);
+  const isGreenTextileDemo = isGreenTextileUser(currentUser);
+  const [greenTextileDemoState, setGreenTextileDemoState] = useState(() => isGreenTextileDemo ? getGreenTextileDemoState() : null);
+  const [demoImporting, setDemoImporting] = useState(false);
+  const [demoImportIndex, setDemoImportIndex] = useState(-1);
+  const [demoDeclarationFilling, setDemoDeclarationFilling] = useState(false);
+  const [demoDeclarationIndex, setDemoDeclarationIndex] = useState(-1);
+  const [juryTourStage, setJuryTourStage] = useState(() => {
+    const saved = isGreenTextileDemo ? getGreenTextileDemoState() : null;
+    return saved?.documentsImported || saved?.loaded ? 'declarations' : 'upload';
+  });
+  const [juryTourActive, setJuryTourActive] = useState(false);
 
   // Rapor durum ve polling state'leri
   const [reportStatus, setReportStatus] = useState({ status: 'idle', progress: 0, message: '' });
@@ -82,6 +96,25 @@ const Integration = () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, [ticker]);
+
+  useEffect(() => {
+    if (!isGreenTextileDemo || window.sessionStorage.getItem('ecofin-jury-integration-tour') !== '1') return;
+    window.sessionStorage.removeItem('ecofin-jury-integration-tour');
+    const saved = getGreenTextileDemoState();
+    setJuryTourStage(saved.documentsImported || saved.loaded ? 'declarations' : 'upload');
+    setJuryTourActive(true);
+  }, [isGreenTextileDemo]);
+
+  useEffect(() => {
+    if (!isGreenTextileDemo) return;
+    const saved = getGreenTextileDemoState();
+    setGreenTextileDemoState(saved);
+    if (saved.uploads?.length) setRecentUploads(saved.uploads);
+    if (saved.declaration) setDeclarationData(normalizeDeclarationData(saved.declaration));
+    if (saved.documents) {
+      setDocStatuses(previous => ({ ...previous, ...saved.documents }));
+    }
+  }, [isGreenTextileDemo]);
 
   const checkLatestReport = async () => {
     try {
@@ -136,6 +169,15 @@ const Integration = () => {
   };
 
   const handleGenerateReport = () => {
+    if (isGreenTextileDemo) {
+      if (!getGreenTextileDemoState().loaded) {
+        setJuryTourStage('upload');
+        setJuryTourActive(true);
+        return;
+      }
+      navigate('/tsrs-report', { state: { triggerDemoGenerate: true } });
+      return;
+    }
     navigate('/tsrs-report', { state: { triggerGenerate: true } });
   };
 
@@ -144,7 +186,8 @@ const Integration = () => {
       const res = await fetch(withTicker(`${API_URL}/api/documents/status`));
       if (res.ok) {
         const data = await res.json();
-        setDocStatuses(data.documents || {});
+        const demoDocuments = isGreenTextileDemo ? getGreenTextileDemoState().documents : {};
+        setDocStatuses({ ...(data.documents || {}), ...(demoDocuments || {}) });
       }
     } catch (e) { console.error('Belge durumu alınamadı:', e); }
   };
@@ -157,7 +200,9 @@ const Integration = () => {
         if (data.status === 'found' && data.data) {
           setDeclarationData(normalizeDeclarationData(data.data));
         }
-        else setDeclarationData(null);
+        else if (isGreenTextileDemo && getGreenTextileDemoState().declaration) {
+          setDeclarationData(normalizeDeclarationData(getGreenTextileDemoState().declaration));
+        } else setDeclarationData(null);
       }
     } catch (e) { console.error('Anket verisi alınamadı:', e); }
   };
@@ -167,7 +212,8 @@ const Integration = () => {
       const res = await fetch(withTicker(`${API_URL}/api/documents/list`));
       if (res.ok) {
         const data = await res.json();
-        setRecentUploads(Array.isArray(data.uploads) ? data.uploads : []);
+        const demoUploads = isGreenTextileDemo ? getGreenTextileDemoState().uploads : null;
+        setRecentUploads(demoUploads?.length ? demoUploads : (Array.isArray(data.uploads) ? data.uploads : []));
       }
     } catch (e) { console.error('Yükleme listesi alınamadı:', e); }
   };
@@ -255,17 +301,140 @@ const Integration = () => {
     }
   };
 
+  const startGreenTextileDemoImport = async () => {
+    if (!isGreenTextileDemo || demoImporting) return;
+    setJuryTourActive(false);
+    setDemoImporting(true);
+    setUploading(true);
+    const wait = (ms) => new Promise(resolve => window.setTimeout(resolve, ms));
+    let nextState = {
+      ...(greenTextileDemoState || getGreenTextileDemoState()),
+      loaded: false,
+      documentsImported: false,
+      documents: {},
+      uploads: [],
+      declaration: null,
+      completedAt: null,
+    };
+    const completedUploads = [];
+    setGreenTextileDemoState(nextState);
+    setRecentUploads([]);
+    setDeclarationData(null);
+    setDocStatuses({});
+    saveGreenTextileDemoState(nextState);
+
+    for (let index = 0; index < GREEN_TEXTILE_DEMO.sourceDocuments.length; index += 1) {
+      const source = GREEN_TEXTILE_DEMO.sourceDocuments[index];
+      setDemoImportIndex(index);
+      await wait(index === 0 ? 500 : 390);
+      const uploadedAt = new Date().toISOString();
+      const upload = { filename: source.fileName, status: 'processed', uploaded_at: uploadedAt, demo: true };
+      completedUploads.unshift(upload);
+      nextState = {
+        ...nextState,
+        loaded: false,
+        documents: {
+          ...(nextState.documents || {}),
+          ...(!DOC_DEFINITIONS.some((doc) => doc.id === source.id)
+            ? { [source.id]: { status: 'verified', uploaded_at: uploadedAt, filename: source.fileName, demo: true } }
+            : {}),
+        },
+        uploads: [...completedUploads],
+      };
+      saveGreenTextileDemoState(nextState);
+      setGreenTextileDemoState(nextState);
+      setRecentUploads([...completedUploads]);
+      if (source.docType && !DOC_DEFINITIONS.some((doc) => doc.id === source.id)) setDocStatuses(previous => ({
+        ...previous,
+        [source.docType]: { status: 'verified', uploaded_at: uploadedAt, demo: true },
+      }));
+    }
+
+    nextState = { ...nextState, loaded: false, documentsImported: true, declaration: null, completedAt: null };
+    saveGreenTextileDemoState(nextState);
+    setGreenTextileDemoState(nextState);
+    setDemoImportIndex(GREEN_TEXTILE_DEMO.sourceDocuments.length);
+    await wait(450);
+    setDemoImporting(false);
+    setUploading(false);
+    setJuryTourStage('declarations');
+    setJuryTourActive(true);
+  };
+
+  const startGreenTextileDeclarationFill = async () => {
+    if (!isGreenTextileDemo || demoDeclarationFilling || !(greenTextileDemoState?.documentsImported || greenTextileDemoState?.loaded)) return;
+    setJuryTourActive(false);
+    setDemoDeclarationFilling(true);
+    setDemoDeclarationIndex(-1);
+    const wait = (ms) => new Promise(resolve => window.setTimeout(resolve, ms));
+    const legalDocumentIds = new Set(DOC_DEFINITIONS.map((doc) => doc.id));
+    let nextState = {
+      ...(greenTextileDemoState || getGreenTextileDemoState()),
+      loaded: false,
+      documentsImported: true,
+      documents: Object.fromEntries(Object.entries(greenTextileDemoState?.documents || {}).filter(([id]) => !legalDocumentIds.has(id))),
+      declaration: null,
+      completedAt: null,
+    };
+    setGreenTextileDemoState(nextState);
+    setDeclarationData(null);
+    setDocStatuses(previous => ({
+      ...previous,
+      ...Object.fromEntries(DOC_DEFINITIONS.map((doc) => [doc.id, { status: 'pending', demo: true }])),
+    }));
+    saveGreenTextileDemoState(nextState);
+
+    for (let index = 0; index < DOC_DEFINITIONS.length; index += 1) {
+      const doc = DOC_DEFINITIONS[index];
+      const source = GREEN_TEXTILE_DEMO.sourceDocuments.find((item) => item.id === doc.id);
+      setDemoDeclarationIndex(index);
+      await wait(index === 0 ? 420 : 520);
+      const uploadedAt = new Date().toISOString();
+      nextState = {
+        ...nextState,
+        documents: {
+          ...nextState.documents,
+          [doc.id]: { status: 'verified', uploaded_at: uploadedAt, filename: source?.fileName || doc.title, demo: true },
+        },
+        declaration: doc.id === 'declaration' ? GREEN_TEXTILE_DEMO.declaration : nextState.declaration,
+      };
+      saveGreenTextileDemoState(nextState);
+      setGreenTextileDemoState(nextState);
+      setDocStatuses(previous => ({ ...previous, [doc.id]: { status: 'verified', uploaded_at: uploadedAt, demo: true } }));
+      if (doc.id === 'declaration') setDeclarationData(normalizeDeclarationData(GREEN_TEXTILE_DEMO.declaration));
+    }
+
+    nextState = { ...nextState, loaded: true, completedAt: new Date().toISOString() };
+    saveGreenTextileDemoState(nextState);
+    setGreenTextileDemoState(nextState);
+    setDemoDeclarationIndex(DOC_DEFINITIONS.length);
+    await wait(350);
+    setDemoDeclarationFilling(false);
+    setJuryTourStage('continue');
+    setJuryTourActive(true);
+  };
+
   // Belge durumunu hesapla
   const getDocStatus = (docDef) => {
+    if (isGreenTextileDemo) {
+      if (greenTextileDemoState?.documents?.[docDef.id]?.status === 'verified') {
+        return docDef.id === 'declaration' ? 'verified_decl' : 'verified';
+      }
+      if (docStatuses[docDef.id]?.status === 'pending') return 'pending';
+      return docDef.id === 'declaration' ? 'fill_decl' : 'upload';
+    }
     if (docDef.id === 'declaration') {
       return declarationData ? 'verified_decl' : 'fill_decl';
     }
     const apiStatus = docStatuses[docDef.id];
     if (apiStatus?.status === 'verified') return 'verified';
+    if (apiStatus?.status === 'pending') return 'pending';
     return 'upload';
   };
 
   const getDocDate = (docDef) => {
+    const demoDate = greenTextileDemoState?.documents?.[docDef.id]?.uploaded_at;
+    if (demoDate) return new Date(demoDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' });
     if (docDef.id === 'declaration') return declarationData ? 'Güncel' : '-';
     const apiStatus = docStatuses[docDef.id];
     if (apiStatus?.uploaded_at) {
@@ -278,6 +447,19 @@ const Integration = () => {
   const docs = DOC_DEFINITIONS.map(d => ({
     ...d, status: getDocStatus(d), date: getDocDate(d),
   }));
+
+  const continueToSimulator = () => {
+    window.sessionStorage.setItem('ecofin-jury-simulator-tour', '1');
+    navigate('/simulator');
+  };
+
+  const integrationTourSteps = [
+    juryTourStage === 'upload'
+      ? { target: '[data-jury-integration="demo-load-button"]', title: 'Sentetik belge paketini yükleyin', description: 'Yeşil Tekstil için hazırlanmış kaynak paketi dosya dosya işlenecek. Ardından sağdaki beyan belgelerini tek bir adımla dolduracağız.', actionLabel: 'Belge paketini yükle', onAction: startGreenTextileDemoImport, placement: 'right' }
+      : juryTourStage === 'declarations'
+        ? { target: '[data-jury-integration="declarations-button"]', title: 'Yasal beyanları doldurun', description: 'Sağdaki beyan listesi sırayla güncellenecek. SGK, kapasite, enerji ve yönetici beyanı durumlarını tek tıklamayla işleyip doğrulayacağız.', actionLabel: 'Beyanları sırayla doldur', onAction: startGreenTextileDeclarationFill, placement: 'left' }
+        : { target: '[data-jury-integration="declarations-continue"]', title: 'Veri ve beyanlar hazır', description: 'Kaynak dosyalar ve yönetici beyanı işlendi. Şimdi bu girdilerle g-ROI yatırım geri dönüş ekranına geçin.', actionLabel: 'g-ROI sonucuna geç', onAction: continueToSimulator, placement: 'left' },
+  ];
 
   if (showDeclarationDashboard) {
     return (
@@ -306,7 +488,7 @@ const Integration = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           
           {/* Active Connections */}
-          <motion.div variants={itemVariants} className="card glass-panel flex-col gap-4">
+          <motion.div data-jury-integration="connections" variants={itemVariants} className="card glass-panel flex-col gap-4">
             <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--primary-midnight)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Link2 size={18} color="var(--accent-emerald)" /> Canlı Sistem Bağlantıları (API)
             </h3>
@@ -347,7 +529,7 @@ const Integration = () => {
           </motion.div>
 
           {/* Manual Upload */}
-          <motion.div variants={itemVariants} className="card glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <motion.div data-jury-integration="uploads" variants={itemVariants} className="card glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--primary-midnight)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <DatabaseIcon color="var(--primary-midnight)" /> e-Fatura & UBL Paketi Yükle
             </h3>
@@ -376,6 +558,33 @@ const Integration = () => {
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px' }}>veya bilgisayarınızdan seçmek için tıklayın.</p>
               <input ref={fileInputRef} type="file" accept=".xml,.zip,.pdf,.md,.json" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0], 'efatura'); }} />
               <button className="btn-primary" style={{ padding: '10px 24px', cursor: 'pointer' }} disabled={uploading} onClick={() => fileInputRef.current?.click()}>{uploading ? 'Yükleniyor...' : 'Dosya Seç'}</button>
+              {isGreenTextileDemo && (
+                <div className="green-textile-upload-demo" data-jury-integration="demo-load-button">
+                  {!greenTextileDemoState?.documentsImported ? (
+                    <div className="green-textile-upload-demo-copy">
+                      <div className="green-textile-upload-demo-heading"><Sparkles size={15} /> Jüri için hazır sentetik belge paketi</div>
+                      <p>{GREEN_TEXTILE_DEMO.sourceDocuments.length} örnek kaynak dosya, yükleme ve sınıflandırma akışını göstermek için kullanılacak.</p>
+                      {demoImporting && (
+                        <div className="green-textile-import-progress" aria-label="Demo belgeleri yükleniyor">
+                          <span style={{ width: `${Math.round((demoImportIndex / GREEN_TEXTILE_DEMO.sourceDocuments.length) * 100)}%` }} />
+                        </div>
+                      )}
+                      {demoImporting && <small>{Math.min(demoImportIndex + 1, GREEN_TEXTILE_DEMO.sourceDocuments.length)} / {GREEN_TEXTILE_DEMO.sourceDocuments.length} belge işleniyor</small>}
+                    </div>
+                  ) : (
+                    <div className="green-textile-upload-demo-copy green-textile-upload-demo-complete">
+                      <div className="green-textile-upload-demo-heading"><CheckCircle2 size={15} /> Kaynak dosyalar yüklendi</div>
+                      <p>{greenTextileDemoState?.loaded ? 'Yasal beyanlar tamamlandı; g-ROI adımına hazırsınız.' : 'Şimdi sağdaki Yasal Beyanlar bölümünü tek tıklamayla doldurun.'}</p>
+                    </div>
+                  )}
+                  {!greenTextileDemoState?.documentsImported && (
+                    <button type="button" className="green-textile-import-button" disabled={demoImporting} onClick={startGreenTextileDemoImport}>
+                      {demoImporting ? <RefreshCw size={15} className="animate-spin" /> : <UploadCloud size={15} />}
+                      {demoImporting ? 'Belgeler işleniyor' : 'Sentetik paketi yükle'}
+                    </button>
+                  )}
+                </div>
+              )}
             </motion.div>
 
             <div>
@@ -515,7 +724,7 @@ const Integration = () => {
 
         {/* Right Column: Legal Documents */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          <motion.div variants={itemVariants} className="card glass-panel" style={{ height: '100%' }}>
+          <motion.div data-jury-integration="legal-documents" variants={itemVariants} className="card glass-panel" style={{ height: '100%' }}>
             <div className="flex items-center gap-3" style={{ marginBottom: '16px' }}>
               <div className="icon-3d" style={{ background: 'linear-gradient(135deg, #F59E0B, #B45309)', width: '48px', height: '48px' }}>
                 <FileBadge2 color="white" size={24} />
@@ -532,6 +741,34 @@ const Integration = () => {
                 </p>
               </div>
             </div>
+
+            {isGreenTextileDemo && greenTextileDemoState?.documentsImported && (
+              <div className="green-textile-declaration-action">
+                <div className="green-textile-declaration-action-copy">
+                  <strong>{greenTextileDemoState.loaded ? 'Yönetici beyanı ve belgeler hazır' : 'Yönetici beyanını tamamlayın'}</strong>
+                  <span>
+                    {demoDeclarationFilling
+                      ? `${Math.min(demoDeclarationIndex + 1, DOC_DEFINITIONS.length)} / ${DOC_DEFINITIONS.length} beyan belgesi işleniyor`
+                      : 'Sağdaki yasal beyanları tek tıklamayla sırayla doldurun.'}
+                  </span>
+                  {demoDeclarationFilling && (
+                    <div className="green-textile-import-progress">
+                      <span style={{ width: `${Math.max(0, Math.round((demoDeclarationIndex / DOC_DEFINITIONS.length) * 100))}%` }} />
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  data-jury-integration="declarations-button"
+                  className="green-textile-import-button"
+                  disabled={demoDeclarationFilling}
+                  onClick={startGreenTextileDeclarationFill}
+                >
+                  {demoDeclarationFilling ? <RefreshCw size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                  {demoDeclarationFilling ? 'Beyanlar dolduruluyor' : greenTextileDemoState.loaded ? 'Beyanları tekrar göster' : 'Beyanları sırayla doldur'}
+                </button>
+              </div>
+            )}
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '680px', overflowY: 'auto', paddingRight: '4px' }}>
               {docs.map((doc, idx) => (
@@ -654,6 +891,16 @@ const Integration = () => {
                 <strong>TSRS Uyarı:</strong> Yüklenen belgeler rapor üretiminde kaynak olarak kullanılacak ve çıktı kalite kontrolünden geçirilecektir.
               </p>
             </div>
+            {isGreenTextileDemo && greenTextileDemoState?.loaded && (
+              <button
+                type="button"
+                data-jury-integration="declarations-continue"
+                className="green-textile-import-button green-textile-declaration-continue"
+                onClick={continueToSimulator}
+              >
+                <ArrowRight size={15} /> g-ROI sonucuna geç
+              </button>
+            )}
           </motion.div>
         </div>
       </div>
@@ -935,6 +1182,13 @@ const Integration = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      {juryTourActive && isGreenTextileDemo && (
+        <JuryDemoTour
+          steps={integrationTourSteps}
+          onFinish={() => setJuryTourActive(false)}
+          onClose={() => setJuryTourActive(false)}
+        />
+      )}
     </motion.div>
   );
 };

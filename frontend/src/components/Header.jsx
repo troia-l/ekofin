@@ -44,7 +44,7 @@ const Header = ({ currentUser, setCurrentUser }) => {
                             <User size={14} color="var(--text-muted)" />
                             <span>{currentUser.companyName.split(' ')[0]} ({currentUser.userName.split(' ')[0]})</span>
                         </div>
-                        <NavLink to={currentUser.role === 'bank' ? '/bank/dashboard' : '/dashboard'} style={{ textDecoration: 'none' }}>
+                        <NavLink to={currentUser.role === 'bank' ? '/bank/dashboard' : '/dashboard'} data-jury-tour-target="entry" style={{ textDecoration: 'none' }}>
                             <button className="btn-primary" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '10px' }}>
                                 Panel
                             </button>
@@ -68,7 +68,7 @@ const Header = ({ currentUser, setCurrentUser }) => {
                         </button>
                     </div>
                 ) : (
-                    <NavLink to="/login" style={{ textDecoration: 'none' }}>
+                    <NavLink to="/login" data-jury-tour-target="entry" style={{ textDecoration: 'none' }}>
                         <button className="btn btn-outline" style={{ padding: '8px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: 600 }}>Giriş Yap</button>
                     </NavLink>
                 )}

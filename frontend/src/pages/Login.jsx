@@ -1,6 +1,92 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Lock, Mail, Building2, Landmark, Sparkles, ArrowRight, Leaf, BarChart3 } from 'lucide-react';
+import { Shield, Lock, Mail, Building2, Landmark, Sparkles, ArrowRight, Leaf, BarChart3, X } from 'lucide-react';
+import './LoginJuryGuide.css';
+
+const juryWizardFlag = 'ecofin-jury-login-wizard';
+const demoEmail = 'juri@yesiltekstil.example';
+const demoPassword = 'EcoFinJuri2026!';
+const guideTargets = {
+    profile: '[data-jury-guide-target="green-textile"]',
+    email: '[data-jury-guide-target="email"]',
+    password: '[data-jury-guide-target="password"]',
+    submit: '[data-jury-guide-target="submit"]',
+};
+
+const guideCopy = {
+    profile: { title: 'Yeşil Tekstil profilini seçin', text: 'Demo şirket profiline basın. Örnek e-posta ve parola giriş alanlarına sırayla yazılacak.' },
+    email: { title: 'Demo e-postası yazılıyor', text: 'Jüri sunumuna özel örnek e-posta karakter karakter dolduruluyor.' },
+    password: { title: 'Demo parolası yazılıyor', text: 'E-posta tamamlandı. Şimdi örnek parola alanı dolduruluyor.' },
+    submit: { title: 'Girişe devam edin', text: 'Alanlar dolduruldu. Vurgulanan düğmeye basarak Yeşil Tekstil demo panelini açın.' },
+};
+
+const LoginGuideWaiting = () => (
+    <motion.aside
+        className="jury-login-waiting"
+        role="status"
+        aria-live="polite"
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.25, ease: 'easeOut' }}
+    >
+        <div className="jury-login-waiting-copy">
+            <span className="jury-login-waiting-icon"><Sparkles size={15} /></span>
+            <span>
+                <strong>Jüri demosu hazırlanıyor</strong>
+                <small>Giriş ekranı birazdan adım adım vurgulanacak</small>
+            </span>
+        </div>
+        <div className="jury-login-waiting-progress"><span /></div>
+    </motion.aside>
+);
+
+const LoginGuideSpotlight = ({ target, step, onClose }) => {
+    const cardRef = React.useRef(null);
+    const [cardHeight, setCardHeight] = React.useState(0);
+
+    React.useLayoutEffect(() => {
+        const card = cardRef.current;
+        if (!card) return undefined;
+        const measure = () => setCardHeight(card.getBoundingClientRect().height);
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(card);
+        return () => observer.disconnect();
+    }, [step, target]);
+
+    if (!target || !step) return null;
+    const { top, left, right, bottom, width, height } = target;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const tipWidth = Math.min(320, viewportWidth - 32);
+    const tipLeft = Math.max(16, Math.min(right - tipWidth, viewportWidth - tipWidth - 16));
+    const placeAbove = step === 'submit' || bottom + 18 + cardHeight > viewportHeight;
+    const tipTop = placeAbove ? Math.max(16, top - cardHeight - 18) : bottom + 18;
+    const blocker = { position: 'fixed', zIndex: 1000, background: 'rgba(5, 14, 26, 0.58)', backdropFilter: 'blur(0.6px)', pointerEvents: 'auto' };
+
+    return (
+        <motion.div className="jury-login-tour-layer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }} style={{ position: 'fixed', inset: 0, zIndex: 1000, pointerEvents: 'none' }}>
+            <div className="jury-login-tour-inset" aria-hidden="true" />
+            <motion.div aria-hidden="true" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} style={{ ...blocker, top: 0, left: 0, right: 0, height: Math.max(0, top) }} />
+            <motion.div aria-hidden="true" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2, delay: 0.02 }} style={{ ...blocker, top: bottom, left: 0, right: 0, bottom: 0 }} />
+            <motion.div aria-hidden="true" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2, delay: 0.03 }} style={{ ...blocker, top, left: 0, width: Math.max(0, left), height }} />
+            <motion.div aria-hidden="true" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2, delay: 0.04 }} style={{ ...blocker, top, left: right, right: 0, height }} />
+            <motion.div className="jury-login-tour-frame" aria-hidden="true" layout initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 360, damping: 25, delay: 0.08, layout: { type: 'spring', stiffness: 340, damping: 32 } }} style={{ top, left, width, height }} />
+            <motion.section ref={cardRef} className="jury-login-tour-card" layout role="dialog" aria-labelledby="jury-login-tour-title" initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 310, damping: 27, delay: 0.1, layout: { type: 'spring', stiffness: 320, damping: 32 } }} style={{ top: tipTop, left: tipLeft, width: tipWidth }}>
+                <div className="jury-login-tour-heading">
+                    <span><Sparkles size={12} /> Jüri demo · {step === 'profile' ? '2/4' : step === 'email' ? '3/4' : step === 'password' ? '3/4' : '4/4'}</span>
+                    <button type="button" onClick={onClose} aria-label="Jüri sihirbazını kapat"><X size={15} /></button>
+                </div>
+                <strong id="jury-login-tour-title">{guideCopy[step]?.title}</strong>
+                <p>{guideCopy[step]?.text}</p>
+                <div className="jury-login-tour-progress"><span style={{ width: `${step === 'profile' ? 50 : step === 'email' || step === 'password' ? 72 : 100}%` }} /></div>
+                <button type="button" className="jury-login-tour-dismiss" onClick={onClose}>Sihirbazı kapat</button>
+            </motion.section>
+        </motion.div>
+    );
+};
 
 const Login = ({ setCurrentUser }) => {
     const navigate = useNavigate();
@@ -8,9 +94,97 @@ const Login = ({ setCurrentUser }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [juryLoginPending, setJuryLoginPending] = useState(false);
+    const [juryWizardActive, setJuryWizardActive] = useState(false);
+    const [juryWizardPreparing, setJuryWizardPreparing] = useState(false);
+    const [guideStep, setGuideStep] = useState(null);
+    const [guideTargetRect, setGuideTargetRect] = useState(null);
+    const typingRun = React.useRef(0);
 
-    const handleManualLogin = (e) => {
+    useEffect(() => {
+        const startedFromJury = window.sessionStorage.getItem(juryWizardFlag) === '1';
+        if (!startedFromJury) return undefined;
+
+        setJuryWizardPreparing(true);
+        const startGuideTimer = window.setTimeout(() => {
+            window.sessionStorage.removeItem(juryWizardFlag);
+            setJuryWizardPreparing(false);
+            setJuryWizardActive(true);
+            setGuideStep('profile');
+        }, 833);
+
+        return () => window.clearTimeout(startGuideTimer);
+    }, []);
+
+    const closeJuryWizard = useCallback(() => {
+        typingRun.current += 1;
+        setJuryWizardActive(false);
+        setGuideStep(null);
+        setGuideTargetRect(null);
+    }, []);
+
+    const updateGuideTarget = useCallback(() => {
+        const selector = guideTargets[guideStep];
+        const element = selector ? document.querySelector(selector) : null;
+        if (!element) {
+            setGuideTargetRect(null);
+            return;
+        }
+        const rect = element.getBoundingClientRect();
+        setGuideTargetRect({ top: rect.top - 12, left: rect.left - 12, right: rect.right + 12, bottom: rect.bottom + 12, width: rect.width + 24, height: rect.height + 24 });
+    }, [guideStep]);
+
+    useLayoutEffect(() => {
+        if (!juryWizardActive || !guideStep) return;
+        updateGuideTarget();
+    }, [guideStep, juryWizardActive, updateGuideTarget]);
+
+    useEffect(() => {
+        if (!juryWizardActive || !guideStep) return undefined;
+        const dismissOnEscape = (event) => {
+            if (event.key === 'Escape') closeJuryWizard();
+        };
+        window.addEventListener('resize', updateGuideTarget);
+        window.addEventListener('scroll', updateGuideTarget, true);
+        window.addEventListener('keydown', dismissOnEscape);
+        document.querySelector(guideTargets[guideStep])?.focus({ preventScroll: true });
+        return () => {
+            window.removeEventListener('resize', updateGuideTarget);
+            window.removeEventListener('scroll', updateGuideTarget, true);
+            window.removeEventListener('keydown', dismissOnEscape);
+        };
+    }, [juryWizardActive, guideStep, updateGuideTarget, closeJuryWizard]);
+
+    const typeDemoCredentials = async () => {
+        const currentRun = ++typingRun.current;
+        const typeValue = async (value, setter) => {
+            setter('');
+            for (let index = 1; index <= value.length; index += 1) {
+                if (typingRun.current !== currentRun) return false;
+                setter(value.slice(0, index));
+                await new Promise(resolve => window.setTimeout(resolve, 28));
+            }
+            return typingRun.current === currentRun;
+        };
+        const pause = (duration) => new Promise(resolve => window.setTimeout(resolve, duration));
+
+        setError('');
+        setEmail('');
+        setPassword('');
+        setGuideStep('email');
+        if (!await typeValue(demoEmail, setEmail)) return;
+        await pause(107);
+        if (typingRun.current !== currentRun) return;
+        setGuideStep('password');
+        if (!await typeValue(demoPassword, setPassword)) return;
+        await pause(207);
+        if (typingRun.current !== currentRun) return;
+        setGuideStep('submit');
+    };
+
+    const handleManualLogin = async (e) => {
         e.preventDefault();
+        if (juryLoginPending) return;
         setError('');
 
         if (!email || !password) {
@@ -18,9 +192,22 @@ const Login = ({ setCurrentUser }) => {
             return;
         }
 
-        // Mock manual login
+        if (juryWizardActive && guideStep === 'submit') {
+            setJuryLoginPending(true);
+            await new Promise(resolve => window.setTimeout(resolve, 140));
+        }
+
+        const isGreenTextileDemo = role === 'kobi' && email.trim().toLowerCase() === demoEmail;
         let mockUser = null;
-        if (role === 'bank') {
+        if (isGreenTextileDemo) {
+            mockUser = {
+                role: 'kobi',
+                companyName: 'Yeşil Tekstil A.Ş.',
+                companyTicker: 'YESTK',
+                userName: 'Ece Yılmaz',
+                userTitle: 'Sürdürülebilirlik Yöneticisi'
+            };
+        } else if (role === 'bank') {
             mockUser = {
                 role: 'bank',
                 companyName: 'Akbank Yeşil Finans Dep.',
@@ -38,10 +225,17 @@ const Login = ({ setCurrentUser }) => {
             };
         }
 
+        typingRun.current += 1;
+        window.sessionStorage.removeItem(juryWizardFlag);
+        const startJuryFeatureFlow = isGreenTextileDemo && juryWizardActive;
+        if (startJuryFeatureFlow) window.sessionStorage.setItem('ecofin-jury-integration-tour', '1');
+
         localStorage.setItem('currentUser', JSON.stringify(mockUser));
         setCurrentUser(mockUser);
 
-        if (mockUser.role === 'bank') {
+        if (startJuryFeatureFlow) {
+            navigate('/integration');
+        } else if (mockUser.role === 'bank') {
             navigate('/bank/dashboard');
         } else {
             navigate('/dashboard');
@@ -49,6 +243,25 @@ const Login = ({ setCurrentUser }) => {
     };
 
     const handleQuickLogin = (preset) => {
+        if (preset === 'green-textile') {
+            if (juryWizardActive) {
+                setRole('kobi');
+                typeDemoCredentials();
+                return;
+            }
+            const textileUser = {
+                role: 'kobi',
+                companyName: 'Yeşil Tekstil A.Ş.',
+                companyTicker: 'YESTK',
+                userName: 'Ece Yılmaz',
+                userTitle: 'Sürdürülebilirlik Yöneticisi'
+            };
+            localStorage.setItem('currentUser', JSON.stringify(textileUser));
+            setCurrentUser(textileUser);
+            navigate('/dashboard');
+            return;
+        }
+
         let mockUser = null;
 
         if (preset === 'tofas') {
@@ -421,6 +634,19 @@ const Login = ({ setCurrentUser }) => {
                                             </div>
                                             <ArrowRight size={12} color="var(--accent-emerald)" />
                                         </div>
+                                        <button
+                                            type="button"
+                                            className="preset-card jury-textile-preset"
+                                            data-jury-guide-target="green-textile"
+                                            onClick={() => handleQuickLogin('green-textile')}
+                                        >
+                                            <div className="jury-textile-mark"><Leaf size={15} /></div>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--primary-midnight)' }}>Yeşil Tekstil A.Ş. (YESTK)</div>
+                                                <div style={{ fontSize: '9.5px', color: 'var(--text-muted)', marginTop: '1px' }}>Sürdürülebilirlik Yöneticisi · Jüri demosu</div>
+                                            </div>
+                                            <ArrowRight size={12} color="var(--accent-emerald)" />
+                                        </button>
                                     </>
                                 ) : (
                                     <div className="preset-card" onClick={() => handleQuickLogin('bank')}>
@@ -441,7 +667,7 @@ const Login = ({ setCurrentUser }) => {
                         </div>
 
                         {/* Form */}
-                        <form onSubmit={handleManualLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <form onSubmit={handleManualLogin} className="jury-login-form" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                             
                             {error && (
                                 <div style={{ padding: '8px 10px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.08)', color: '#EF4444', fontSize: '11px', fontWeight: 600 }}>
@@ -450,13 +676,14 @@ const Login = ({ setCurrentUser }) => {
                             )}
 
                             <div>
-                                <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>E-posta Adresi</label>
+                                <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '7px' }}>E-posta Adresi</label>
                                 <div className="input-wrapper">
                                     <input 
                                         type="email" 
                                         className="custom-input" 
                                         placeholder={role === 'bank' ? 'banka@ecofin.com' : 'sirket@ecofin.com'} 
                                         value={email}
+                                        data-jury-guide-target="email"
                                         onChange={(e) => setEmail(e.target.value)}
                                         required
                                     />
@@ -465,13 +692,14 @@ const Login = ({ setCurrentUser }) => {
                             </div>
 
                             <div>
-                                <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>Şifre</label>
+                                <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '7px' }}>Şifre</label>
                                 <div className="input-wrapper">
                                     <input 
                                         type="password" 
                                         className="custom-input" 
                                         placeholder="••••••••" 
                                         value={password}
+                                        data-jury-guide-target="password"
                                         onChange={(e) => setPassword(e.target.value)}
                                         required
                                     />
@@ -482,6 +710,8 @@ const Login = ({ setCurrentUser }) => {
                             <button 
                                 type="submit" 
                                 className="btn-primary" 
+                                data-jury-guide-target="submit"
+                                disabled={juryLoginPending}
                                 style={{ 
                                     width: '100%', 
                                     padding: '11px', 
@@ -493,7 +723,7 @@ const Login = ({ setCurrentUser }) => {
                                     fontSize: '13px'
                                 }}
                             >
-                                Giriş Yap <ArrowRight size={12} style={{ marginLeft: '4px' }} />
+                                {juryLoginPending ? 'Giriş yapılıyor…' : <>Giriş Yap <ArrowRight size={12} style={{ marginLeft: '4px' }} /></>}
                             </button>
                         </form>
 
@@ -501,6 +731,19 @@ const Login = ({ setCurrentUser }) => {
                 </div>
 
             </div>
+            <AnimatePresence>
+                {juryWizardPreparing && <LoginGuideWaiting key="jury-login-waiting" />}
+            </AnimatePresence>
+            <AnimatePresence>
+                {juryWizardActive && guideStep && guideTargetRect && (
+                    <LoginGuideSpotlight
+                    key="jury-login-guide"
+                        target={guideTargetRect}
+                        step={guideStep}
+                        onClose={closeJuryWizard}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 };

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import JuryDemoTour from '../../components/JuryDemoTour';
+import { GREEN_TEXTILE_DEMO, getGreenTextileDemoState, isGreenTextileUser } from '../../demo/greenTextileDemo';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { 
   ShieldCheck, 
@@ -103,8 +105,18 @@ const Dashboard = () => {
   const [copied, setCopied] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationSuccess, setVerificationSuccess] = useState(false);
+  const [juryTourActive, setJuryTourActive] = useState(false);
 
   const ticker = currentUser?.companyTicker;
+  const isGreenTextileDemo = isGreenTextileUser(currentUser);
+  const greenTextileDemoState = isGreenTextileDemo ? getGreenTextileDemoState() : null;
+  const greenTextileDataLoaded = Boolean(greenTextileDemoState?.loaded);
+
+  useEffect(() => {
+    if (window.sessionStorage.getItem('ecofin-jury-dashboard-tour') !== '1') return;
+    window.sessionStorage.removeItem('ecofin-jury-dashboard-tour');
+    setJuryTourActive(true);
+  }, []);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -154,18 +166,18 @@ const Dashboard = () => {
 
   // Şirket profil tespiti
   const myCompany = companies.find(c => c.ticker === ticker);
-  const totalDocs = summary?.total_verified_documents ?? 0;
-  const declarationOk = summary?.declaration_submitted ?? false;
+  const totalDocs = greenTextileDataLoaded ? GREEN_TEXTILE_DEMO.sourceDocuments.length : (summary?.total_verified_documents ?? 0);
+  const declarationOk = greenTextileDataLoaded || (summary?.declaration_submitted ?? false);
   const reportReady = reportReadiness?.report_state === 'current';
   
   // Aktif Blockchain İmzası (Kullanıcı düzenlediyse customHash geçerli olur)
   const defaultHash = reportReadiness?.last_report?.sha256 ?? '';
   const reportHash = customHash || defaultHash;
 
-  const isDataVerified = reportReadiness?.data_state === 'ready';
+  const isDataVerified = greenTextileDataLoaded || reportReadiness?.data_state === 'ready';
 
-  const esgScore = myCompany ? myCompany.score : (isDataVerified ? 6.4 : '--');
-  const riskLevel = myCompany ? myCompany.riskLevel : (isDataVerified ? 'Düşük Risk' : 'Doğrulama Bekliyor');
+  const esgScore = myCompany ? myCompany.score : isGreenTextileDemo ? GREEN_TEXTILE_DEMO.company.score : (isDataVerified ? 6.4 : '--');
+  const riskLevel = myCompany ? myCompany.riskLevel : isGreenTextileDemo ? GREEN_TEXTILE_DEMO.company.riskLevel : (isDataVerified ? 'Düşük Risk' : 'Doğrulama Bekliyor');
   const companyName = currentUser ? currentUser.companyName : 'KOBİ Sürdürülebilirlik Paneli';
 
   const copyHash = () => {
@@ -197,7 +209,9 @@ const Dashboard = () => {
   };
 
   // E, S, G Oranları (Orantılı metrikler)
-  const esgBreakdown = myCompany?.ticker === 'TOASO'
+  const esgBreakdown = isGreenTextileDemo
+    ? GREEN_TEXTILE_DEMO.metrics.esgPillars
+    : myCompany?.ticker === 'TOASO'
     ? { e: 78, s: 86, g: 82 }
     : myCompany?.ticker === 'ASELS'
     ? { e: 72, s: 90, g: 85 }
@@ -208,12 +222,15 @@ const Dashboard = () => {
   // Tarihsel Trend Grafiği
   const areaData = myCompany && myCompany.scoreHistory && myCompany.scoreHistory.length > 0
     ? myCompany.scoreHistory.map(h => ({ name: h.date, score: h.score }))
+    : isGreenTextileDemo
+    ? GREEN_TEXTILE_DEMO.company.scoreHistory.map(h => ({ name: h.date, score: h.score }))
     : [
         { name: 'Oca', score: 5.8 },
         { name: 'Şub', score: 6.0 },
         { name: 'Mar', score: 6.2 },
         { name: 'Nis', score: 6.4 },
       ];
+  const dashboardCredibility = isGreenTextileDemo ? GREEN_TEXTILE_DEMO.credibility : credibility;
 
   // Veri Entegrasyonu sayfasında yüklenen tüm belge türleri ve güncellik durumları
   const integrationDocuments = [
@@ -328,6 +345,21 @@ const Dashboard = () => {
   const pendingDocsCount = pendingDocs.length;
   const allDocsCurrent = pendingDocsCount === 0;
 
+  const dashboardTourSteps = [
+    { target: '[data-jury-dashboard="esg-score"]', title: 'ESG performans özeti', description: 'Şirketin çevresel, sosyal ve yönetişim performansını tek bir puan ve risk seviyesiyle özetler. Yeşil Tekstil için gösterilen değerler sentetik demo verisidir.' },
+    { target: '[data-jury-dashboard="documents"]', title: 'Kanıt ve belge durumu', description: 'Yüklenen kaynakların doğrulanma sayısını ve yenileme ihtiyacını gösterir. Veri entegrasyonundan sonra bu kutu örnek belgelerle güncellenecek.' },
+    { target: '[data-jury-dashboard="declaration"]', title: 'Yönetici beyanı', description: 'TSRS 1 ve TSRS 2 için şirket yönetiminin onayladığı beyanların tamamlanma durumunu izler.' },
+    { target: '[data-jury-dashboard="integrity"]', title: 'Rapor dosya bütünlüğü', description: 'Raporun dosya özeti ve bütünlük kontrolüyle ilgili bilgileri sunar. Bu bölüm bağımsız denetim veya güvence anlamına gelmez.' },
+    { target: '[data-jury-dashboard="reliability"]', title: 'Beyan güvenilirliği', description: 'Çevresel, sosyal ve yönetişim beyanlarının dayandığı kanıtların yeterliliğini ayrı ayrı gösterir.' },
+    { target: '[data-jury-dashboard="report"]', title: 'TSRS raporlama motoru', description: 'Kaynaklar tamamlandığında TSRS rapor taslağına ve analiz akışına buradan geçilir. Şimdi örnek kaynakları birlikte yükleyelim.' },
+  ];
+
+  const continueToDemoIntegration = () => {
+    window.sessionStorage.setItem('ecofin-jury-integration-tour', '1');
+    setJuryTourActive(false);
+    navigate('/integration');
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: 'Inter, system-ui, sans-serif' }}>
       
@@ -340,6 +372,11 @@ const Dashboard = () => {
           <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.5px' }}>
             {companyName}
           </h1>
+          {isGreenTextileDemo && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', marginTop: '7px', padding: '4px 9px', borderRadius: '99px', color: '#087a56', background: '#e5f7ec', fontSize: '10px', fontWeight: 800 }}>
+              <Sparkles size={11} /> SENTETİK JÜRİ DEMOSU
+            </span>
+          )}
         </div>
 
         <button 
@@ -440,10 +477,10 @@ const Dashboard = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* 1. ÜST KISIM: 4 METRİK KARTI (2x2 GRID - KUSURSUZ EŞİT HİZALI) */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             
             {/* Metrik 1: Güncel ESG Skoru */}
-            <div style={{
+            <div data-jury-dashboard="esg-score" style={{
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
               borderRadius: '16px',
@@ -478,7 +515,7 @@ const Dashboard = () => {
             </div>
 
             {/* Metrik 2: Doğrulanan Belgeler (İçinde Buton ve Güncellik İndikatörü Bulunur) */}
-            <div style={{
+            <div data-jury-dashboard="documents" style={{
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
               borderRadius: '16px',
@@ -549,7 +586,7 @@ const Dashboard = () => {
             </div>
 
             {/* Metrik 3: Yönetici Beyanı */}
-            <div style={{
+            <div data-jury-dashboard="declaration" style={{
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
               borderRadius: '16px',
@@ -585,7 +622,7 @@ const Dashboard = () => {
             </div>
 
             {/* Metrik 4: Blockchain İmzası & Pasaport (DÜZENLEME KALEM İKONU & İMZA DOĞRULA BURADA) */}
-            <div style={{
+            <div data-jury-dashboard="integrity" style={{
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
               borderRadius: '16px',
@@ -683,18 +720,18 @@ const Dashboard = () => {
           </div>
 
           {/* 2. ORTA KISIM: VERİ DOĞRULUK DURUMU (E % - S % - G %) - EŞİT HİZALI */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div data-jury-dashboard="reliability" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
               <ShieldCheck size={20} color="#059669" /> ESG Beyan Güvenilirliği
             </div>
             <div style={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.5 }}>
               Şirket beyanları bağımsız dış kanıtlarla karşılaştırılır. Haber sayısı değil; kaynak kalitesi, şirket eşleşmesi, ilişki ve güncellik ağırlıklandırılır.
-              {credibility?.demo && <strong style={{ color: '#B45309' }}> Örnek analiz: {credibility.company_name} — mevcut şirket skorunu etkilemez.</strong>}
+              {dashboardCredibility?.demo && <strong style={{ color: '#B45309' }}> Örnek analiz: {dashboardCredibility.company_name} — mevcut şirket skorunu etkilemez.</strong>}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '16px' }}>
               {['E', 'S', 'G'].map(pillar => (
-                <CredibilityCard key={pillar} pillar={pillar} result={credibility?.pillars?.[pillar]} />
+                <CredibilityCard key={pillar} pillar={pillar} result={dashboardCredibility?.pillars?.[pillar]} />
               ))}
             </div>
 
@@ -820,7 +857,7 @@ const Dashboard = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* SAĞ KART 1: TSRS Raporlama Motoru */}
-          <div style={{
+          <div data-jury-dashboard="report" style={{
             background: '#FFFFFF',
             border: '1px solid #E2E8F0',
             borderRadius: '16px',
@@ -1573,6 +1610,13 @@ const Dashboard = () => {
         )}
       </AnimatePresence>
 
+      {juryTourActive && (
+        <JuryDemoTour
+          steps={dashboardTourSteps}
+          onFinish={continueToDemoIntegration}
+          onClose={() => setJuryTourActive(false)}
+        />
+      )}
     </div>
   );
 };
