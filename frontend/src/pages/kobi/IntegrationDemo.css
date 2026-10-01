@@ -61,10 +61,33 @@
 .green-textile-declaration-continue { width: 100%; margin-top: 14px; }
 
 @media (max-width: 720px) {
+  .integration-workspace { gap: 14px !important; }
+  .integration-main-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 14px !important; }
+  .integration-main-grid > div { min-width: 0; }
+  .integration-connections-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
   .green-textile-import-card { align-items: stretch; flex-direction: column; padding: 17px; }
-  .green-textile-import-button { align-self: flex-start; }
+  .green-textile-import-button { align-self: stretch; min-height: 44px; }
   .green-textile-upload-demo { align-items: stretch; flex-direction: column; }
-  .green-textile-upload-demo .green-textile-import-button { align-self: flex-start; }
+  .green-textile-upload-demo .green-textile-import-button { align-self: stretch; }
   .green-textile-declaration-action { align-items: stretch; flex-direction: column; }
-  .green-textile-declaration-action .green-textile-import-button { align-self: flex-start; }
+  .green-textile-declaration-action .green-textile-import-button { align-self: stretch; }
+  .green-textile-declaration-continue { min-height: 44px; }
+}
+
+@media (max-width: 420px) {
+  .integration-connections-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .green-textile-import-card { padding: 14px; }
+  .green-textile-upload-demo { padding: 13px; }
+  .green-textile-import-title { font-size: 13px; }
+}
+
+.integration-main-grid > div, .integration-workspace .card { min-width: 0; }
+@media (max-width: 900px) {
+  .integration-main-grid { grid-template-columns: minmax(0, 1fr) !important; }
+}
+@media (max-width: 600px) {
+  .integration-document-row { flex-direction: column; align-items: stretch !important; gap: 12px; }
+  .integration-document-row > div:last-child { align-items: flex-start !important; }
+  .integration-document-row button { min-width: 40px; min-height: 40px; align-items: center; justify-content: center; }
+  .green-textile-import-button { white-space: normal !important; padding: 10px 13px !important; }
 }

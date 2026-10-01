@@ -17,7 +17,7 @@ const Topnav = ({ activePortal, setActivePortal, currentUser, setCurrentUser }) 
   const displayCompany = currentUser ? currentUser.companyName : '';
 
   return (
-    <div style={{
+    <div className="portal-topnav" style={{
       height: '80px',
       display: 'flex',
       alignItems: 'center',

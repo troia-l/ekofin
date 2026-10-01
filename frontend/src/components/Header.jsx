@@ -12,7 +12,7 @@ const Header = ({ currentUser, setCurrentUser }) => {
     };
 
     return (
-        <header style={{
+        <header className="public-header" style={{
             borderBottom: '1px solid var(--border-color)',
             background: '#FFFFFF',
             position: 'sticky',

@@ -55,7 +55,7 @@ const Sidebar = ({ activePortal, currentUser }) => {
   };
 
   return (
-    <div style={{
+    <div className="portal-sidebar" style={{
       width: '280px',
       background: 'linear-gradient(180deg, var(--primary-midnight) 0%, #0F172A 100%)',
       color: 'white',
@@ -78,7 +78,7 @@ const Sidebar = ({ activePortal, currentUser }) => {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 16px', position: 'relative' }}>
+      <div className="portal-sidebar-links" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 16px', position: 'relative' }}>
         {links.map((link, i) => {
           const isActive = location.pathname === link.path;
           return (

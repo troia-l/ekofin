@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Lock, Mail, Building2, Landmark, Sparkles, ArrowRight, Leaf, BarChart3, X } from 'lucide-react';
 import './LoginJuryGuide.css';
+import { createPortal } from 'react-dom';
+import useMobileTourLayout from '../hooks/useMobileTourLayout';
 
 const juryWizardFlag = 'ecofin-jury-login-wizard';
 const demoEmail = 'juri@yesiltekstil.example';
@@ -45,6 +47,7 @@ const LoginGuideWaiting = () => (
 const LoginGuideSpotlight = ({ target, step, onClose }) => {
     const cardRef = React.useRef(null);
     const [cardHeight, setCardHeight] = React.useState(0);
+    const mobileStyle = useMobileTourLayout(guideTargets[step], cardRef);
 
     React.useLayoutEffect(() => {
         const card = cardRef.current;
@@ -60,13 +63,18 @@ const LoginGuideSpotlight = ({ target, step, onClose }) => {
     const { top, left, right, bottom, width, height } = target;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    const tipWidth = Math.min(320, viewportWidth - 32);
+    const tipWidth = Math.max(0, Math.min(320, viewportWidth - 32));
     const tipLeft = Math.max(16, Math.min(right - tipWidth, viewportWidth - tipWidth - 16));
-    const placeAbove = step === 'submit' || bottom + 18 + cardHeight > viewportHeight;
-    const tipTop = placeAbove ? Math.max(16, top - cardHeight - 18) : bottom + 18;
+    const spaceAbove = top - 16;
+    const spaceBelow = viewportHeight - bottom - 16;
+    const placeAbove = step === 'submit' || spaceAbove >= cardHeight + 18 || spaceAbove > spaceBelow;
+    const maxTipTop = Math.max(16, viewportHeight - cardHeight - 16);
+    const tipTop = placeAbove
+        ? Math.max(16, Math.min(maxTipTop, top - cardHeight - 18))
+        : Math.max(16, Math.min(maxTipTop, bottom + 18));
     const blocker = { position: 'fixed', zIndex: 1000, background: 'rgba(5, 14, 26, 0.58)', backdropFilter: 'blur(0.6px)', pointerEvents: 'auto' };
 
-    return (
+    return createPortal(
         <motion.div className="jury-login-tour-layer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }} style={{ position: 'fixed', inset: 0, zIndex: 1000, pointerEvents: 'none' }}>
             <div className="jury-login-tour-inset" aria-hidden="true" />
             <motion.div aria-hidden="true" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} style={{ ...blocker, top: 0, left: 0, right: 0, height: Math.max(0, top) }} />
@@ -74,7 +82,7 @@ const LoginGuideSpotlight = ({ target, step, onClose }) => {
             <motion.div aria-hidden="true" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2, delay: 0.03 }} style={{ ...blocker, top, left: 0, width: Math.max(0, left), height }} />
             <motion.div aria-hidden="true" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2, delay: 0.04 }} style={{ ...blocker, top, left: right, right: 0, height }} />
             <motion.div className="jury-login-tour-frame" aria-hidden="true" layout initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 360, damping: 25, delay: 0.08, layout: { type: 'spring', stiffness: 340, damping: 32 } }} style={{ top, left, width, height }} />
-            <motion.section ref={cardRef} className="jury-login-tour-card" layout role="dialog" aria-labelledby="jury-login-tour-title" initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 310, damping: 27, delay: 0.1, layout: { type: 'spring', stiffness: 320, damping: 32 } }} style={{ top: tipTop, left: tipLeft, width: tipWidth }}>
+            <motion.section ref={cardRef} className="jury-login-tour-card" layout role="dialog" aria-labelledby="jury-login-tour-title" initial={{ opacity: 0, y: 12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 310, damping: 27, delay: 0.1, layout: { type: 'spring', stiffness: 320, damping: 32 } }} style={{ top: tipTop, left: tipLeft, width: tipWidth, ...mobileStyle }}>
                 <div className="jury-login-tour-heading">
                     <span><Sparkles size={12} /> Jüri demo · {step === 'profile' ? '2/4' : step === 'email' ? '3/4' : step === 'password' ? '3/4' : '4/4'}</span>
                     <button type="button" onClick={onClose} aria-label="Jüri sihirbazını kapat"><X size={15} /></button>
@@ -84,7 +92,7 @@ const LoginGuideSpotlight = ({ target, step, onClose }) => {
                 <div className="jury-login-tour-progress"><span style={{ width: `${step === 'profile' ? 50 : step === 'email' || step === 'password' ? 72 : 100}%` }} /></div>
                 <button type="button" className="jury-login-tour-dismiss" onClick={onClose}>Sihirbazı kapat</button>
             </motion.section>
-        </motion.div>
+        </motion.div>, document.body
     );
 };
 
@@ -131,7 +139,11 @@ const Login = ({ setCurrentUser }) => {
             return;
         }
         const rect = element.getBoundingClientRect();
-        setGuideTargetRect({ top: rect.top - 12, left: rect.left - 12, right: rect.right + 12, bottom: rect.bottom + 12, width: rect.width + 24, height: rect.height + 24 });
+        const top = Math.max(8, rect.top - 12);
+        const left = Math.max(8, rect.left - 12);
+        const right = Math.max(left, Math.min(window.innerWidth - 8, rect.right + 12));
+        const bottom = Math.max(top, Math.min(window.innerHeight - 8, rect.bottom + 12));
+        setGuideTargetRect({ top, left, right, bottom, width: right - left, height: bottom - top });
     }, [guideStep]);
 
     useLayoutEffect(() => {
@@ -147,7 +159,7 @@ const Login = ({ setCurrentUser }) => {
         window.addEventListener('resize', updateGuideTarget);
         window.addEventListener('scroll', updateGuideTarget, true);
         window.addEventListener('keydown', dismissOnEscape);
-        document.querySelector(guideTargets[guideStep])?.focus({ preventScroll: true });
+        if (guideStep === 'profile' || guideStep === 'submit') document.querySelector(guideTargets[guideStep])?.focus({ preventScroll: true });
         return () => {
             window.removeEventListener('resize', updateGuideTarget);
             window.removeEventListener('scroll', updateGuideTarget, true);
@@ -302,7 +314,7 @@ const Login = ({ setCurrentUser }) => {
     };
 
     return (
-        <div style={{
+        <div className="login-page" style={{
             height: '100vh',
             display: 'flex',
             background: '#FFFFFF',
@@ -475,6 +487,12 @@ const Login = ({ setCurrentUser }) => {
                         padding: 40px;
                         overflow-y: visible;
                     }
+                }
+                @media (max-width: 600px) {
+                    .split-container { min-height: 100dvh; }
+                    .left-pane { display: none; }
+                    .right-pane { width: 100%; min-height: 100dvh; padding: 24px 18px; }
+                    .login-glass-card { width: 100%; max-width: 440px; padding: 24px 20px; }
                 }
             `}</style>
 
@@ -684,6 +702,7 @@ const Login = ({ setCurrentUser }) => {
                                         placeholder={role === 'bank' ? 'banka@ecofin.com' : 'sirket@ecofin.com'} 
                                         value={email}
                                         data-jury-guide-target="email"
+                                        readOnly={juryWizardActive}
                                         onChange={(e) => setEmail(e.target.value)}
                                         required
                                     />
@@ -700,6 +719,7 @@ const Login = ({ setCurrentUser }) => {
                                         placeholder="••••••••" 
                                         value={password}
                                         data-jury-guide-target="password"
+                                        readOnly={juryWizardActive}
                                         onChange={(e) => setPassword(e.target.value)}
                                         required
                                     />

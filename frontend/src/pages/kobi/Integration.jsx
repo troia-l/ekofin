@@ -175,7 +175,7 @@ const Integration = () => {
         setJuryTourActive(true);
         return;
       }
-      navigate('/tsrs-report', { state: { triggerDemoGenerate: true } });
+      continueToTsrsReport();
       return;
     }
     navigate('/tsrs-report', { state: { triggerGenerate: true } });
@@ -448,17 +448,24 @@ const Integration = () => {
     ...d, status: getDocStatus(d), date: getDocDate(d),
   }));
 
-  const continueToSimulator = () => {
-    window.sessionStorage.setItem('ecofin-jury-simulator-tour', '1');
-    navigate('/simulator');
+  const continueToTsrsReport = () => {
+    if (isGreenTextileDemo) {
+      const saved = getGreenTextileDemoState();
+      const nextState = { ...saved, tsrsReportGenerated: false, tsrsReportCompletedAt: null };
+      saveGreenTextileDemoState(nextState);
+      setGreenTextileDemoState(nextState);
+      window.sessionStorage.setItem('ecofin-jury-tsrs-tour', '1');
+      window.sessionStorage.setItem('ecofin-jury-tsrs-return-to-groi', '1');
+    }
+    navigate('/tsrs-report');
   };
 
   const integrationTourSteps = [
     juryTourStage === 'upload'
-      ? { target: '[data-jury-integration="demo-load-button"]', title: 'Sentetik belge paketini yükleyin', description: 'Yeşil Tekstil için hazırlanmış kaynak paketi dosya dosya işlenecek. Ardından sağdaki beyan belgelerini tek bir adımla dolduracağız.', actionLabel: 'Belge paketini yükle', onAction: startGreenTextileDemoImport, placement: 'right' }
+      ? { target: '[data-jury-integration="demo-load-button"]', title: 'Sentetik belge paketini yükleyin', description: 'Yeşil Tekstil için hazırlanmış kaynak paketi dosya dosya işlenecek. Ardından beyan belgelerini tek bir adımla dolduracağız.', actionLabel: 'Belge paketini yükle', onAction: startGreenTextileDemoImport, placement: 'right' }
       : juryTourStage === 'declarations'
-        ? { target: '[data-jury-integration="declarations-button"]', title: 'Yasal beyanları doldurun', description: 'Sağdaki beyan listesi sırayla güncellenecek. SGK, kapasite, enerji ve yönetici beyanı durumlarını tek tıklamayla işleyip doğrulayacağız.', actionLabel: 'Beyanları sırayla doldur', onAction: startGreenTextileDeclarationFill, placement: 'left' }
-        : { target: '[data-jury-integration="declarations-continue"]', title: 'Veri ve beyanlar hazır', description: 'Kaynak dosyalar ve yönetici beyanı işlendi. Şimdi bu girdilerle g-ROI yatırım geri dönüş ekranına geçin.', actionLabel: 'g-ROI sonucuna geç', onAction: continueToSimulator, placement: 'left' },
+        ? { target: '[data-jury-integration="declarations-button"]', title: 'Yasal beyanları doldurun', description: 'Beyan listesi sırayla güncellenecek. SGK, kapasite, enerji ve yönetici beyanı durumlarını tek tıklamayla işleyip doğrulayacağız.', actionLabel: 'Beyanları sırayla doldur', onAction: startGreenTextileDeclarationFill, placement: 'left' }
+        : { target: '[data-jury-integration="declarations-continue"]', title: 'Veri ve beyanlar hazır', description: 'Kaynak dosyalar ile yönetici beyanı tamamlandı. Önce bu girdilerle sentetik TSRS raporunu oluşturacağız; ardından g-ROI yatırım geri dönüşünü inceleyeceğiz.', actionLabel: 'TSRS raporunu oluştur', onAction: continueToTsrsReport, placement: 'left' },
   ];
 
   if (showDeclarationDashboard) {
@@ -473,7 +480,7 @@ const Integration = () => {
   }
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="integration-workspace" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
       <motion.div variants={itemVariants} style={{ marginBottom: '2px' }}>
         <div style={{ fontSize: '13px', fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '3px' }}>
           Veri & Entegrasyon
@@ -482,7 +489,7 @@ const Integration = () => {
         <p className="page-subtitle">ERP sistemlerinizi, faturalarınızı ve yasal belgelerinizi 256-bit uçtan uca şifrelemeyle senkronize edin.</p>
       </motion.div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
+      <div className="integration-main-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px' }}>
         
         {/* Left Column: Connections & Uploads */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -492,7 +499,7 @@ const Integration = () => {
             <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--primary-midnight)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Link2 size={18} color="var(--accent-emerald)" /> Canlı Sistem Bağlantıları (API)
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+            <div className="integration-connections-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
               
               <motion.div
                 whileHover={{ scale: 1.03 }}
@@ -574,7 +581,7 @@ const Integration = () => {
                   ) : (
                     <div className="green-textile-upload-demo-copy green-textile-upload-demo-complete">
                       <div className="green-textile-upload-demo-heading"><CheckCircle2 size={15} /> Kaynak dosyalar yüklendi</div>
-                      <p>{greenTextileDemoState?.loaded ? 'Yasal beyanlar tamamlandı; g-ROI adımına hazırsınız.' : 'Şimdi sağdaki Yasal Beyanlar bölümünü tek tıklamayla doldurun.'}</p>
+                      <p>{greenTextileDemoState?.loaded ? 'Yasal beyanlar tamamlandı; önce TSRS raporunu oluşturun, ardından g-ROI sonucuna geçin.' : 'Şimdi sağdaki Yasal Beyanlar bölümünü tek tıklamayla doldurun.'}</p>
                     </div>
                   )}
                   {!greenTextileDemoState?.documentsImported && (
@@ -775,7 +782,7 @@ const Integration = () => {
                 <motion.div 
                   key={idx}
                   whileHover={{ scale: 1.01 }}
-                  className="flex justify-between items-center" 
+                  className="integration-document-row flex justify-between items-center"
                   style={{ 
                     padding: '12px 16px', 
                     background: (doc.status === 'verified' || doc.status === 'verified_decl') ? 'rgba(16, 185, 129, 0.03)' : 'var(--bg-main)', 
@@ -896,9 +903,9 @@ const Integration = () => {
                 type="button"
                 data-jury-integration="declarations-continue"
                 className="green-textile-import-button green-textile-declaration-continue"
-                onClick={continueToSimulator}
+                onClick={continueToTsrsReport}
               >
-                <ArrowRight size={15} /> g-ROI sonucuna geç
+                <ArrowRight size={15} /> TSRS raporunu oluştur
               </button>
             )}
           </motion.div>

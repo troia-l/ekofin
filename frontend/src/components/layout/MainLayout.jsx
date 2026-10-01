@@ -1,6 +1,7 @@
 import React from 'react';
 import Sidebar from './Sidebar';
 import Topnav from './Topnav';
+import AssistantChat from '../AssistantChat';
 
 const MainLayout = ({ children, activePortal, setActivePortal, currentUser, setCurrentUser }) => {
   return (
@@ -17,6 +18,7 @@ const MainLayout = ({ children, activePortal, setActivePortal, currentUser, setC
           {children}
         </div>
       </div>
+      <AssistantChat key={`${currentUser?.role}:${currentUser?.companyTicker}`} currentUser={currentUser} />
     </div>
   );
 };

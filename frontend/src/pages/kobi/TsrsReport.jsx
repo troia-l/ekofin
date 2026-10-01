@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import JuryDemoTour from '../../components/JuryDemoTour';
 import { 
   Download, QrCode, CheckCircle, FileText, ShieldCheck, 
   Copy, Check, RefreshCw, Sparkles, Building, Globe, 
   Calendar, Cpu, Award, ChevronDown, ChevronUp, AlertCircle,
   ExternalLink, Lock, CheckCircle2, Link2, Leaf, Activity, BarChart2,
-  Info, X, Database, Sliders, Layers
+  Info, X, Database, Sliders, Layers, ArrowRight
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { GREEN_TEXTILE_DEMO, getGreenTextileDemoState, isGreenTextileUser } from '../../demo/greenTextileDemo';
+import { GREEN_TEXTILE_DEMO, getGreenTextileDemoState, isGreenTextileUser, saveGreenTextileDemoState } from '../../demo/greenTextileDemo';
+import './TsrsReport.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -26,8 +28,12 @@ const itemVariants = {
 
 const TsrsReport = () => {
   const { currentUser } = useOutletContext() || {};
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryTicker = searchParams.get('ticker');
+  const initialReportType = ['ifrs-s1', 'ifrs-s2'].includes(searchParams.get('report_type'))
+    ? searchParams.get('report_type')
+    : 'tsrs';
+  const [selectedReportType, setSelectedReportType] = useState(initialReportType);
   const [selectedTicker, setSelectedTicker] = useState((currentUser?.companyTicker || queryTicker || 'ASELS').toUpperCase());
   const [reportingYear, setReportingYear] = useState(new Date().getFullYear() - 1);
   
@@ -38,6 +44,13 @@ const TsrsReport = () => {
   }, [currentUser?.companyTicker]);
   
   const ticker = selectedTicker;
+  const selectReportType = (type) => {
+    setSelectedReportType(type);
+    const nextParams = new URLSearchParams(searchParams);
+    if (type === 'tsrs') nextParams.delete('report_type');
+    else nextParams.set('report_type', type);
+    setSearchParams(nextParams, { replace: true });
+  };
   const canShowDemoReport = selectedTicker === GREEN_TEXTILE_DEMO.company.ticker
     && isGreenTextileUser(currentUser)
     && getGreenTextileDemoState().loaded;
@@ -86,6 +99,9 @@ const TsrsReport = () => {
   // Yapay zeka pipeline durumları
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDemoSimulation, setIsDemoSimulation] = useState(false);
+  const [demoReportGenerated, setDemoReportGenerated] = useState(() => isGreenTextileUser(currentUser) && getGreenTextileDemoState().tsrsReportGenerated);
+  const [juryTourActive, setJuryTourActive] = useState(false);
+  const [scrollToGroiAction, setScrollToGroiAction] = useState(false);
   const [reportStatus, setReportStatus] = useState({ status: 'idle', progress: 0, message: '' });
   const [terminalLogs, setTerminalLogs] = useState([]);
   
@@ -105,10 +121,12 @@ const TsrsReport = () => {
   useEffect(() => {
     if (location.state?.triggerDemoGenerate) {
       navigate(location.pathname, { replace: true, state: {} });
+      if (selectedReportType !== 'tsrs') selectReportType('tsrs');
       handleDemoReport();
     } else if (location.state?.triggerGenerate) {
       // Clear location state immediately so it doesn't run again on page refresh
       navigate(location.pathname, { replace: true, state: {} });
+      if (selectedReportType !== 'tsrs') selectReportType('tsrs');
       if (isGreenTextileUser(currentUser)) handleDemoReport();
       else handleGenerateReport();
     }
@@ -117,6 +135,48 @@ const TsrsReport = () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, [location.state]);
+
+  useEffect(() => {
+    if (!isGreenTextileUser(currentUser) || window.sessionStorage.getItem('ecofin-jury-tsrs-tour') !== '1') return;
+    window.sessionStorage.removeItem('ecofin-jury-tsrs-tour');
+    setJuryTourActive(true);
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!scrollToGroiAction) return undefined;
+    let frame;
+    const cancelScroll = () => {
+      window.clearTimeout(timer);
+      window.cancelAnimationFrame(frame);
+    };
+    const timer = window.setTimeout(() => {
+      const target = document.getElementById('green-textile-groi-next');
+      if (!target) return;
+      const scroller = target.closest('.page-content') || document.scrollingElement;
+      const start = scroller.scrollTop;
+      const end = scroller.scrollHeight - scroller.clientHeight;
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        scroller.scrollTop = end;
+        return;
+      }
+      const startedAt = performance.now();
+      const animateScroll = (now) => {
+        const progress = Math.min(1, (now - startedAt) / 2400);
+        const eased = progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
+        scroller.scrollTop = start + (end - start) * eased;
+        if (progress < 1) frame = window.requestAnimationFrame(animateScroll);
+      };
+      frame = window.requestAnimationFrame(animateScroll);
+    }, 300);
+    window.addEventListener('wheel', cancelScroll, { passive: true });
+    window.addEventListener('touchstart', cancelScroll, { passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      cancelScroll();
+      window.removeEventListener('wheel', cancelScroll);
+      window.removeEventListener('touchstart', cancelScroll);
+    };
+  }, [scrollToGroiAction]);
 
   // Terminal loglarını otomatik olarak en alta kaydır
   useEffect(() => {
@@ -141,13 +201,15 @@ const TsrsReport = () => {
   const fetchLatestReport = async (targetTicker) => {
     try {
       const currentTicker = targetTicker || selectedTicker;
-      if (currentTicker === GREEN_TEXTILE_DEMO.company.ticker && isGreenTextileUser(currentUser) && getGreenTextileDemoState().loaded) {
+      if (currentTicker === GREEN_TEXTILE_DEMO.company.ticker && isGreenTextileUser(currentUser)) {
         const demoState = getGreenTextileDemoState();
-        setIsDemoReport(true);
-        setReportData(GREEN_TEXTILE_DEMO.reportMarkdown);
+        const hasGeneratedDemoReport = Boolean(demoState.loaded && demoState.tsrsReportGenerated);
+        setDemoReportGenerated(hasGeneratedDemoReport);
+        setIsDemoReport(hasGeneratedDemoReport);
+        setReportData(hasGeneratedDemoReport ? GREEN_TEXTILE_DEMO.reportMarkdown : null);
         setReportHash('');
         setReportVersionId(null);
-        setReportGeneratedAt(demoState.completedAt || new Date().toISOString());
+        setReportGeneratedAt(hasGeneratedDemoReport ? (demoState.tsrsReportCompletedAt || null) : null);
         setReportIsCurrent(false);
         return;
       }
@@ -271,6 +333,7 @@ const TsrsReport = () => {
         [68, 'TSRS 1 ve TSRS 2 örnek açıklamaları oluşturuluyor...'],
         [88, 'Sentetik gösterge tablosu ve rapor önizlemesi hazırlanıyor...'],
       ];
+      setScrollToGroiAction(false);
       setIsDemoSimulation(true);
       setIsGenerating(true);
       setActiveTab('summary');
@@ -287,15 +350,38 @@ const TsrsReport = () => {
       setReportGeneratedAt(new Date().toISOString());
       setReportIsCurrent(false);
       setIsDemoReport(true);
+      setDemoReportGenerated(true);
+      saveGreenTextileDemoState({ ...getGreenTextileDemoState(), tsrsReportGenerated: true, tsrsReportCompletedAt: new Date().toISOString() });
       setReportStatus({ status: 'completed', progress: 100, message: 'Sentetik demo raporu hazır.', is_demo: true });
       setTerminalLogs((current) => [...current, `[${new Date().toLocaleTimeString()}] [BİLGİ] İçerik sentetik örnek veridir; gerçek şirket raporu veya güvence beyanı değildir.`]);
-      setIsGenerating(false);
-      await wait(250);
-      document.getElementById('tsrs-report-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
 
   };
+
+  const finishDemoGeneration = () => {
+    setIsGenerating(false);
+    const isReturningToGroi = isGreenTextileUser(currentUser)
+      && window.sessionStorage.getItem('ecofin-jury-tsrs-return-to-groi') === '1';
+    if (!isReturningToGroi) {
+      window.setTimeout(() => document.getElementById('tsrs-report-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+      return;
+    }
+    setScrollToGroiAction(true);
+  };
+
+  const tsrsDemoTourSteps = [
+    {
+      target: '[data-jury-tsrs="generate"]',
+      title: 'TSRS raporunu oluşturun',
+      description: 'Kaynaklar ve yönetici beyanı hazır. Bu düğmeye basınca raporun adım adım nasıl derlendiğini görecek, tamamlayınca raporun altındaki g-ROI hesapla düğmesiyle devam edeceğiz.',
+      actionLabel: 'TSRS raporunu oluştur',
+      onAction: () => {
+        setJuryTourActive(false);
+        handleDemoReport();
+      },
+    },
+  ];
 
   const fetchReadiness = async (targetTicker) => {
     if (!targetTicker) return;
@@ -390,44 +476,107 @@ const TsrsReport = () => {
   const tabs = [{ id: 'summary', name: 'Yayımlanmış Rapor' }];
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+    <motion.main className="report-workspace" variants={containerVariants} initial="hidden" animate="show">
       
       {/* Header & Main Actions */}
-      <motion.div variants={itemVariants} className="flex justify-between items-center" style={{ marginBottom: '2px' }}>
+      <motion.header variants={itemVariants} className="report-page-heading">
         <div>
-          <div style={{ fontSize: '13px', fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '3px' }}>
-            Sürdürülebilirlik Beyanı
+          <div className="report-page-eyebrow">
+            <span /> EcoFin · Raporlama Merkezi
           </div>
-          <h1 className="page-title">TSRS Raporlama ve Yeşil Kredi Pasaportu</h1>
-          <p className="page-subtitle">
-            Yüklenen kurumsal kaynaklardan ve yasal beyanlardan derlenen resmî TSRS sürdürülebilirlik raporu.
-          </p>
+          <h1>Sürdürülebilirlik raporlarınız</h1>
+          <p>Raporlama standardınızı seçin, şirket verilerinizi gözden geçirin ve raporunuzu yönetin.</p>
         </div>
-        
-        <div className="flex items-center gap-4">
-          {/* PDF Viewer Button */}
-          <motion.button 
+        <div className="report-heading-actions">
+          {selectedReportType === 'tsrs' && reportVersionId && <motion.button
             whileHover={{ scale: 1.02 }} 
             whileTap={{ scale: 0.98 }} 
-            className="btn-primary" 
+            className="report-pdf-button"
             onClick={handleOpenPdf}
-            disabled={!reportVersionId}
-            style={{ 
-              padding: '12px 24px', 
-              fontSize: '15px',
-              minWidth: '190px',
-              justifyContent: 'center'
-            }}
           >
-            <span className="flex items-center gap-2">
-              <FileText size={18} /> PDF Raporu Görüntüle
-            </span>
-          </motion.button>
+            <FileText size={17} /> PDF önizleme
+          </motion.button>}
         </div>
-      </motion.div>
+      </motion.header>
 
+      <motion.section variants={itemVariants} className="tsrs-type-selector" aria-labelledby="report-type-title">
+        <div className="tsrs-type-selector__heading">
+          <div>
+            <span className="tsrs-type-selector__eyebrow">RAPORLAMA MERKEZİ</span>
+            <h2 id="report-type-title">Rapor türünü seçin</h2>
+            <p>İhtiyacınıza uygun standardı seçerek rapor alanını açın.</p>
+          </div>
+          <span className="tsrs-type-selector__company">{currentUser?.companyName || ticker}</span>
+        </div>
+        <div className="tsrs-type-grid">
+          <article className={`tsrs-type-card tsrs-type-card--tsrs ${selectedReportType === 'tsrs' ? 'is-selected' : ''}`}>
+            <div className="tsrs-type-card__topline">
+              <span className="tsrs-type-card__icon"><Leaf size={19} /></span>
+              {selectedReportType === 'tsrs' && <span className="tsrs-type-card__badge">Seçili</span>}
+            </div>
+            <div className="tsrs-type-card__code">TSRS</div>
+            <h3>Türkiye Sürdürülebilirlik Raporlama Standartları</h3>
+            <p>Kurumsal kaynaklarınızla TSRS 1 ve TSRS 2 kapsamındaki raporunuzu oluşturun ve önceki raporlarınızı görüntüleyin.</p>
+            <button type="button" className="tsrs-type-card__action" onClick={() => selectReportType('tsrs')}>
+              {selectedReportType === 'tsrs' ? 'TSRS rapor alanı açık' : 'TSRS raporlarına git'}
+              <span aria-hidden="true">→</span>
+            </button>
+          </article>
+
+          <article className={`tsrs-type-card tsrs-type-card--ifrs ${selectedReportType === 'ifrs-s1' ? 'is-selected' : ''}`}>
+            <div className="tsrs-type-card__topline">
+              <span className="tsrs-type-card__icon"><Globe size={19} /></span>
+              {selectedReportType === 'ifrs-s1' && <span className="tsrs-type-card__badge">Seçili</span>}
+            </div>
+            <div className="tsrs-type-card__code">IFRS S1</div>
+            <h3>Sürdürülebilirlikle ilgili finansal açıklamalar</h3>
+            <p>Genel amaçlı finansal rapor kullanıcıları için sürdürülebilirlikle ilgili risk ve fırsat açıklamaları.</p>
+            <button type="button" className="tsrs-type-card__action" onClick={() => selectReportType('ifrs-s1')}>
+              Rapor oluştur <span aria-hidden="true">→</span>
+            </button>
+          </article>
+
+          <article className={`tsrs-type-card tsrs-type-card--ifrs ${selectedReportType === 'ifrs-s2' ? 'is-selected' : ''}`}>
+            <div className="tsrs-type-card__topline">
+              <span className="tsrs-type-card__icon"><Activity size={19} /></span>
+              {selectedReportType === 'ifrs-s2' && <span className="tsrs-type-card__badge">Seçili</span>}
+            </div>
+            <div className="tsrs-type-card__code">IFRS S2</div>
+            <h3>İklimle ilgili açıklamalar</h3>
+            <p>İklim kaynaklı riskler, fırsatlar, yönetişim, strateji ve metriklere odaklanan raporlama standardı.</p>
+            <button type="button" className="tsrs-type-card__action" onClick={() => selectReportType('ifrs-s2')}>
+              Rapor oluştur <span aria-hidden="true">→</span>
+            </button>
+          </article>
+        </div>
+      </motion.section>
+
+      {selectedReportType === 'tsrs' && isGreenTextileUser(currentUser) && !demoReportGenerated ? (
+        <motion.section
+          variants={itemVariants}
+          className="green-textile-tsrs-empty"
+          aria-labelledby="green-textile-tsrs-empty-title"
+        >
+          <div className="green-textile-tsrs-empty__icon"><FileText size={23} /></div>
+          <span className="green-textile-tsrs-empty__eyebrow">YEŞİL TEKSTİL · JÜRİ DEMOSU</span>
+          <h2 id="green-textile-tsrs-empty-title">TSRS raporu henüz oluşturulmadı</h2>
+          <p>
+            Sentetik kaynaklar ve yönetici beyanları hazır. Raporu başlattığınızda her analiz adımını görecek, işlem bitince raporu inceleyip g-ROI hesapla düğmesiyle devam edebilirsiniz.
+          </p>
+          <button
+            type="button"
+            className="green-textile-tsrs-empty__action"
+            data-jury-tsrs="generate"
+            disabled={!canShowDemoReport || isGenerating}
+            onClick={handleDemoReport}
+          >
+            <Sparkles size={16} /> {canShowDemoReport ? 'TSRS raporunu oluştur' : 'Önce demo belgelerini yükleyin'}
+          </button>
+        </motion.section>
+      ) : selectedReportType === 'tsrs' ? <>
       {/* Document Quick Bar (Cards moved to Ana Sayfa Cockpit) */}
-      <motion.div 
+      <motion.div
+        className="report-period-toolbar"
         variants={itemVariants}
         style={{
           background: '#FFFFFF',
@@ -443,7 +592,7 @@ const TsrsReport = () => {
           boxShadow: '0 2px 10px rgba(15, 23, 42, 0.03)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div className="report-period-toolbar__meta" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <FileText size={19} color="#059669" />
           </div>
@@ -476,7 +625,7 @@ const TsrsReport = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="report-period-toolbar__actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {isGreenTextileUser(currentUser) && (
             <button
               onClick={handleDemoReport}
@@ -541,7 +690,7 @@ const TsrsReport = () => {
       </motion.div>
 
       {/* Main Full-Width Report Preview Section (Natural Height - No Inner Scroll) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+      <div className="report-preview-stack" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
         {/* Navigation Tabs */}
         <motion.div variants={itemVariants} className="flex gap-2" style={{ background: 'rgba(0,0,0,0.03)', padding: '6px', borderRadius: '14px', width: 'fit-content' }}>
           {tabs.map((tab) => (
@@ -584,7 +733,7 @@ const TsrsReport = () => {
         {/* Natural Height Sürdürülebilirlik Beyanı Document Card (Expands naturally downwards) */}
         <motion.div 
           variants={itemVariants} 
-          className="card" 
+          className="card report-document-frame"
           id="tsrs-report-preview"
           style={{ 
             background: '#FFFFFF', 
@@ -598,7 +747,7 @@ const TsrsReport = () => {
         >
           
           {/* Document Header Mockup */}
-          <div className="flex justify-between items-end" style={{ borderBottom: '2px solid var(--border-color)', paddingBottom: '24px', marginBottom: '32px' }}>
+          <div className="report-document-heading flex justify-between items-end" style={{ borderBottom: '2px solid var(--border-color)', paddingBottom: '24px', marginBottom: '32px' }}>
             <div>
               <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--accent-emerald)', letterSpacing: '2.5px', marginBottom: '8px', textTransform: 'uppercase' }}>Rapor Önizleme</div>
               <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--primary-midnight)', letterSpacing: '-0.5px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
@@ -869,6 +1018,47 @@ const TsrsReport = () => {
 
         </motion.div>
       </div>
+      </> : (
+        <motion.section
+          key={selectedReportType}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="ifrs-empty-state report-ifrs-workspace"
+          aria-live="polite"
+        >
+          <div className="ifrs-empty-state__icon"><FileText size={24} /></div>
+          <span className="ifrs-empty-state__eyebrow">{selectedReportType === 'ifrs-s1' ? 'IFRS S1' : 'IFRS S2'} RAPOR ALANI</span>
+          <h2>{selectedReportType === 'ifrs-s1' ? 'IFRS S1 raporunuzu oluşturmaya başlayın' : 'IFRS S2 raporunuzu oluşturmaya başlayın'}</h2>
+          <p>
+            {selectedReportType === 'ifrs-s1'
+              ? 'Sürdürülebilirlikle ilgili risk ve fırsatları, şirketinizin finansal görünümüyle birlikte raporlayın.'
+              : 'İklim kaynaklı risk, fırsat, hedef ve metrikleri şirketinizin raporlama dönemine göre bir araya getirin.'}
+          </p>
+          <div className="ifrs-empty-state__note">
+            <Info size={16} /> Rapor kapsamını belirleyin ve şirketinizin ilgili dönem verilerini hazırlayın.
+          </div>
+          <button type="button" className="ifrs-empty-state__back" onClick={() => selectReportType('tsrs')}>
+            TSRS rapor alanına dön
+          </button>
+        </motion.section>
+      )}
+
+      {selectedReportType === 'tsrs' && isGreenTextileUser(currentUser) && demoReportGenerated && (
+        <section id="green-textile-groi-next" className="green-textile-groi-next" aria-labelledby="groi-next-title">
+          <div>
+            <span className="green-textile-tsrs-empty__eyebrow">SONRAKİ ADIM · FİNANSMAN</span>
+            <h2 id="groi-next-title">TSRS raporunuz hazır</h2>
+            <p>Şimdi bu verilerle yatırımın geri dönüşünü ve yeşil kredi senaryosunu inceleyin.</p>
+          </div>
+          <button type="button" onClick={() => {
+            window.sessionStorage.removeItem('ecofin-jury-tsrs-return-to-groi');
+            window.sessionStorage.setItem('ecofin-jury-simulator-tour', '1');
+            navigate('/simulator');
+          }}>
+            <Activity size={18} /> g-ROI hesapla <ArrowRight size={17} />
+          </button>
+        </section>
+      )}
 
       {/* Yapay Zeka Model Kartı Detay Modalı (Açık Tema • Google Model Cards Standardı) */}
       <AnimatePresence>
@@ -1212,7 +1402,7 @@ const TsrsReport = () => {
       {/* Yapay Zeka TSRS Raporlama ve Analiz Motoru Overlay Ekranı (Kurumsal Açık Tema) */}
       <AnimatePresence>
         {isGenerating && (
-          <motion.div 
+          <motion.div className="tsrs-generation-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1232,6 +1422,7 @@ const TsrsReport = () => {
             }}
           >
             <motion.div 
+              className="tsrs-generation-window"
               initial={{ scale: 0.96, y: 15, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.96, y: 15, opacity: 0 }}
@@ -1251,7 +1442,7 @@ const TsrsReport = () => {
               }}
             >
               {/* Overlay Header */}
-              <div style={{ padding: '24px 32px', borderBottom: '1px solid rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="tsrs-generation-header" style={{ padding: '24px 32px', borderBottom: '1px solid rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{ 
                     width: '10px', 
@@ -1261,7 +1452,7 @@ const TsrsReport = () => {
                     boxShadow: reportStatus.status === 'error' ? '0 0 8px rgba(239, 68, 68, 0.5)' : '0 0 8px rgba(16, 185, 129, 0.5)', 
                     animation: reportStatus.status === 'generating' ? 'pulse 2s infinite' : 'none' 
                   }} />
-                  <span style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '0.5px', color: 'var(--primary-midnight)', textTransform: 'uppercase' }}>
+                  <span className="tsrs-generation-title" style={{ fontSize: '15px', fontWeight: 800, letterSpacing: '0.5px', color: 'var(--primary-midnight)', textTransform: 'uppercase' }}>
                     {isDemoSimulation ? 'Demo TSRS Rapor Derleme Simülasyonu' : 'Yapay Zeka TSRS Analiz ve Rapor Motoru'}
                   </span>
                 </div>
@@ -1291,10 +1482,10 @@ const TsrsReport = () => {
               </div>
 
               {/* Main Body */}
-              <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', flex: 1, overflow: 'hidden' }}>
+              <div className="tsrs-generation-body" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', flex: 1, overflow: 'hidden' }}>
                 
                 {/* Left side: Pipeline steps */}
-                <div style={{ padding: '32px', background: '#F8FAFC', borderRight: '1px solid rgba(0,0,0,0.06)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div className="tsrs-generation-steps" style={{ padding: '32px', background: '#F8FAFC', borderRight: '1px solid rgba(0,0,0,0.06)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                   <h4 style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '1px', textTransform: 'uppercase' }}>İŞLEM ADIMLARI</h4>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -1348,7 +1539,7 @@ const TsrsReport = () => {
                 </div>
 
                 {/* Right side: Executive Analysis Panel */}
-                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '24px', flex: 1, background: '#FFFFFF' }}>
+                <div className="tsrs-generation-panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '24px', flex: 1, background: '#FFFFFF' }}>
                   
                   {/* Executive Audit Dashboard */}
                   <div style={{ 
@@ -1602,8 +1793,8 @@ const TsrsReport = () => {
                   </div>
 
                   {/* Progress Bar & Footer Controls */}
-                  <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="tsrs-generation-footer" style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '20px' }}>
+                    <div className="tsrs-generation-status" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 500 }}>
                         {reportStatus.status === 'generating' ? (
                           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1671,7 +1862,7 @@ const TsrsReport = () => {
                       
                       {reportStatus.status === 'completed' && (
                         <button 
-                          onClick={() => setIsGenerating(false)} 
+                          onClick={finishDemoGeneration}
                           className="btn-primary" 
                           style={{ 
                             padding: '10px 24px', 
@@ -1680,7 +1871,9 @@ const TsrsReport = () => {
                             cursor: 'pointer'
                           }}
                         >
-                          Tamamlandı! Raporu İncele
+                          {isGreenTextileUser(currentUser) && window.sessionStorage.getItem('ecofin-jury-tsrs-return-to-groi') === '1'
+                            ? 'Bitir'
+                            : 'Tamamlandı! Raporu İncele'}
                         </button>
                       )}
 
@@ -1785,7 +1978,14 @@ const TsrsReport = () => {
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+      {juryTourActive && isGreenTextileUser(currentUser) && (
+        <JuryDemoTour
+          steps={tsrsDemoTourSteps}
+          onFinish={() => setJuryTourActive(false)}
+          onClose={() => setJuryTourActive(false)}
+        />
+      )}
+    </motion.main>
   );
 };
 

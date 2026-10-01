@@ -24,6 +24,7 @@ from routers.esg import router as esg_router
 from routers.finance import router as finance_router
 from routers.audits import router as audits_router
 from routers.applications import router as applications_router
+from routers.assistant import router as assistant_router
 
 
 # ─── FastAPI Uygulaması ──────────────────────────────────────────────────────
@@ -68,6 +69,7 @@ app.include_router(esg_router)
 app.include_router(finance_router)
 app.include_router(audits_router)
 app.include_router(applications_router)
+app.include_router(assistant_router)
 
 
 # ─── Kök Endpoint ───────────────────────────────────────────────────────────

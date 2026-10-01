@@ -77,6 +77,9 @@
   background: linear-gradient(145deg, #132b32, #0e202a);
   box-shadow: 0 20px 55px rgba(0, 0, 0, 0.36);
   font-family: Inter, sans-serif;
+  max-height: min(400px, calc(100dvh - 32px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .jury-login-tour-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
@@ -98,8 +101,40 @@
   to { transform: scaleX(1); }
 }
 
+@media (max-width: 540px) {
+  .jury-login-tour-inset { inset: max(7px, env(safe-area-inset-top)) max(7px, env(safe-area-inset-right)) max(7px, env(safe-area-inset-bottom)) max(7px, env(safe-area-inset-left)); border-radius: 14px; }
+  .jury-login-tour-card { padding: 13px 14px 11px; border-radius: 13px; max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  .jury-login-tour-card > strong { font-size: 12px; }
+  .jury-login-tour-card > p { font-size: 10px; line-height: 1.55; }
+  .jury-login-tour-dismiss { min-height: 36px; font-size: 9px; }
+  .jury-login-waiting { top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); width: calc(100vw - 20px - env(safe-area-inset-left) - env(safe-area-inset-right)); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .jury-login-tour-frame { animation: none; }
   .jury-login-tour-progress span { transition: none; }
   .jury-login-waiting-progress span { animation-duration: 0.01ms; }
 }
+
+.jury-login-tour-card { box-sizing: border-box; pointer-events: auto; }
+@media (max-width: 760px), (max-height: 500px) {
+  .jury-login-tour-heading button { min-width: 40px; min-height: 40px; }
+  .jury-login-tour-card > strong { font-size: 15px; }
+  .jury-login-tour-card > p { font-size: 12px; }
+  .jury-login-tour-heading span, .jury-login-tour-dismiss { font-size: 11px; }
+  .jury-login-tour-dismiss { min-height: 40px; }
+  .jury-login-waiting-progress span { animation-duration: 833ms; }
+}
+@media (max-width: 600px) {
+  .jury-login-form .custom-input { font-size: 16px; }
+}
+
+@media (max-width: 900px) {
+  .login-page { height: 100dvh !important; overflow-y: auto !important; display: block !important; }
+  .login-page .split-container { height: auto; min-height: 100dvh; overflow: visible; }
+  .login-page .left-pane { display: none; }
+  .login-page .right-pane { flex: none; min-height: 100dvh; width: 100%; overflow: visible; padding: 24px 16px; }
+  .login-page .login-glass-card { padding: 22px 18px; max-width: 440px; }
+}
+
+.jury-login-form > button { min-height: 44px; }

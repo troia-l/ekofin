@@ -3,6 +3,7 @@ import { useOutletContext, useNavigate, useSearchParams } from 'react-router-dom
 import { motion, AnimatePresence } from 'framer-motion';
 import JuryDemoTour from '../../components/JuryDemoTour';
 import { GREEN_TEXTILE_DEMO, getGreenTextileDemoState, isGreenTextileUser } from '../../demo/greenTextileDemo';
+import './SimulatorWizard.css';
 import {
   Leaf, Car, ArrowRight, TrendingUp, Sparkles, TrendingDown, Target,
   Zap, Clock, AlertCircle, RefreshCw, Info, Shield, Wallet, FileText, CheckCircle2, ChevronRight, ChevronLeft,
@@ -214,11 +215,10 @@ const Simulator = () => {
     {
       target: '[data-jury-simulator="groi-detail"]',
       title: 'Yatırımın geri dönüşünü görün',
-      description: 'Bu kırılımda tahmini yıllık tasarruf, emisyon farkı ve g-ROI geri dönüş süresi birlikte sunulur. Ardından hazır TSRS demo raporunun oluşturulma akışına geçeceğiz.',
-      actionLabel: 'TSRS demo raporuna geç',
+      description: 'Bu kırılımda tahmini yıllık tasarruf, emisyon farkı ve g-ROI geri dönüş süresi birlikte sunulur. TSRS raporunu oluşturduktan sonra demo akışının son adımı burasıdır.',
+      actionLabel: 'Demoyu bitir',
       onAction: () => {
         setJuryTourActive(false);
-        navigate('/tsrs-report', { state: { triggerDemoGenerate: true } });
       },
     },
   ];
@@ -447,10 +447,10 @@ const Simulator = () => {
   };
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="show" className="flex-col gap-6" style={{ padding: '8px 4px' }}>
+    <motion.div variants={containerVariants} initial="hidden" animate="show" className="simulator-wizard flex-col gap-6" style={{ padding: '8px 4px' }}>
       
       {/* ── Üst Başlık ────────────────────────────────────────────────────────── */}
-      <motion.div variants={itemVariants} className="flex justify-between items-start mb-2">
+      <motion.div variants={itemVariants} className="simulator-wizard-heading flex justify-between items-start mb-2">
         <div>
           <h1 className="page-title">Yeşil Kredi Sihirbazı & g-ROI Simülatörü</h1>
           <p className="page-subtitle">Şirket faaliyet beyanını girin, adım adım yeşil finansman talebinizi ve senaryolarınızı kurgulayın</p>
@@ -460,7 +460,7 @@ const Simulator = () => {
             </span>
           )}
         </div>
-        <div style={{ 
+        <div className="simulator-mode-badge" style={{
           display: 'flex', alignItems: 'center', gap: '8px', 
           background: 'linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05))', 
           border: '1px solid rgba(16,185,129,0.3)', borderRadius: '12px', 
@@ -471,7 +471,7 @@ const Simulator = () => {
       </motion.div>
 
       {/* ── SÜREÇ ÇUBUĞU (STEP TRACKER) ────────────────────────────────────────── */}
-      <motion.div variants={itemVariants} style={{
+      <motion.div variants={itemVariants} className="simulator-stepper" style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         background: 'var(--bg-card)', padding: '16px 28px', borderRadius: '16px',
         border: '1px solid var(--border-color)', marginBottom: '4px', gap: '16px'
@@ -486,7 +486,7 @@ const Simulator = () => {
           const isActive = currentStep === s.step;
           return (
             <React.Fragment key={s.step}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', opacity: isActive || isDone ? 1 : 0.45, transition: 'opacity 0.3s' }}>
+              <div className="simulator-stepper-item" style={{ display: 'flex', alignItems: 'center', gap: '12px', opacity: isActive || isDone ? 1 : 0.45, transition: 'opacity 0.3s' }}>
                 <div style={{
                   width: '32px', height: '32px', borderRadius: '50%',
                   background: isDone ? '#10B981' : isActive ? 'linear-gradient(135deg, #3B82F6, #1D4ED8)' : 'var(--bg-main)',
@@ -505,7 +505,7 @@ const Simulator = () => {
                 </div>
               </div>
               {idx < 3 && (
-                <div style={{ flex: 1, height: '1.5px', background: currentStep > s.step ? '#10B981' : 'var(--border-color)', transition: 'background 0.3s', margin: '0 12px' }} />
+                <div className="simulator-stepper-connector" style={{ flex: 1, height: '1.5px', background: currentStep > s.step ? '#10B981' : 'var(--border-color)', transition: 'background 0.3s', margin: '0 12px' }} />
               )}
             </React.Fragment>
           );
@@ -513,7 +513,7 @@ const Simulator = () => {
       </motion.div>
 
       {/* ── İki Sütunlu Grid Düzeni ────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: '28px' }}>
+      <div className="simulator-main-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: '28px' }}>
         
         {/* SOL KOLON: Sihirbaz Adım İçeriği */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -523,7 +523,7 @@ const Simulator = () => {
             {/* ADIM 1: Veri Kaynağı (Belgeler + Anket) ve Karbon Analizi */}
             {currentStep === 1 && (
               <motion.div
-                key="step1" initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 15 }} transition={{ duration: 0.25 }}
+                className="simulator-step-panel" key="step1" initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 15 }} transition={{ duration: 0.25 }}
                 style={{
                   background: 'var(--bg-card)', borderRadius: '20px', padding: '24px 28px',
                   border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-premium-card)'
@@ -701,7 +701,7 @@ const Simulator = () => {
             {/* ADIM 2: Finansman Talebi ve Risk Girdileri */}
             {currentStep === 2 && (
               <motion.div 
-                key="step2" initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 15 }} transition={{ duration: 0.25 }}
+                className="simulator-step-panel" key="step2" initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 15 }} transition={{ duration: 0.25 }}
                 style={{
                   background: 'var(--bg-card)', borderRadius: '20px', padding: '24px 28px',
                   border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-premium-card)'
@@ -722,7 +722,7 @@ const Simulator = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                <div className="simulator-metrics-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
                   {/* Kredi Tutarı */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary-midnight)' }}>Talep Edilen Kredi (TL)</label>
@@ -807,7 +807,7 @@ const Simulator = () => {
             {/* ADIM 3: Genişletilmiş Yeşil Yatırım Senaryoları */}
             {currentStep === 3 && (
               <motion.div 
-                key="step3" initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 15 }} transition={{ duration: 0.25 }}
+                className="simulator-step-panel" key="step3" initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 15 }} transition={{ duration: 0.25 }}
                 style={{
                   background: 'var(--bg-card)', borderRadius: '20px', padding: '24px 28px',
                   border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-premium-card)'
@@ -1019,7 +1019,7 @@ const Simulator = () => {
             {/* ADIM 4: Sonuç Özeti (sağ panelde detaylı rapor gösterilir) */}
             {currentStep === 4 && (
               <motion.div
-                key="step4" initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 15 }} transition={{ duration: 0.25 }}
+                className="simulator-step-panel" key="step4" initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 15 }} transition={{ duration: 0.25 }}
                 style={{
                   background: 'var(--bg-card)', borderRadius: '20px', padding: '24px 28px',
                   border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-premium-card)'
@@ -1073,7 +1073,7 @@ const Simulator = () => {
         </div>
 
         {/* SAĞ KOLON: Kredi Skorlama Sonuçları (Premium Dark Panel - Adım Adım Rapor Görünümü) */}
-        <motion.div variants={resultVariants} style={{
+        <motion.div className="simulator-result-panel" variants={resultVariants} style={{
           background: 'linear-gradient(135deg, #0B1120 0%, #162032 60%, #1E293B 100%)',
           borderRadius: '24px',
           padding: '28px 32px',
@@ -1094,7 +1094,7 @@ const Simulator = () => {
               <Sparkles color="#D4AF37" size={18} />
               <span style={{ fontSize: '16px', fontWeight: 800, letterSpacing: '-0.3px' }}>Yeşil Kredi Değerlendirmesi</span>
             </div>
-            <div style={{ 
+            <div style={{
               padding: '4px 10px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px', 
               fontSize: '10px', fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', 
               color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.06)' 
@@ -1150,7 +1150,7 @@ const Simulator = () => {
               {/* Adım 2 Aktifse Rapor Görünümü (Karbon + Kredi Talebi) */}
               {currentStep === 2 && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="simulator-metrics-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div style={{ padding: '14px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
                       <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Talep Edilen Kredi</div>
                       <div style={{ fontSize: '20px', fontWeight: 850 }}>{loanAmount.toLocaleString('tr-TR')} ₺</div>
@@ -1247,7 +1247,7 @@ const Simulator = () => {
                   )}
 
                   {/* KREDİ SKORU VE FAİZ İNDİRİMİ */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px' }}>
+                  <div className="simulator-metrics-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '14px' }}>
                     <div data-jury-simulator="credit-score" style={{
                       background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)',
                       borderRadius: '14px', padding: '14px 18px', display: 'flex', flexDirection: 'column',
@@ -1450,7 +1450,7 @@ const Simulator = () => {
                         )}
 
                         {/* ÇEVRESEL VE FİNANSAL DETAY KARTLARI */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', fontSize: '11.5px' }}>
+                        <div className="simulator-metrics-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', fontSize: '11.5px' }}>
                           {/* Karbon */}
                           <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '14px', padding: '12px 14px' }}>
                             <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Karbon Farkı</span>

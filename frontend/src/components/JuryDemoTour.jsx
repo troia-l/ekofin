@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Check, Sparkles, X } from 'lucide-react';
 import './JuryDemoTour.css';
+import { createPortal } from 'react-dom';
+import useMobileTourLayout from '../hooks/useMobileTourLayout';
 
 const JuryDemoTour = ({ steps, onFinish, onClose }) => {
   const [stepIndex, setStepIndex] = useState(0);
@@ -9,6 +11,7 @@ const JuryDemoTour = ({ steps, onFinish, onClose }) => {
   const [cardHeight, setCardHeight] = useState(0);
   const cardRef = useRef(null);
   const activeStep = steps[stepIndex];
+  const mobileStyle = useMobileTourLayout(activeStep?.target, cardRef, Boolean(targetRect));
 
   const updateTarget = useCallback(() => {
     const element = activeStep?.target ? document.querySelector(activeStep.target) : null;
@@ -18,13 +21,17 @@ const JuryDemoTour = ({ steps, onFinish, onClose }) => {
     }
     const rect = element.getBoundingClientRect();
     const padding = 10;
+    const left = Math.max(8, rect.left - padding);
+    const top = Math.max(8, rect.top - padding);
+    const right = Math.max(left, Math.min(window.innerWidth - 8, rect.right + padding));
+    const bottom = Math.max(top, Math.min(window.innerHeight - 8, rect.bottom + padding));
     const nextRect = {
-      top: Math.max(8, rect.top - padding),
-      left: Math.max(8, rect.left - padding),
-      right: Math.min(window.innerWidth - 8, rect.right + padding),
-      bottom: Math.min(window.innerHeight - 8, rect.bottom + padding),
-      width: Math.min(window.innerWidth - 16, rect.width + padding * 2),
-      height: Math.min(window.innerHeight - 16, rect.height + padding * 2),
+      top,
+      left,
+      right,
+      bottom,
+      width: right - left,
+      height: bottom - top,
     };
     setTargetRect(previous => {
       if (previous && Object.keys(nextRect).every(key => Math.abs(previous[key] - nextRect[key]) < 0.5)) return previous;
@@ -91,6 +98,7 @@ const JuryDemoTour = ({ steps, onFinish, onClose }) => {
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
   const cardWidth = Math.min(370, viewportWidth - 32);
+  const cardMaxTop = Math.max(16, viewportHeight - cardHeight - 16);
   const leftPlacementFits = activeStep.placement === 'left' && left >= cardWidth + 34;
   const rightPlacementFits = activeStep.placement === 'right' && viewportWidth - right >= cardWidth + 34;
   const placeBeside = leftPlacementFits || rightPlacementFits;
@@ -103,10 +111,10 @@ const JuryDemoTour = ({ steps, onFinish, onClose }) => {
   const belowFits = bottom + cardHeight + 18 <= viewportHeight - 16;
   const placeAbove = !placeBeside && (aboveFits || (!belowFits && finalStep));
   const cardTop = placeBeside
-    ? Math.max(16, Math.min(top + (height - cardHeight) / 2, viewportHeight - cardHeight - 16))
+      ? Math.max(16, Math.min(top + (height - cardHeight) / 2, cardMaxTop))
     : placeAbove
-      ? Math.max(16, top - cardHeight - 18)
-      : Math.min(viewportHeight - cardHeight - 16, bottom + 18);
+      ? Math.max(16, Math.min(top - cardHeight - 18, cardMaxTop))
+      : Math.max(16, Math.min(cardMaxTop, bottom + 18));
   const blocker = { position: 'fixed', zIndex: 1400, background: 'rgba(7, 18, 29, 0.54)', backdropFilter: 'blur(0.5px)', pointerEvents: 'auto' };
 
   const advance = () => {
@@ -114,7 +122,7 @@ const JuryDemoTour = ({ steps, onFinish, onClose }) => {
     else setStepIndex((index) => index + 1);
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div className="jury-portal-tour-layer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} style={{ position: 'fixed', inset: 0, zIndex: 1400, pointerEvents: 'none' }}>
         <div className="jury-portal-tour-inset" aria-hidden="true" />
@@ -123,7 +131,7 @@ const JuryDemoTour = ({ steps, onFinish, onClose }) => {
         <motion.div aria-hidden="true" onClick={onClose} style={{ ...blocker, top, left: 0, width: left, height }} />
         <motion.div aria-hidden="true" onClick={onClose} style={{ ...blocker, top, left: right, right: 0, height }} />
         <motion.div className="jury-portal-tour-frame" aria-hidden="true" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 330, damping: 28 }} style={{ top, left, width, height }} />
-        <motion.section ref={cardRef} className="jury-portal-tour-card" layout role="dialog" aria-modal="true" aria-labelledby="jury-portal-tour-title" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 27, layout: { type: 'spring', stiffness: 320, damping: 32 } }} style={{ top: cardTop, left: cardLeft, width: cardWidth }}>
+        <motion.section ref={cardRef} className="jury-portal-tour-card" layout role="dialog" aria-modal="true" aria-labelledby="jury-portal-tour-title" initial={{ opacity: 0, y: 10, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 27, layout: { type: 'spring', stiffness: 320, damping: 32 } }} style={{ top: cardTop, left: cardLeft, width: cardWidth, ...mobileStyle }}>
           <div className="jury-portal-tour-kicker">
             <span><Sparkles size={14} /> YEŞİL TEKSTİL DEMOSU</span>
             <button type="button" onClick={onClose} aria-label="Rehberi kapat"><X size={16} /></button>
@@ -141,7 +149,7 @@ const JuryDemoTour = ({ steps, onFinish, onClose }) => {
           </div>
         </motion.section>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>, document.body
   );
 };
 

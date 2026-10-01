@@ -3,19 +3,17 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import JuryDemoTour from '../../components/JuryDemoTour';
 import { GREEN_TEXTILE_DEMO, getGreenTextileDemoState, isGreenTextileUser } from '../../demo/greenTextileDemo';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
-import { 
-  ShieldCheck, 
-  Zap, 
-  Leaf, 
-  Activity, 
+import './Dashboard.css';
+import {
+  ShieldCheck,
+  Zap,
+  Leaf,
+  Activity,
   RefreshCw, 
   Sparkles, 
   Award, 
   ArrowRight, 
   Check, 
-  Lock, 
-  QrCode, 
   Copy, 
   Info, 
   CheckCircle2, 
@@ -26,57 +24,11 @@ import {
   FileText,
   FileSpreadsheet,
   FileBadge2,
-  Calendar,
   Building2,
   Database,
-  Pencil,
-  Save,
-  RotateCcw
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-const PILLAR_LABELS = { E: 'ÇEVRESEL (E)', S: 'SOSYAL (S)', G: 'YÖNETİŞİM (G)' };
-
-const CredibilityCard = ({ pillar, result }) => {
-  const [expanded, setExpanded] = useState(false);
-  const score = result ? Math.round(result.reliability * 100) : null;
-  const adequacy = result ? Math.round(result.evidence_adequacy * 100) : 0;
-  return (
-    <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '16px', padding: '16px 20px', minHeight: '145px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '13.5px', fontWeight: 800, color: '#64748B' }}>{PILLAR_LABELS[pillar]}</span>
-        <span style={{ fontSize: '22px', fontWeight: 800, color: score !== null && score < 50 ? '#B45309' : '#059669' }}>
-          {score === null ? '--' : `%${score}`}
-        </span>
-      </div>
-      <div style={{ height: '6px', background: '#F1F5F9', borderRadius: '3px', overflow: 'hidden', margin: '8px 0' }}>
-        <div style={{ width: `${score || 0}%`, height: '100%', background: score !== null && score < 50 ? '#F59E0B' : '#059669' }} />
-      </div>
-      <div style={{ fontSize: '11.5px', color: '#64748B', lineHeight: 1.45 }}>
-        {result?.reason || 'Analiz sonucu bulunmuyor.'} Kanıt yeterliliği: %{adequacy}.
-      </div>
-      <button
-        type="button"
-        onClick={() => setExpanded(value => !value)}
-        disabled={!result?.evidence?.length}
-        style={{ marginTop: '10px', padding: 0, border: 'none', background: 'transparent', color: '#047857', fontSize: '12px', fontWeight: 700, cursor: result?.evidence?.length ? 'pointer' : 'default' }}
-      >
-        {expanded ? 'Kaynakları gizle' : `Kaynaklar (${result?.evidence?.length || 0})`}
-      </button>
-      {expanded && (
-        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {result.evidence.map(item => (
-            <a key={item.id} href={item.url} target="_blank" rel="noreferrer" style={{ color: '#334155', fontSize: '11.5px', lineHeight: 1.4, textDecoration: 'none', paddingTop: '8px', borderTop: '1px solid #E2E8F0' }}>
-              <strong>{item.source}</strong>: {item.title}<br />
-              <span style={{ color: '#B45309' }}>{item.explanation}</span>
-            </a>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 const Dashboard = () => {
   const { currentUser } = useOutletContext() || {};
@@ -87,24 +39,15 @@ const Dashboard = () => {
   const [companies, setCompanies] = useState([]);
   const [modelCardData, setModelCardData] = useState(null);
   const [reportReadiness, setReportReadiness] = useState(null);
-  const [credibility, setCredibility] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState('');
 
   // Modals state
   const [showModelModal, setShowModelModal] = useState(false);
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showDocValidityModal, setShowDocValidityModal] = useState(false);
-  const [showHashModal, setShowHashModal] = useState(false);
-
-  // Custom / Editable Blockchain Hash state
-  const [customHash, setCustomHash] = useState('');
-  const [editHashInput, setEditHashInput] = useState('');
-  const [hashSavedAlert, setHashSavedAlert] = useState(false);
-
-  // Passport & Verification state
+  // Report file fingerprint copy state
   const [copied, setCopied] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationSuccess, setVerificationSuccess] = useState(false);
   const [juryTourActive, setJuryTourActive] = useState(false);
 
   const ticker = currentUser?.companyTicker;
@@ -125,16 +68,17 @@ const Dashboard = () => {
       
       const year = new Date().getFullYear() - 1;
       const readinessUrl = ticker ? `${API_URL}/api/report/readiness?ticker=${encodeURIComponent(ticker)}&reporting_year=${year}` : null;
-      const [sumRes, docsRes, compRes, modelRes, readinessRes, credibilityRes] = await Promise.allSettled([
+      const [sumRes, docsRes, compRes, modelRes, readinessRes] = await Promise.allSettled([
         fetch(`${API_URL}/api/dashboard/summary${tickerParam}`),
         fetch(`${API_URL}/api/documents/status${tickerParam}`),
         fetch(`${API_URL}/api/esg/companies`),
         fetch(`${API_URL}/api/esg/model-card`),
-        readinessUrl ? fetch(readinessUrl) : Promise.resolve(null),
-        fetch(`${API_URL}/api/esg/credibility/demo`)
+        readinessUrl ? fetch(readinessUrl) : Promise.resolve(null)
       ]);
 
-      if (sumRes.status === 'fulfilled' && sumRes.value.ok) {
+      const summaryLoaded = sumRes.status === 'fulfilled' && sumRes.value.ok;
+      setDashboardError(summaryLoaded ? '' : 'Özet verileri şu anda alınamadı. Bağlantıyı kontrol edip yeniden deneyin.');
+      if (summaryLoaded) {
         setSummary(await sumRes.value.json());
       }
       if (docsRes.status === 'fulfilled' && docsRes.value.ok) {
@@ -150,11 +94,9 @@ const Dashboard = () => {
       if (readinessRes.status === 'fulfilled' && readinessRes.value?.ok) {
         setReportReadiness(await readinessRes.value.json());
       }
-      if (credibilityRes.status === 'fulfilled' && credibilityRes.value.ok) {
-        setCredibility(await credibilityRes.value.json());
-      }
     } catch (e) {
       console.error("Dashboard veri çekme hatası:", e);
+      setDashboardError('Özet verileri şu anda alınamadı. Bağlantıyı kontrol edip yeniden deneyin.');
     } finally {
       setLoading(false);
     }
@@ -170,14 +112,11 @@ const Dashboard = () => {
   const declarationOk = greenTextileDataLoaded || (summary?.declaration_submitted ?? false);
   const reportReady = reportReadiness?.report_state === 'current';
   
-  // Aktif Blockchain İmzası (Kullanıcı düzenlediyse customHash geçerli olur)
-  const defaultHash = reportReadiness?.last_report?.sha256 ?? '';
-  const reportHash = customHash || defaultHash;
+  // SHA-256 only comes from a published report returned by the backend.
+  const reportHash = reportReadiness?.last_report?.sha256 ?? '';
 
   const isDataVerified = greenTextileDataLoaded || reportReadiness?.data_state === 'ready';
 
-  const esgScore = myCompany ? myCompany.score : isGreenTextileDemo ? GREEN_TEXTILE_DEMO.company.score : (isDataVerified ? 6.4 : '--');
-  const riskLevel = myCompany ? myCompany.riskLevel : isGreenTextileDemo ? GREEN_TEXTILE_DEMO.company.riskLevel : (isDataVerified ? 'Düşük Risk' : 'Doğrulama Bekliyor');
   const companyName = currentUser ? currentUser.companyName : 'KOBİ Sürdürülebilirlik Paneli';
 
   const copyHash = () => {
@@ -186,51 +125,6 @@ const Dashboard = () => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  // Rastgele 64-karakter SHA-256 Hash üretici
-  const generateRandomHash = () => {
-    const chars = '0123456789abcdef';
-    let res = '';
-    for (let i = 0; i < 64; i++) {
-      res += chars[Math.floor(Math.random() * chars.length)];
-    }
-    setEditHashInput(res);
-  };
-
-  const handleSaveHash = (e) => {
-    if (e) e.preventDefault();
-    if (editHashInput.trim()) {
-      setCustomHash(editHashInput.trim());
-      setVerificationSuccess(true);
-      setHashSavedAlert(true);
-      setShowHashModal(false);
-      setTimeout(() => setHashSavedAlert(false), 3000);
-    }
-  };
-
-  // E, S, G Oranları (Orantılı metrikler)
-  const esgBreakdown = isGreenTextileDemo
-    ? GREEN_TEXTILE_DEMO.metrics.esgPillars
-    : myCompany?.ticker === 'TOASO'
-    ? { e: 78, s: 86, g: 82 }
-    : myCompany?.ticker === 'ASELS'
-    ? { e: 72, s: 90, g: 85 }
-    : isDataVerified
-    ? { e: 74, s: 80, g: 85 }
-    : { e: 0, s: 0, g: 0 };
-
-  // Tarihsel Trend Grafiği
-  const areaData = myCompany && myCompany.scoreHistory && myCompany.scoreHistory.length > 0
-    ? myCompany.scoreHistory.map(h => ({ name: h.date, score: h.score }))
-    : isGreenTextileDemo
-    ? GREEN_TEXTILE_DEMO.company.scoreHistory.map(h => ({ name: h.date, score: h.score }))
-    : [
-        { name: 'Oca', score: 5.8 },
-        { name: 'Şub', score: 6.0 },
-        { name: 'Mar', score: 6.2 },
-        { name: 'Nis', score: 6.4 },
-      ];
-  const dashboardCredibility = isGreenTextileDemo ? GREEN_TEXTILE_DEMO.credibility : credibility;
 
   // Veri Entegrasyonu sayfasında yüklenen tüm belge türleri ve güncellik durumları
   const integrationDocuments = [
@@ -346,11 +240,10 @@ const Dashboard = () => {
   const allDocsCurrent = pendingDocsCount === 0;
 
   const dashboardTourSteps = [
-    { target: '[data-jury-dashboard="esg-score"]', title: 'ESG performans özeti', description: 'Şirketin çevresel, sosyal ve yönetişim performansını tek bir puan ve risk seviyesiyle özetler. Yeşil Tekstil için gösterilen değerler sentetik demo verisidir.' },
+    { target: '[data-jury-dashboard="esg-score"]', title: 'ESG performans özeti', description: 'Yüklenen rapor kaynaklarından hesaplanmış bir şirket skoru henüz bulunmuyor. Örnek tahminler güncel skor gibi gösterilmez.' },
     { target: '[data-jury-dashboard="documents"]', title: 'Kanıt ve belge durumu', description: 'Yüklenen kaynakların doğrulanma sayısını ve yenileme ihtiyacını gösterir. Veri entegrasyonundan sonra bu kutu örnek belgelerle güncellenecek.' },
     { target: '[data-jury-dashboard="declaration"]', title: 'Yönetici beyanı', description: 'TSRS 1 ve TSRS 2 için şirket yönetiminin onayladığı beyanların tamamlanma durumunu izler.' },
     { target: '[data-jury-dashboard="integrity"]', title: 'Rapor dosya bütünlüğü', description: 'Raporun dosya özeti ve bütünlük kontrolüyle ilgili bilgileri sunar. Bu bölüm bağımsız denetim veya güvence anlamına gelmez.' },
-    { target: '[data-jury-dashboard="reliability"]', title: 'Beyan güvenilirliği', description: 'Çevresel, sosyal ve yönetişim beyanlarının dayandığı kanıtların yeterliliğini ayrı ayrı gösterir.' },
     { target: '[data-jury-dashboard="report"]', title: 'TSRS raporlama motoru', description: 'Kaynaklar tamamlandığında TSRS rapor taslağına ve analiz akışına buradan geçilir. Şimdi örnek kaynakları birlikte yükleyelim.' },
   ];
 
@@ -361,19 +254,19 @@ const Dashboard = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <main className="kobi-dashboard">
       
       {/* Üst Başlık ve Yenile Butonu */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+      <header className="dashboard-heading">
         <div>
-          <div style={{ fontSize: '13px', fontWeight: 800, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '3px' }}>
-            EcoFin Kurumsal Yönetim Kokpiti
+          <div className="dashboard-eyebrow">
+            SÜRDÜRÜLEBİLİRLİK ÇALIŞMA ALANI
           </div>
-          <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.5px' }}>
+          <h1 className="dashboard-title">
             {companyName}
           </h1>
           {isGreenTextileDemo && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', marginTop: '7px', padding: '4px 9px', borderRadius: '99px', color: '#087a56', background: '#e5f7ec', fontSize: '10px', fontWeight: 800 }}>
+            <span className="dashboard-demo-badge">
               <Sparkles size={11} /> SENTETİK JÜRİ DEMOSU
             </span>
           )}
@@ -382,28 +275,29 @@ const Dashboard = () => {
         <button 
           onClick={fetchDashboardData} 
           disabled={loading}
-          style={{ 
-            background: '#FFFFFF', 
-            color: '#334155', 
-            border: '1px solid #CBD5E1', 
-            borderRadius: '10px', 
-            padding: '10px 18px', 
-            fontSize: '14px', 
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-          }}
+          className="dashboard-refresh"
         >
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Yenile
         </button>
-      </div>
+      </header>
+
+      {dashboardError && !loading && (
+        <div className="dashboard-error" role="status">
+          <AlertTriangle size={18} />
+          <span>{dashboardError}</span>
+          <button type="button" onClick={fetchDashboardData}>Yeniden dene</button>
+        </div>
+      )}
+
+      {loading && (
+        <div className="dashboard-loading" role="status" aria-live="polite">
+          <span className="dashboard-loading-dot" /> Özet ve rapor durumu yükleniyor…
+        </div>
+      )}
 
       {/* YENİ ŞİRKET İÇİN: BİLGİLENDİRME BANNERI */}
       {!isDataVerified && (
-        <div style={{
+        <div className="dashboard-onboarding" style={{
           background: '#FFFBEB',
           border: '1px solid #FDE68A',
           borderRadius: '16px',
@@ -446,27 +340,8 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Hash Değiştirildi Başarı Bildirimi */}
-      {hashSavedAlert && (
-        <div style={{
-          background: '#ECFDF5',
-          border: '1px solid #A7F3D0',
-          borderRadius: '12px',
-          padding: '12px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          color: '#065F46',
-          fontSize: '13.5px',
-          fontWeight: 700
-        }}>
-          <CheckCircle2 size={18} color="#059669" />
-          <span>Blockchain dijital mühür kodu başarıyla güncellendi ve kriptografik olarak doğrulandı ✓</span>
-        </div>
-      )}
-
       {/* ANA İKİ KOLONLU DÜZEN: KUSURSUZ HİZALANMIŞ (SOL METRİKLER, SAĞ KARTLAR) */}
-      <div style={{ 
+      <div className="dashboard-layout" style={{
         display: 'grid', 
         gridTemplateColumns: 'minmax(0, 1.45fr) minmax(350px, 410px)', 
         gap: '20px', 
@@ -474,13 +349,13 @@ const Dashboard = () => {
       }}>
         
         {/* ===================== SOL KOLON: METRİKLER, DOĞRULUK & GRAFİK ===================== */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <section className="dashboard-primary-column" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* 1. ÜST KISIM: 4 METRİK KARTI (2x2 GRID - KUSURSUZ EŞİT HİZALI) */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="dashboard-metrics" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             
-            {/* Metrik 1: Güncel ESG Skoru */}
-            <div data-jury-dashboard="esg-score" style={{
+            {/* Metrik 1: Skor yalnızca şirket verilerinden üretildiğinde gösterilir. */}
+            <div className="dashboard-metric-card dashboard-score-card" data-jury-dashboard="esg-score" style={{
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
               borderRadius: '16px',
@@ -494,28 +369,19 @@ const Dashboard = () => {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '13px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                  GÜNCEL ESG SKORU
+                  ESG SKORU
                 </span>
-                <Award size={20} color="#059669" />
+                <Award size={20} color="#78D8B5" />
               </div>
               
-              <div style={{ display: 'flex', alignItems: 'baseline', marginTop: '6px' }}>
-                <span style={{ fontSize: '32px', fontWeight: 800, color: '#0F172A' }}>{esgScore}</span>
-                <span style={{ fontSize: '16px', fontWeight: 600, color: '#94A3B8', marginLeft: '4px' }}>/ 10</span>
-              </div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: riskLevel.includes('Düşük') ? '#059669' : '#D97706' }}>
-                  {riskLevel}
-                </span>
-                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>
-                  BIST & TSRS Uyumlu
-                </span>
+              <div className="dashboard-score-empty">
+                <strong>Henüz hesaplanmadı</strong>
+                <span>Yüklenen kaynaklardan üretilmiş güncel şirket skoru bulunmuyor.</span>
               </div>
             </div>
 
             {/* Metrik 2: Doğrulanan Belgeler (İçinde Buton ve Güncellik İndikatörü Bulunur) */}
-            <div data-jury-dashboard="documents" style={{
+            <div className="dashboard-metric-card" data-jury-dashboard="documents" style={{
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
               borderRadius: '16px',
@@ -586,7 +452,7 @@ const Dashboard = () => {
             </div>
 
             {/* Metrik 3: Yönetici Beyanı */}
-            <div data-jury-dashboard="declaration" style={{
+            <div className="dashboard-metric-card" data-jury-dashboard="declaration" style={{
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
               borderRadius: '16px',
@@ -622,7 +488,7 @@ const Dashboard = () => {
             </div>
 
             {/* Metrik 4: Blockchain İmzası & Pasaport (DÜZENLEME KALEM İKONU & İMZA DOĞRULA BURADA) */}
-            <div data-jury-dashboard="integrity" style={{
+            <div className="dashboard-metric-card" data-jury-dashboard="integrity" style={{
               background: '#FFFFFF',
               border: '1px solid #E2E8F0',
               borderRadius: '16px',
@@ -634,189 +500,48 @@ const Dashboard = () => {
               boxSizing: 'border-box',
               boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
             }}>
-              {/* Başlık ve Düzenleme Kalem Butonu */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                  RAPOR DOSYA BÜTÜNLÜĞÜ
-                </span>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {/* KALEM DÜZENLEME BUTONU: BLOCKCHAIN KODUNU DEĞİŞTİRİR */}
-                  <button
-                    disabled
-                    title="Dosya özeti sunucu tarafından hesaplanır"
-                    style={{
-                      background: '#F8FAFC',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: '6px',
-                      padding: '4px 8px',
-                      color: '#0F172A',
-                      fontSize: '11.5px',
-                      fontWeight: 700,
-                      cursor: 'not-allowed',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <Pencil size={12} color="#D97706" />
-                    <span>Salt okunur</span>
-                  </button>
-                  <Zap size={20} color="#D97706" />
+              <div className="dashboard-integrity-heading">
+                <div>
+                  <span className="dashboard-integrity-eyebrow">RAPOR DOSYA BÜTÜNLÜĞÜ</span>
+                  <h3>{reportReadiness?.active_job_id ? 'Rapor hazırlanıyor' : reportHash ? 'SHA-256 özeti' : 'Henüz rapor yok'}</h3>
                 </div>
+                <span className={`dashboard-integrity-status ${reportReadiness?.active_job_id ? 'is-progress' : reportHash ? (reportReady ? 'is-current' : 'is-stale') : 'is-empty'}`}>
+                  {reportReadiness?.active_job_id ? 'Üretimde' : reportHash ? (reportReady ? 'Güncel' : 'Güncelliğini yitirmiş') : 'Bekliyor'}
+                </span>
               </div>
 
-              {/* Hash Değeri, Kopyala ve İmza Doğrulama Butonu */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', fontFamily: 'monospace' }}>
-                    {reportHash ? `${reportHash.slice(0, 8)}...${reportHash.slice(-4)}` : 'Rapor bekleniyor'}
-                  </span>
-                  {reportHash && (
-                    <button 
-                      onClick={copyHash}
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', color: copied ? '#059669' : '#64748B', display: 'flex', alignItems: 'center' }}
-                      title="Hash'i Kopyala"
-                    >
-                      {copied ? <Check size={15} color="#059669" /> : <Copy size={15} />}
+              {reportHash ? (
+                <>
+                  <div className="dashboard-integrity-hash">
+                    <code title={reportHash}>{reportHash.slice(0, 12)}…{reportHash.slice(-8)}</code>
+                    <button type="button" onClick={copyHash} className="dashboard-copy-hash" title="SHA-256 özetini kopyala" aria-label="SHA-256 özetini kopyala">
+                      {copied ? <Check size={15} /> : <Copy size={15} />}
                     </button>
-                  )}
-                </div>
+                  </div>
+                  <div className="dashboard-integrity-meta">
+                    <span>Yayımlanma tarihi</span>
+                    <strong>
+                      {reportReadiness?.last_report?.generated_at
+                        ? new Date(reportReadiness.last_report.generated_at).toLocaleDateString('tr-TR')
+                        : '—'}
+                    </strong>
+                  </div>
+                </>
+              ) : (
+                <p className="dashboard-integrity-empty">
+                  Rapor yayımlandığında dosya özeti ve yayımlanma tarihi burada görünür.
+                </p>
+              )}
 
-                <button
-                  disabled
-                  style={{
-                    background: isVerifying ? '#F8FAFC' : verificationSuccess ? '#ECFDF5' : '#F8FAFC',
-                    color: isVerifying ? '#64748B' : verificationSuccess ? '#059669' : '#0F172A',
-                    border: `1px solid ${verificationSuccess ? '#A7F3D0' : '#CBD5E1'}`,
-                    borderRadius: '8px',
-                    padding: '6px 12px',
-                    fontSize: '12.5px',
-                    fontWeight: 700,
-                    cursor: reportHash ? 'pointer' : 'default',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
-                  }}
-                >
-                  <ShieldCheck size={14} color={verificationSuccess ? "#059669" : "#64748B"} />
-                  <span>{reportHash ? 'Dosya özeti mevcut' : 'Özet yok'}</span>
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', fontWeight: 700, color: reportHash ? '#059669' : '#64748B' }}>
-                  <CheckCircle2 size={15} color="#059669" />
-                  <span>SHA-256 özeti</span>
-                </div>
-                <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 600 }}>
-                  Bağımsız güvence değildir
-                </span>
-              </div>
+              <button type="button" className="dashboard-integrity-link" onClick={() => navigate('/tsrs-report')}>
+                {reportReadiness?.active_job_id ? 'Üretimi görüntüle' : reportHash ? 'Rapor alanına git' : 'Rapor oluştur'} <ArrowRight size={15} />
+              </button>
             </div>
 
-          </div>
-
-          {/* 2. ORTA KISIM: VERİ DOĞRULUK DURUMU (E % - S % - G %) - EŞİT HİZALI */}
-          <div data-jury-dashboard="reliability" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>
-              <ShieldCheck size={20} color="#059669" /> ESG Beyan Güvenilirliği
-            </div>
-            <div style={{ fontSize: '12.5px', color: '#64748B', lineHeight: 1.5 }}>
-              Şirket beyanları bağımsız dış kanıtlarla karşılaştırılır. Haber sayısı değil; kaynak kalitesi, şirket eşleşmesi, ilişki ve güncellik ağırlıklandırılır.
-              {dashboardCredibility?.demo && <strong style={{ color: '#B45309' }}> Örnek analiz: {dashboardCredibility.company_name} — mevcut şirket skorunu etkilemez.</strong>}
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '16px' }}>
-              {['E', 'S', 'G'].map(pillar => (
-                <CredibilityCard key={pillar} pillar={pillar} result={dashboardCredibility?.pillars?.[pillar]} />
-              ))}
-            </div>
-
-            <div aria-hidden="true" style={{ display: 'none' }}>
-              
-              {/* E % (Çevresel) */}
-              <div style={{
-                background: '#FFFFFF',
-                border: '1px solid #E2E8F0',
-                borderRadius: '16px',
-                padding: '16px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                minHeight: '105px',
-                boxSizing: 'border-box',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13.5px', fontWeight: 800, color: '#64748B' }}>ÇEVRESEL (E)</span>
-                  <span style={{ fontSize: '22px', fontWeight: 800, color: '#059669' }}>
-                    {isDataVerified ? `%${esgBreakdown.e}` : '--'}
-                  </span>
-                </div>
-                <div style={{ height: '6px', background: '#F1F5F9', borderRadius: '3px', overflow: 'hidden', margin: '4px 0' }}>
-                  <div style={{ width: `${esgBreakdown.e}%`, height: '100%', background: '#059669' }} />
-                </div>
-                <span style={{ fontSize: '12.5px', color: '#64748B' }}>Kapsam 1-2 Enerji Verisi</span>
-              </div>
-
-              {/* S % (Sosyal) */}
-              <div style={{
-                background: '#FFFFFF',
-                border: '1px solid #E2E8F0',
-                borderRadius: '16px',
-                padding: '16px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                minHeight: '105px',
-                boxSizing: 'border-box',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13.5px', fontWeight: 800, color: '#64748B' }}>SOSYAL (S)</span>
-                  <span style={{ fontSize: '22px', fontWeight: 800, color: '#059669' }}>
-                    {isDataVerified ? `%${esgBreakdown.s}` : '--'}
-                  </span>
-                </div>
-                <div style={{ height: '6px', background: '#F1F5F9', borderRadius: '3px', overflow: 'hidden', margin: '4px 0' }}>
-                  <div style={{ width: `${esgBreakdown.s}%`, height: '100%', background: '#059669' }} />
-                </div>
-                <span style={{ fontSize: '12.5px', color: '#64748B' }}>SGK ve İSG Uyumluluğu</span>
-              </div>
-
-              {/* G % (Yönetişim) */}
-              <div style={{
-                background: '#FFFFFF',
-                border: '1px solid #E2E8F0',
-                borderRadius: '16px',
-                padding: '16px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                minHeight: '105px',
-                boxSizing: 'border-box',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13.5px', fontWeight: 800, color: '#64748B' }}>YÖNETİŞİM (G)</span>
-                  <span style={{ fontSize: '22px', fontWeight: 800, color: '#059669' }}>
-                    {isDataVerified ? `%${esgBreakdown.g}` : '--'}
-                  </span>
-                </div>
-                <div style={{ height: '6px', background: '#F1F5F9', borderRadius: '3px', overflow: 'hidden', margin: '4px 0' }}>
-                  <div style={{ width: `${esgBreakdown.g}%`, height: '100%', background: '#059669' }} />
-                </div>
-                <span style={{ fontSize: '12.5px', color: '#64748B' }}>KGK TSRS-1 Politikaları</span>
-              </div>
-
-            </div>
           </div>
 
           {/* 3. EN ALT: DÖNEMSEL ESG ANALİZ GRAFİĞİ (SADE & HİZALI) */}
-          <div style={{
+          <div className="dashboard-chart" style={{
             background: '#FFFFFF',
             border: '1px solid #E2E8F0',
             borderRadius: '16px',
@@ -828,36 +553,22 @@ const Dashboard = () => {
             boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <span style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>Dönemsel ESG Gelişimi</span>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748B' }}>Aylık Skor Trendi</span>
+              <span style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A' }}>ESG skor geçmişi</span>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748B' }}>Dönemsel görünüm</span>
             </div>
-            
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={areaData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorEsgScore" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#059669" stopOpacity={0.25}/>
-                      <stop offset="95%" stopColor="#059669" stopOpacity={0.0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748B', fontSize: 13}} dy={6} />
-                  <YAxis domain={[0, 10]} axisLine={false} tickLine={false} tick={{fill: '#64748B', fontSize: 13}} dx={-6} />
-                  <RechartsTooltip contentStyle={{ borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '13px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
-                  <Area type="monotone" dataKey="score" stroke="#059669" strokeWidth={2.5} fillOpacity={1} fill="url(#colorEsgScore)" />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="dashboard-chart-empty">
+              <Activity size={20} />
+              <span>Kaynak verilerinden hesaplanan skor geçmişi henüz bulunmuyor.</span>
             </div>
           </div>
 
-        </div>
+        </section>
 
         {/* ===================== SAĞ KOLON: 3 ADET KART (HİZALI VE SADE) ===================== */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <aside className="dashboard-secondary-column" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* SAĞ KART 1: TSRS Raporlama Motoru */}
-          <div data-jury-dashboard="report" style={{
+          <div className="dashboard-feature-card dashboard-report-card" data-jury-dashboard="report" style={{
             background: '#FFFFFF',
             border: '1px solid #E2E8F0',
             borderRadius: '16px',
@@ -917,7 +628,7 @@ const Dashboard = () => {
           </div>
 
           {/* SAĞ KART 2: Yapay Zeka Modeli (Türkçe Kurumsal Adı: EkoFin Yapay Zeka ESG Skorlama Motoru) */}
-          <div style={{
+          <div className="dashboard-feature-card" style={{
             background: '#FFFFFF',
             border: '1px solid #E2E8F0',
             borderRadius: '16px',
@@ -984,7 +695,7 @@ const Dashboard = () => {
           </div>
 
           {/* SAĞ KART 3: Denetim ve Güvence Durumu */}
-          <div style={{
+          <div className="dashboard-feature-card" style={{
             background: '#FFFFFF',
             border: '1px solid #E2E8F0',
             borderRadius: '16px',
@@ -1043,144 +754,9 @@ const Dashboard = () => {
             </button>
           </div>
 
-        </div>
+        </aside>
 
       </div>
-
-      {/* MODAL 0: BLOCKCHAIN İMZASI / HASH DÜZENLEME EKRANI */}
-      <AnimatePresence>
-        {showHashModal && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowHashModal(false)}
-            style={{
-              position: 'fixed',
-              top: 0, left: 0, right: 0, bottom: 0,
-              background: 'rgba(15, 23, 42, 0.45)',
-              backdropFilter: 'blur(6px)',
-              zIndex: 99999,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '24px'
-            }}
-          >
-            <motion.div 
-              initial={{ scale: 0.95, y: 15, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.95, y: 15, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                width: '100%',
-                maxWidth: '620px',
-                background: '#FFFFFF',
-                color: '#0F172A',
-                borderRadius: '20px',
-                border: '1px solid #E2E8F0',
-                boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column'
-              }}
-            >
-              <div style={{ padding: '22px 26px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Zap size={22} color="#D97706" />
-                  <div>
-                    <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0F172A', margin: 0 }}>
-                      Dosya Özeti
-                    </h3>
-                    <div style={{ fontSize: '12.5px', color: '#64748B', marginTop: '2px' }}>
-                      SHA-256 değeri sunucu tarafından rapor dosyasından hesaplanır
-                    </div>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={() => setShowHashModal(false)}
-                  style={{ background: '#F1F5F9', border: 'none', borderRadius: '8px', color: '#64748B', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveHash} style={{ padding: '24px 26px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                    SHA-256 dosya özeti:
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={editHashInput}
-                    onChange={(e) => setEditHashInput(e.target.value)}
-                    placeholder="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-                    style={{
-                      width: '100%',
-                      padding: '12px 14px',
-                      borderRadius: '10px',
-                      border: '1px solid #CBD5E1',
-                      fontSize: '13.5px',
-                      fontFamily: 'monospace',
-                      boxSizing: 'border-box',
-                      lineHeight: '1.5',
-                      color: '#0F172A'
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={generateRandomHash}
-                    style={{
-                      background: '#F8FAFC',
-                      color: '#D97706',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: '8px',
-                      padding: '7px 14px',
-                      fontSize: '12.5px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    <RotateCcw size={13} />
-                    <span>Rastgele değer kullanılamaz</span>
-                  </button>
-
-                  <span style={{ fontSize: '12px', color: '#64748B' }}>
-                    {editHashInput.length} karakter
-                  </span>
-                </div>
-
-                <div style={{ background: '#F8FAFC', padding: '12px 16px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '12.5px', color: '#64748B', lineHeight: '1.4' }}>
-                  <strong>Bilgi:</strong> Bu değer yalnızca indirilen rapor dosyasının bütünlük kontrolünde kullanılır; düzenleyici onayı veya bağımsız güvence anlamına gelmez.
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowHashModal(false)}
-                    style={{ padding: '9px 18px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#FFFFFF', color: '#64748B', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    İptal
-                  </button>
-                  <button
-                    type="submit"
-                    style={{ padding: '9px 22px', borderRadius: '8px', border: 'none', background: '#059669', color: 'white', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Save size={14} /> Mührü Kaydet ve Uygula
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* MODAL 1: GOOGLE MODEL CARDS TEKNİK DETAYLARI (KURUMSAL TÜRKÇE BAŞLIKLI) */}
       <AnimatePresence>
@@ -1617,7 +1193,7 @@ const Dashboard = () => {
           onClose={() => setJuryTourActive(false)}
         />
       )}
-    </div>
+    </main>
   );
 };
 

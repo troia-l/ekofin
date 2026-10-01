@@ -80,10 +80,12 @@ export const GREEN_TEXTILE_DEMO = {
 export const createEmptyGreenTextileDemoState = () => ({
   loaded: false,
   documentsImported: false,
+  tsrsReportGenerated: false,
   documents: {},
   uploads: [],
   declaration: null,
   completedAt: null,
+  tsrsReportCompletedAt: null,
 });
 
 export const getGreenTextileDemoState = () => {

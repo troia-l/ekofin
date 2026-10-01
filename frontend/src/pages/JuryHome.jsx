@@ -3,6 +3,8 @@ import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { ArrowDown, ArrowRight, BarChart3, Check, ChevronRight, FileText, Leaf, LockKeyhole, Play, ShieldCheck, Sparkles, X, Zap } from 'lucide-react';
 import { useOutletContext } from 'react-router-dom';
 import './JuryHome.css';
+import { createPortal } from 'react-dom';
+import useMobileTourLayout from '../hooks/useMobileTourLayout';
 
 const tourTargetSelector = '[data-jury-tour-target="entry"]';
 const juryWizardFlag = 'ecofin-jury-login-wizard';
@@ -17,6 +19,8 @@ const staggerIn = {
 };
 
 const TourSpotlight = ({ target, onClose, isLoggedIn }) => {
+    const cardRef = React.useRef(null);
+    const mobileStyle = useMobileTourLayout(tourTargetSelector, cardRef);
     if (!target) return null;
 
     const { top, left, right, bottom, width, height } = target;
@@ -27,7 +31,7 @@ const TourSpotlight = ({ target, onClose, isLoggedIn }) => {
     const tipTop = bottom + 18 + 150 > viewportHeight ? Math.max(16, top - 164) : bottom + 18;
     const blockerStyle = { position: 'fixed', zIndex: 1000, background: 'rgba(5, 14, 26, 0.76)', backdropFilter: 'blur(2px)', pointerEvents: 'auto' };
 
-    return (
+    return createPortal(
         <motion.div
             className="jury-tour-layer"
             initial={{ opacity: 0 }}
@@ -51,12 +55,13 @@ const TourSpotlight = ({ target, onClose, isLoggedIn }) => {
             />
             <motion.section
                 className="jury-tour-card"
+                ref={cardRef}
                 role="dialog"
                 aria-labelledby="jury-tour-title"
                 initial={{ opacity: 0, y: 14, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 27, delay: 0.12 }}
-                style={{ top: tipTop, left: tipLeft, width: tipWidth }}
+                style={{ top: tipTop, left: tipLeft, width: tipWidth, ...mobileStyle }}
             >
                 <div className="jury-tour-card-topline">
                     <span className="jury-tour-step"><Sparkles size={13} /> Jüri turu · 1/1</span>
@@ -71,7 +76,7 @@ const TourSpotlight = ({ target, onClose, isLoggedIn }) => {
                 <div className="jury-tour-hint"><span className="jury-tour-hint-icon"><ArrowRight size={15} /></span> Sonraki adım: demo şirketi seçimi</div>
                 <button type="button" className="jury-tour-dismiss" onClick={onClose}>Şimdilik kapat</button>
             </motion.section>
-        </motion.div>
+        </motion.div>, document.body
     );
 };
 

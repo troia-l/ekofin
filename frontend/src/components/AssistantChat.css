@@ -1,0 +1,77 @@
+.eko-assistant { position: fixed; right: max(24px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); z-index: 900; font-family: Inter, system-ui, sans-serif; color: #183a32; }
+.eko-assistant * { box-sizing: border-box; }
+.eko-launcher { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 17px 8px 66px; position: relative; border: 1px solid #cde7da; border-radius: 22px; background: #fafffc; color: #195744; box-shadow: 0 8px 32px #123e2924; transition: transform 180ms, box-shadow 180ms; }
+.eko-launcher:hover { transform: translateY(-3px); box-shadow: 0 12px 34px #123e2933; }
+.eko-launcher > img { position: absolute; width: 68px; height: 74px; object-fit: contain; left: 0; bottom: 4px; }
+.eko-launcher > span { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.eko-launcher strong { font-size: 13px; }
+.eko-launcher small { font-size: 10px; color: #718a80; }
+.eko-launcher.is-open { margin-left: auto; min-height: 48px; width: 48px; padding: 0; justify-content: center; border-radius: 50%; background: #103f34; color: white; }
+.eko-chat { position: absolute; right: 0; bottom: 64px; width: 400px; height: min(650px, calc(100dvh - 112px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #dce9e1; border-radius: 24px; background: #fcfdfb; box-shadow: 0 24px 80px #17382f30, 0 4px 14px #17382f12; transform-origin: bottom right; }
+.eko-chat-header { display: flex; align-items: center; gap: 9px; padding: 17px 12px 13px 18px; background: linear-gradient(120deg, #eaf6ee, #f9fbf5); }
+.eko-avatar { display: grid; place-items: center; flex-shrink: 0; width: 46px; height: 48px; }
+.eko-avatar img { width: 48px; height: 54px; object-fit: contain; }
+.eko-header-copy { min-width: 0; flex: 1; }
+.eko-header-copy strong { display: flex; align-items: center; gap: 9px; font-size: 19px; letter-spacing: -.5px; }
+.eko-header-copy strong span { padding: 3px 5px; border-radius: 5px; background: #dfeee3; color: #537562; font-size: 8px; letter-spacing: .8px; }
+.eko-header-copy small { display: block; margin-top: 4px; color: #6f8378; font-size: 10px; line-height: 1.5; }
+.eko-icon-button { display: grid; place-items: center; width: 32px; height: 36px; flex-shrink: 0; border: 0; border-radius: 9px; background: transparent; color: #587367; }
+.eko-icon-button:hover { background: #deeee4; }
+.eko-context { display: flex; align-items: center; gap: 6px; padding: 10px 20px; border-bottom: 1px solid #e8eee8; background: white; font-size: 10px; color: #6b8076; }
+.eko-context > span:last-child { margin-left: auto; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eko-context-dot { width: 5px; height: 5px; border-radius: 50%; background: #389971; }
+.eko-conversation { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px; }
+.eko-welcome { text-align: center; }
+.eko-welcome > img { display: block; height: 108px; width: 108px; object-fit: contain; margin: 2px auto 13px; }
+.eko-eyebrow { color: #77917e; font-size: 8px; font-weight: 750; letter-spacing: 1.6px; }
+.eko-welcome h2 { margin: 7px 0; font-size: 23px; letter-spacing: -.7px; color: #183a32; }
+.eko-welcome p { margin: 0 auto; max-width: 270px; color: #7a8b80; font-size: 12px; line-height: 1.7; }
+.eko-suggestions { display: flex; flex-direction: column; gap: 8px; margin-top: 23px; }
+.eko-suggestions button { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 10px 12px; border: 1px solid #e0e9e0; border-radius: 12px; background: white; color: #426955; text-align: left; font: inherit; font-size: 11px; }
+.eko-suggestions button span { flex: 1; }
+.eko-suggestions button:hover { background: #f0f7f0; border-color: #b8d6bf; }
+.eko-suggestions svg { flex-shrink: 0; }
+.eko-message { margin-bottom: 19px; overflow-wrap: anywhere; }
+.eko-message-author { display: block; margin-bottom: 6px; color: #7c9084; font-size: 10px; font-weight: 700; }
+.eko-message-body { padding: 13px 15px; border: 1px solid #e5ece5; border-radius: 4px 15px 15px 15px; background: white; color: #334e40; font-size: 13px; line-height: 1.7; }
+.eko-message-body p { margin: 0 0 9px; }.eko-message-body p:last-child { margin: 0; }
+.eko-message-body ul,.eko-message-body ol { padding-left: 19px; margin: 8px 0; }
+.eko-message-body h1,.eko-message-body h2,.eko-message-body h3 { font-size: 14px; margin: 10px 0 6px; }
+.eko-message-body pre { white-space: pre-wrap; }.eko-message-body code { font-size: 11px; }
+.eko-message--user { margin-left: 28px; }.eko-message--user .eko-message-author { text-align: right; }
+.eko-message--user .eko-message-body { border-color: #daeadf; border-radius: 15px 4px 15px 15px; background: #eaf4ed; }
+.eko-inline-link { display: inline; border: 0; padding: 0; color: #087b61; background: none; text-decoration: underline; font: inherit; }.eko-inline-link svg { vertical-align: middle; }
+.eko-sources { display: flex; flex-wrap: wrap; gap: 5px; padding-top: 8px; }.eko-sources small { width: 100%; color: #7b8a80; font-size: 9px; }
+.eko-sources button { display: inline-flex; align-items: center; gap: 5px; padding: 7px 9px; border: 1px solid #dde9df; border-radius: 8px; background: #f3f8f2; color: #527663; font-size: 10px; text-align: left; }
+.eko-table-scroll { overflow-x: auto; }.eko-table-scroll td,.eko-table-scroll th { padding: 5px; border-bottom: 1px solid #ddd; }
+.eko-thinking { display: flex; align-items: center; gap: 4px; padding: 8px 2px 15px; }.eko-thinking > span { width: 5px; height: 5px; border-radius: 50%; background: #65a987; animation: eko-think 1s ease-in-out infinite; }.eko-thinking > span:nth-child(2) { animation-delay: .15s; }.eko-thinking > span:nth-child(3) { animation-delay: .3s; }.eko-thinking small { margin-left: 7px; color: #728b7b; font-size: 11px; }
+.eko-error { padding: 12px; border-radius: 11px; background: #fff6e8; color: #805d2b; font-size: 12px; }.eko-error p { margin: 0; }.eko-error button { margin-top: 8px; border: 0; background: transparent; padding: 0; color: #176a50; text-decoration: underline; }
+.eko-composer { display: flex; align-items: flex-end; gap: 8px; margin: 0 14px; padding: 10px 10px 10px 13px; border: 1px solid #d8e5d9; border-radius: 15px; background: white; }
+.eko-composer:focus-within { border-color: #74aa87; box-shadow: 0 0 0 3px #e5f1e5; }
+.eko-composer textarea { flex: 1; min-width: 0; resize: none; border: 0; outline: none; font: inherit; font-size: 12px; line-height: 1.6; color: #274938; background: transparent; max-height: 120px; }
+.eko-composer textarea::placeholder { color: #8a9a90; }
+.eko-send { width: 37px; height: 37px; flex-shrink: 0; display: grid; place-items: center; border: 0; border-radius: 11px; background: #196b4e; color: white; }.eko-send:disabled { opacity: .4; cursor: default; }
+.eko-footnote { flex-shrink: 0; margin: 9px 14px 13px; text-align: center; font-size: 9px; color: #95a097; }
+.eko-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.eko-assistant button:focus-visible { outline: 2px solid #17855d; outline-offset: 3px; }
+body[data-mobile-tour="active"] .eko-assistant { visibility: hidden; pointer-events: none; }
+@keyframes eko-arrive { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes eko-think { 50% { opacity: .3; transform: translateY(-3px); } }
+@media (max-width: 600px) {
+  .eko-assistant { right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); }
+  .eko-launcher { min-height: 54px; padding: 7px 12px 7px 55px; gap: 8px; border-radius: 18px; }.eko-launcher > img { width: 57px; height: 66px; }.eko-launcher small { display: none; }
+  .eko-chat { position: fixed; left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); top: max(8px, env(safe-area-inset-top)); width: auto; height: auto; border-radius: 20px; }
+  .eko-assistant:has(.eko-chat) .eko-launcher { display: none; }
+  .eko-chat-header { padding: 13px 10px; }.eko-header-copy small { font-size: 9px; }.eko-icon-button { min-width: 40px; min-height: 44px; }
+  .eko-conversation { padding: 16px; }.eko-composer textarea { font-size: 16px; }.eko-send { width: 44px; height: 44px; }
+  .eko-sources button { min-height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) { .eko-chat,.eko-thinking > span { animation: none; }.eko-launcher { transition: none; } }
+
+.eko-welcome > img { animation: eko-float 4s ease-in-out infinite; }
+.eko-suggestions button { transition: background 180ms, border-color 180ms, transform 180ms; }
+.eko-suggestions button:hover { transform: translateX(3px); }
+.eko-send { transition: transform 150ms, opacity 150ms; }
+.eko-send:not(:disabled):active { transform: scale(.9); }
+@keyframes eko-float { 50% { transform: translateY(-5px) rotate(-2deg); } }
+@media (prefers-reduced-motion: reduce) { .eko-welcome > img { animation: none; } .eko-suggestions button,.eko-send { transition: none; } .eko-suggestions button:hover { transform: none; } }

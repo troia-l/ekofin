@@ -332,3 +332,38 @@ button {
   margin-bottom: 6px;
   font-weight: 500;
 }
+/* Mobile shell keeps the guided pages at the full available width. */
+.main-content, .page-content { min-width: 0; min-height: 0; }
+.app-container { height: 100dvh; }
+@media (max-width: 900px) {
+  .app-container { flex-direction: column; }
+  .portal-sidebar { width: 100% !important; flex-shrink: 0; padding: 8px 0 !important; }
+  .portal-sidebar > :not(.portal-sidebar-links) { display: none; }
+  .portal-sidebar-links { flex-direction: row !important; gap: 4px !important; padding: 0 8px !important; overflow-x: auto; }
+  .portal-sidebar-links > a { flex: 1; min-width: 76px; }
+  .portal-sidebar-links > a > div { padding: 8px 5px !important; justify-content: center !important; }
+  .portal-sidebar-links > a > div > div:last-child { flex-direction: column; gap: 3px !important; text-align: center; font-size: 10px; }
+  .portal-topnav { height: auto !important; min-height: 60px; flex-shrink: 0; padding: 10px 16px !important; gap: 10px; }
+  .portal-topnav > div { gap: 8px !important; min-width: 0; }
+  .portal-topnav > div:first-child { flex: 1; }
+  .portal-topnav > div:first-child > div:last-child { min-width: 0; }
+  .portal-topnav > div:first-child > div:last-child > span { font-size: 12px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .portal-topnav > div:last-child > :not(button) { display: none !important; }
+  .page-content { padding: 18px 14px; }
+  .public-header > .container { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 0 16px; }
+  .public-header nav { grid-row: 2; grid-column: 1 / -1; min-width: 0; overflow-x: auto; gap: 22px !important; padding: 8px 0 2px; font-size: 12px !important; }
+  .public-header nav a { flex-shrink: 0; min-height: 32px; }
+  .public-header > .container > div > div:first-child { display: none !important; }
+}
+@media (max-width: 480px) {
+  .page-content { padding: 14px 12px; }
+  .page-content .card { padding: 16px; border-radius: 16px; }
+  .portal-topnav > div:last-child > button:first-of-type { display: none; }
+  .portal-topnav > div:first-child > div:first-child > span { display: none; }
+  .page-title { font-size: 23px; }
+}
+
+@media (max-height: 500px) and (max-width: 900px) {
+  body[data-mobile-tour="active"] .portal-sidebar,
+  body[data-mobile-tour="active"] .portal-topnav { display: none !important; }
+}
