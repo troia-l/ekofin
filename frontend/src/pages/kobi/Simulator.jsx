@@ -364,6 +364,13 @@ const Simulator = () => {
       }).sort((a, b) => a.effectiveRate - b.effectiveRate)
     : [];
 
+  const comparisonBank = bankOffers[0] || PARTNER_BANKS.reduce((best, bank) => bank.baseRate < best.baseRate ? bank : best);
+  const comparisonRate = bankOffers[0]?.effectiveRate ?? comparisonBank.baseRate;
+  const regularPayment = calcMonthlyPayment(loanAmount, comparisonBank.baseRate, loanYears);
+  const greenPayment = calcMonthlyPayment(loanAmount, comparisonRate, loanYears);
+  const monthlySaving = Math.max(0, regularPayment - greenPayment);
+  const money = value => value.toLocaleString('tr-TR', { maximumFractionDigits: 0 });
+
   const handleApplyBank = async (bank) => {
     setApplyingBankId(bank.id);
     try {
@@ -513,7 +520,7 @@ const Simulator = () => {
       </motion.div>
 
       {/* ── İki Sütunlu Grid Düzeni ────────────────────────────────────────────── */}
-      <div className="simulator-main-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: '28px' }}>
+      <div className={`simulator-main-grid ${currentStep === 4 ? 'simulator-main-grid--results' : ''}`} style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: '28px' }}>
         
         {/* SOL KOLON: Sihirbaz Adım İçeriği */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -1036,13 +1043,13 @@ const Simulator = () => {
                   </div>
                   <div>
                     <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--primary-midnight)' }}>4. Sonuç Hazır</h3>
-                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>Yeşil kredi değerlendirmeniz ve banka teklifleri sağda listelendi</p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>Faiz karşılaştırmanız ve banka senaryoları yukarıda listelendi</p>
                   </div>
                 </div>
 
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.7, marginBottom: '20px' }}>
                   Yeşil kredi skorunuz <strong style={{ color: decisionColor }}>{greenCreditScore}/100</strong> olarak hesaplandı.
-                  Sağ paneldeki banka tekliflerini inceleyip doğrudan başvurabilir, ya da senaryolarınızı değiştirip sonucu yeniden görebilirsiniz.
+                  Yukarıdaki banka senaryolarını inceleyip doğrudan başvurabilir, ya da senaryolarınızı değiştirip sonucu yeniden görebilirsiniz.
                 </p>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
@@ -1212,7 +1219,15 @@ const Simulator = () => {
 
               {/* Adım 4 Aktifse (Nihai Yeşil Kredi Raporu) */}
               {currentStep === 4 && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <motion.div className="green-credit-results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                  <div className="green-credit-comparison">
+                    <div className="green-credit-intro"><span>FAİZ AVANTAJINIZ</span><h3>Yeşil dönüşümün finansal karşılığı</h3><p>{money(loanAmount)} ₺ kredi · {loanYears} yıl vade<br />{comparisonBank.name} oranlarıyla örnek hesaplama</p></div>
+                    <div className="green-credit-rate"><span>Normal yıllık faiz</span><strong>%{comparisonBank.baseRate.toFixed(2)}</strong><small>Aylık taksit: {money(regularPayment)} ₺</small></div>
+                    <div className="green-credit-rate green-credit-rate--green"><span>İndirimli yıllık faiz</span><strong>%{comparisonRate.toFixed(2)}</strong><small>{(comparisonBank.baseRate - comparisonRate).toFixed(2)} yüzde puan indirim</small><small>Aylık taksit: {money(greenPayment)} ₺</small></div>
+                    <div className="green-credit-impact"><span>Vade boyunca tahmini tasarruf</span><strong>{money(monthlySaving * loanYears * 12)} ₺</strong><small>Her ay {money(monthlySaving)} ₺ daha az ödeme</small></div>
+                    <p className="green-credit-note">{bankOffers.length ? 'Aynı kredi tutarı ve vadede eşit taksit karşılaştırması. Oranlar uygulamadaki örnek senaryo oranlarıdır; güncel banka teklifi değildir. Vergi, ücret ve sigorta hariçtir.' : 'Skor indirim eşiğinin altında; bu senaryoda faiz indirimi uygulanmıyor. Oranlar örnektir, banka teklifi değildir.'}</p>
+                  </div>
 
                   {/* KREDİ KARARI KARTI */}
                   <div style={{

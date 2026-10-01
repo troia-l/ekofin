@@ -33,3 +33,22 @@
 @media (max-width: 380px) {
   .simulator-stepper { grid-template-columns: minmax(0, 1fr); }
 }
+
+.simulator-main-grid--results { grid-template-columns: minmax(0, 1fr) !important; }
+.simulator-main-grid--results > .simulator-result-panel { grid-row: 1; width: 100%; }
+.green-credit-results { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+.green-credit-results > * { min-width: 0; }
+.green-credit-comparison { grid-column: 1 / -1; display: grid; grid-template-columns: 1.1fr 1fr 1fr 1.2fr; gap: 16px; padding: 24px; background: linear-gradient(120deg,#143a35,#122a2e); border: 1px solid #397d6666; border-radius: 18px; margin-bottom: 8px; }
+.green-credit-comparison span { font-size: 11px; color: #b0c8c0; display: block; }
+.green-credit-intro > span { letter-spacing: 1.2px; color: #8ae3b9; font-size: 9px; font-weight: 750; }
+.green-credit-intro h3 { font-size: 20px; line-height: 1.3; margin: 8px 0; color: white; }
+.green-credit-intro p { font-size: 11px; line-height: 1.7; color: #b0c8c0; margin: 0; }
+.green-credit-rate,.green-credit-impact { display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 16px; border-left: 1px solid #ffffff15; }
+.green-credit-comparison strong { font-size: clamp(25px,2.5vw,38px); line-height: 1.2; letter-spacing: -1px; font-variant-numeric: tabular-nums; color: white; }
+.green-credit-comparison small { font-size: 11px; color: #a6bfb6; line-height: 1.6; }
+.green-credit-rate--green strong { color: #7aefb7; }
+.green-credit-impact { border: 1px solid #80e9b533; background: #9df4c40c; border-radius: 12px; }
+.green-credit-impact strong { color: #9df4c4; }
+.green-credit-note { grid-column: 1 / -1; margin: 4px 0 0; font-size: 10px; color: #a6bfb6; line-height: 1.6; }
+@media(max-width:1100px) { .green-credit-comparison { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:760px) { .green-credit-results { grid-template-columns: minmax(0,1fr); }.green-credit-comparison { padding: 16px; gap: 12px; }.green-credit-intro,.green-credit-impact { grid-column: 1 / -1; }.green-credit-rate { padding: 10px 0; border: 0; }.green-credit-comparison strong { font-size: 28px; } }
