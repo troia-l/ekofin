@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import JuryDemoTour from '../../components/JuryDemoTour';
+import EsgNews from '../../components/EsgNews';
 import { GREEN_TEXTILE_DEMO, getGreenTextileDemoState, isGreenTextileUser } from '../../demo/greenTextileDemo';
 import './Dashboard.css';
 import {
@@ -562,6 +563,7 @@ const Dashboard = () => {
             </div>
           </div>
 
+          <EsgNews key={ticker} ticker={ticker} demo={isGreenTextileDemo} />
         </section>
 
         {/* ===================== SAĞ KOLON: 3 ADET KART (HİZALI VE SADE) ===================== */}
